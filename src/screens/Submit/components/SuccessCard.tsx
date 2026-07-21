@@ -1,4 +1,5 @@
 import React from 'react';
+import { MdCelebration, MdReplay } from 'react-icons/md';
 
 type SuccessCardProps = {
   orderNumber: number | null;
@@ -18,9 +19,15 @@ const SuccessCard = ({ orderNumber }: SuccessCardProps) => {
         <path d="M16 29.5 24.5 38 40 20" />
       </svg>
       <h2>Đã nhận bài dự thi!</h2>
-      {orderNumber !== null && <div className="order">🎉 Bạn là bài dự thi thứ {orderNumber}!</div>}
+      {orderNumber !== null && (
+        <div className="order">
+          <MdCelebration size={18} />
+          Bạn là bài dự thi thứ {orderNumber}!
+        </div>
+      )}
       <p>Cảm ơn bạn đã tham gia. Ban tổ chức đã ghi nhận bài nộp.</p>
       <button className="btn" style={styles.reloadButton} onClick={handleReload}>
+        <MdReplay size={19} />
         Nộp bài khác
       </button>
     </div>

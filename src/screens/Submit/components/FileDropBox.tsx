@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { MdCheckCircle, MdClose } from 'react-icons/md';
 import { formatMb } from '../../../utils/format';
 
 type FileDropBoxProps = {
   inputId: string;
-  icon: string;
+  icon: React.ReactNode;
   emptyText: string;
   subText: string;
   accept: string;
@@ -61,9 +62,10 @@ const FileDropBox = ({ inputId, icon, emptyText, subText, accept, file, onSelect
       <div className="sub">{subText}</div>
       {file && (
         <span className="filechip" style={styles.chip}>
-          ✓ {formatMb(file.size)}
+          <MdCheckCircle size={16} />
+          {formatMb(file.size)}
           <span className="x" title="Bỏ chọn file" onClick={handleClearFile}>
-            ✕
+            <MdClose size={15} />
           </span>
         </span>
       )}

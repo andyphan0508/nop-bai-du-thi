@@ -24,8 +24,8 @@ var TZ = 'GMT+7';
 
 var HEADERS = [
   'Thời gian nộp', 'Họ tên', 'Email', 'SĐT', 'Nhóm/Ban ngành',
-  'Tên tác phẩm', 'Ghi chú', 'Link file nguồn (dán)',
-  'File đã upload', 'Thư mục bài nộp',
+  'Tên tác phẩm', 'Hình thức', 'Thành viên nhóm', 'Ghi chú',
+  'Link file nguồn (dán)', 'File đã upload', 'Thư mục bài nộp',
 ];
 
 function json(obj) {
@@ -76,6 +76,7 @@ function doPost(e) {
     var required = [
       ['fullName', 'Họ tên'], ['email', 'Email'], ['phone', 'SĐT'],
       ['group', 'Nhóm/Ban ngành'], ['title', 'Tên tác phẩm'],
+      ['entryType', 'Hình thức dự thi'], ['notes', 'Mô tả ý tưởng'],
     ];
     for (var i = 0; i < required.length; i++) {
       if (!String(data[required[i][0]] || '').trim()) {
@@ -87,6 +88,12 @@ function doPost(e) {
     }
     if (!/^(0|\+84)(\d[\s.-]?){8,10}$/.test(String(data.phone).trim())) {
       return json({ ok: false, error: 'Số điện thoại không hợp lệ.' });
+    }
+    if (String(data.entryType) === 'Làm nhóm') {
+      var members = (data.members || []).map(function (m) { return String(m || '').trim(); }).filter(String);
+      if (members.length < 3) {
+        return json({ ok: false, error: 'Vui lòng nhập đủ họ tên 3 thành viên nhóm.' });
+      }
     }
     if ((!data.files || !data.files.length) && !data.sourceLink) {
       return json({ ok: false, error: 'Cần tải lên ít nhất 1 file hoặc dán link bài dự thi.' });
@@ -122,6 +129,8 @@ function doPost(e) {
       data.phone || '',
       data.group || '',
       data.title || '',
+      data.entryType || '',
+      (data.members || []).join(', '),
       data.notes || '',
       data.sourceLink || '',
       fileLinks.join('\n'),

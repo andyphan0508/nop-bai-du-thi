@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import BackgroundDecor from './components/BackgroundDecor';
 import SubmitHeader from './components/SubmitHeader';
-import SubmitForm from './components/SubmitForm';
+import SubmitForm, { ENTRY_TYPE_TEAM } from './components/SubmitForm';
 import SuccessCard from './components/SuccessCard';
 import Confetti from './components/Confetti';
 import EntryListPanel from './components/EntryListPanel';
+import ToastStack, { type ToastItem } from './components/Toast';
 import { submissionApi } from '../../api/submissionApi';
 import { IS_CONFIGURED, MAX_UPLOAD_MB } from '../../config';
 import type { ContestEntry, SubmitPayload } from '../../types';
@@ -29,6 +30,21 @@ const SubmitScreen = () => {
   const [isSubmitSuccess, setIsSubmitSuccess] = useState<boolean>(false);
   const [submitOrderNumber, setSubmitOrderNumber] = useState<number | null>(null);
 
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdRef = useRef<number>(0);
+
+  const showToast = (message: string, type: ToastItem['type'] = 'error') => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 4500);
+  };
+
+  const dismissToast = (id: number) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
+
   // 2. Logic functions
   const validatePdfFile = (file: File): boolean => {
     if (!file) return false;
@@ -49,50 +65,58 @@ const SubmitScreen = () => {
   const validateSubmission = (formData: FormData, sourceLink: string): boolean => {
     const getField = (name: string) => String(formData.get(name) || '').trim();
 
+    // Báo lỗi: hiện toast + giữ thông báo inline trong form
+    const fail = (message: string): false => {
+      setSubmitError(message);
+      showToast(message);
+      return false;
+    };
+
     const requiredFields: Array<[string, string]> = [
       ['fullName', 'Họ và tên'],
       ['group', 'Nhóm / Ban ngành'],
       ['email', 'Email'],
       ['phone', 'Số điện thoại'],
       ['title', 'Tên tác phẩm'],
+      ['entryType', 'Hình thức dự thi'],
+      ['notes', 'Mô tả ý tưởng / Ghi chú'],
     ];
     for (const [name, label] of requiredFields) {
       if (!getField(name)) {
-        setSubmitError(`Vui lòng nhập đầy đủ thông tin: thiếu "${label}".`);
-        return false;
+        return fail(`Vui lòng nhập đầy đủ thông tin: thiếu "${label}".`);
       }
     }
     if (getField('fullName').length < 2) {
-      setSubmitError('Họ và tên quá ngắn, vui lòng nhập đầy đủ.');
-      return false;
+      return fail('Họ và tên quá ngắn, vui lòng nhập đầy đủ.');
     }
     if (!EMAIL_REGEX.test(getField('email'))) {
-      setSubmitError('Email không hợp lệ, vui lòng kiểm tra lại.');
-      return false;
+      return fail('Email không hợp lệ, vui lòng kiểm tra lại.');
     }
     if (!PHONE_REGEX.test(getField('phone'))) {
-      setSubmitError('Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678).');
-      return false;
+      return fail('Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678).');
+    }
+    if (getField('entryType') === ENTRY_TYPE_TEAM) {
+      for (let memberIndex = 1; memberIndex <= 3; memberIndex++) {
+        if (!getField(`member${memberIndex}`)) {
+          return fail(`Vui lòng nhập họ tên thành viên ${memberIndex} của nhóm.`);
+        }
+      }
     }
     if (!selectedPdfFile) {
-      setSubmitError('Vui lòng chọn bản PDF dự thi.');
-      return false;
+      return fail('Vui lòng chọn bản PDF dự thi.');
     }
     if (!selectedSrcFile && !sourceLink) {
-      setSubmitError('Vui lòng tải file nguồn (.ai/.psd) hoặc dán link Google Drive.');
-      return false;
+      return fail('Vui lòng tải file nguồn (.ai/.psd) hoặc dán link Google Drive.');
     }
     if (sourceLink && !/^https?:\/\/\S+$/i.test(sourceLink)) {
-      setSubmitError('Link file nguồn không hợp lệ — hãy dán link đầy đủ bắt đầu bằng https://');
-      return false;
+      return fail('Link file nguồn không hợp lệ — hãy dán link đầy đủ bắt đầu bằng https://');
     }
     const files = [selectedPdfFile, selectedSrcFile].filter(Boolean) as File[];
     for (const file of files) {
       if (file.size > MAX_UPLOAD_MB * 1048576) {
-        setSubmitError(
+        return fail(
           `File "${file.name}" (${formatMb(file.size)}) vượt ${MAX_UPLOAD_MB}MB. Hãy tải file đó lên Google Drive và dán link.`,
         );
-        return false;
       }
     }
     return true;
@@ -108,12 +132,20 @@ const SubmitScreen = () => {
         data: await readFileAsBase64(file),
       });
     }
+    const entryType = String(formData.get('entryType') || '').trim();
+    const members =
+      entryType === ENTRY_TYPE_TEAM
+        ? [1, 2, 3].map((i) => String(formData.get(`member${i}`) || '').trim()).filter(Boolean)
+        : [];
+
     return {
       fullName: String(formData.get('fullName') || '').trim(),
       email: String(formData.get('email') || '').trim(),
       phone: String(formData.get('phone') || '').trim(),
       group: String(formData.get('group') || '').trim(),
       title: String(formData.get('title') || '').trim(),
+      entryType,
+      members,
       notes: String(formData.get('notes') || '').trim(),
       sourceLink,
       files: encodedFiles,
@@ -186,10 +218,13 @@ const SubmitScreen = () => {
       setUploadProgressRatio(1);
       setSubmitOrderNumber(response.count ?? null);
       setIsSubmitSuccess(true);
+      showToast('Nộp bài dự thi thành công!', 'success');
       fetchEntryList(String(formData.get('fullName') || ''));
       return true;
     } catch (error) {
-      setSubmitError('Lỗi: ' + (error instanceof Error ? error.message : String(error)));
+      const message = 'Lỗi: ' + (error instanceof Error ? error.message : String(error));
+      setSubmitError(message);
+      showToast(message);
       return false;
     } finally {
       setIsSubmitting(false);
@@ -247,6 +282,8 @@ const SubmitScreen = () => {
 
         <div className="foot">© {new Date().getFullYear()} Ban Thanh Niên · HTTL Chi Hội Sài Gòn</div>
       </div>
+
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 };

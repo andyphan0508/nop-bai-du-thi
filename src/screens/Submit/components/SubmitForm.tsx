@@ -1,9 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  MdBrush,
+  MdCheck,
+  MdErrorOutline,
+  MdGroups,
+  MdInfoOutline,
+  MdPerson,
+  MdPictureAsPdf,
+  MdSend,
+  MdSettingsSuggest,
+} from 'react-icons/md';
 import FileDropBox from './FileDropBox';
 import UploadProgress from './UploadProgress';
 import { formatMb } from '../../../utils/format';
 
 const GROUP_OPTIONS = ['Áp-ra-ham', 'Ti-mô-thê', 'Phao-lô', 'Đa-vít', 'Nhóm ban ngành'];
+
+export const ENTRY_TYPE_SOLO = 'Cá nhân';
+export const ENTRY_TYPE_TEAM = 'Làm nhóm';
+const TEAM_MEMBER_COUNT = 3;
 
 type SubmitFormProps = {
   isConfigured: boolean;
@@ -32,6 +47,8 @@ const SubmitForm = ({
   onSelectSrcFile,
   onSubmit,
 }: SubmitFormProps) => {
+  const [entryType, setEntryType] = useState<string>(ENTRY_TYPE_SOLO);
+
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit(new FormData(event.currentTarget));
@@ -45,15 +62,23 @@ const SubmitForm = ({
   const styles = createStyles();
 
   return (
-    <form onSubmit={handleFormSubmit} style={styles.form}>
+    <form onSubmit={handleFormSubmit} noValidate style={styles.form}>
       {!isConfigured && (
         <div className="banner">
-          ⚙️ Trang chưa được cấu hình: hãy dán URL Apps Script vào biến <b>ENDPOINT</b> trong{' '}
-          <b>src/config.ts</b> (xem HUONG-DAN.md).
+          <MdSettingsSuggest size={18} />
+          <span>
+            Trang chưa được cấu hình: hãy dán URL Apps Script vào biến <b>ENDPOINT</b> trong{' '}
+            <b>src/config.ts</b> (xem HUONG-DAN.md).
+          </span>
         </div>
       )}
 
-      {submitError && <div className="msg err">{submitError}</div>}
+      {submitError && (
+        <div className="msg err">
+          <MdErrorOutline size={18} />
+          <span>{submitError}</span>
+        </div>
+      )}
 
       <div className="two">
         <div className="field">
@@ -102,11 +127,73 @@ const SubmitForm = ({
       </div>
 
       <div className="field">
-        <label>Mô tả ý tưởng / Ghi chú</label>
+        <label>
+          Hình thức dự thi <span className="req">*</span>
+        </label>
+        <div className="segmented">
+          <label className={entryType === ENTRY_TYPE_SOLO ? 'segment active' : 'segment'}>
+            <input
+              type="radio"
+              name="entryType"
+              value={ENTRY_TYPE_SOLO}
+              checked={entryType === ENTRY_TYPE_SOLO}
+              onChange={() => setEntryType(ENTRY_TYPE_SOLO)}
+            />
+            <span className="segment-icon">
+              {entryType === ENTRY_TYPE_SOLO ? <MdCheck size={18} /> : <MdPerson size={18} />}
+            </span>
+            <span>Cá nhân</span>
+          </label>
+          <label className={entryType === ENTRY_TYPE_TEAM ? 'segment active' : 'segment'}>
+            <input
+              type="radio"
+              name="entryType"
+              value={ENTRY_TYPE_TEAM}
+              checked={entryType === ENTRY_TYPE_TEAM}
+              onChange={() => setEntryType(ENTRY_TYPE_TEAM)}
+            />
+            <span className="segment-icon">
+              {entryType === ENTRY_TYPE_TEAM ? <MdCheck size={18} /> : <MdGroups size={18} />}
+            </span>
+            <span>Làm nhóm</span>
+          </label>
+        </div>
+      </div>
+
+      {entryType === ENTRY_TYPE_TEAM && (
+        <div className="field member-fields">
+          <label>
+            Danh sách thành viên nhóm ({TEAM_MEMBER_COUNT} bạn) <span className="req">*</span>
+          </label>
+          <div className="member-card">
+            {Array.from({ length: TEAM_MEMBER_COUNT }, (_, index) => (
+              <div className="member-row" key={index}>
+                <span className="member-num">{index + 1}</span>
+                <input
+                  className="input member-input"
+                  name={`member${index + 1}`}
+                  required
+                  placeholder={`Họ tên thành viên ${index + 1}`}
+                />
+              </div>
+            ))}
+            <div className="hint member-hint">
+              <MdInfoOutline size={14} />
+              Ghi đầy đủ họ tên của cả {TEAM_MEMBER_COUNT} bạn trong nhóm.
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="field">
+        <label>
+          Mô tả ý tưởng / Ghi chú <span className="req">*</span>
+        </label>
         <textarea
           className="textarea"
           name="notes"
-          placeholder="Vài dòng giới thiệu ý tưởng thiết kế (không bắt buộc)"
+          required
+          placeholder="Vài dòng giới thiệu ý tưởng thiết kế của bạn"
         />
       </div>
 
@@ -116,7 +203,7 @@ const SubmitForm = ({
         </label>
         <FileDropBox
           inputId="pdfInput"
-          icon="📄"
+          icon={<MdPictureAsPdf size={24} />}
           emptyText="Chọn / kéo thả file PDF vào đây"
           subText="Chỉ nhận .pdf"
           accept="application/pdf,.pdf"
@@ -129,7 +216,7 @@ const SubmitForm = ({
         <label>File thiết kế nguồn (.ai / .psd)</label>
         <FileDropBox
           inputId="srcInput"
-          icon="🎨"
+          icon={<MdBrush size={24} />}
           emptyText="Chọn / kéo thả file nguồn vào đây"
           subText={srcSubText}
           accept=".ai,.psd,.zip,image/vnd.adobe.photoshop,application/postscript,application/illustrator"
@@ -143,13 +230,15 @@ const SubmitForm = ({
           placeholder="Dán link Google Drive của file nguồn (cho file nặng)"
         />
         <div className="hint">
+          <MdInfoOutline size={14} />
           Nếu file .ai/.psd quá nặng: tải lên Google Drive của bạn, đặt chia sẻ "Bất kỳ ai có link", rồi dán
           link vào đây.
         </div>
       </div>
 
       <button className="btn" type="submit" disabled={isSubmitting}>
-        🚀 Gửi bài dự thi
+        <MdSend size={19} />
+        Gửi bài dự thi
       </button>
 
       {isSubmitting && <UploadProgress progressRatio={uploadProgressRatio} label={uploadProgressLabel} />}

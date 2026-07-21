@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MdAutoAwesome, MdEmojiEvents, MdErrorOutline, MdRefresh } from 'react-icons/md';
 import type { ContestEntry } from '../../../types';
 import AnimatedCounter from './AnimatedCounter';
 import EntryItem from './EntryItem';
@@ -36,14 +37,17 @@ const EntryListPanel = ({
   return (
     <div className="panel">
       <div className="panel-head">
-        <h2>🏆 Danh sách dự thi</h2>
+        <h2>
+          <MdEmojiEvents size={22} />
+          Danh sách dự thi
+        </h2>
         <button
           className={isSpinning ? 'refresh spin' : 'refresh'}
           type="button"
           title="Tải lại danh sách"
           onClick={handleRefreshClick}
         >
-          ↻
+          <MdRefresh size={20} />
         </button>
       </div>
 
@@ -68,12 +72,17 @@ const EntryListPanel = ({
       )}
 
       {!isLoading && isConfigured && error && (
-        <div className="list-note">⚠️ {error} Bấm ↻ để thử lại.</div>
+        <div className="list-note">
+          <MdErrorOutline size={16} />
+          {error} Bấm nút tải lại để thử lại.
+        </div>
       )}
 
       {!isLoading && isConfigured && !error && entries.length === 0 && (
         <div className="list-empty">
-          <span className="big">🌟</span>
+          <span className="big">
+            <MdAutoAwesome size={26} />
+          </span>
           Chưa có bài nộp nào.
           <br />
           Hãy là người đầu tiên!

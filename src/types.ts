@@ -17,6 +17,8 @@ export type SubmitPayload = {
   phone: string;
   group: string;
   title: string;
+  entryType: string;
+  members: string[];
   notes: string;
   sourceLink: string;
   files: SubmitFilePayload[];
