@@ -17,10 +17,8 @@ export type SubmitPayload = {
   phone: string;
   group: string;
   title: string;
-  category: string;
   notes: string;
   sourceLink: string;
-  accessCode: string;
   files: SubmitFilePayload[];
 };
 

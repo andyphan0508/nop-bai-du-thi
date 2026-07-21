@@ -5,7 +5,6 @@ import { formatMb } from '../../../utils/format';
 
 type SubmitFormProps = {
   isConfigured: boolean;
-  requireCode: boolean;
   maxUploadMb: number;
   isSubmitting: boolean;
   uploadProgressRatio: number;
@@ -20,7 +19,6 @@ type SubmitFormProps = {
 
 const SubmitForm = ({
   isConfigured,
-  requireCode,
   maxUploadMb,
   isSubmitting,
   uploadProgressRatio,
@@ -63,8 +61,10 @@ const SubmitForm = ({
           <input className="input" name="fullName" required />
         </div>
         <div className="field">
-          <label>Nhóm / Chi hội</label>
-          <input className="input" name="group" placeholder="VD: Ban Thanh Niên" />
+          <label>
+            Nhóm / Chi hội <span className="req">*</span>
+          </label>
+          <input className="input" name="group" required placeholder="VD: Ban Thanh Niên" />
         </div>
       </div>
 
@@ -83,17 +83,11 @@ const SubmitForm = ({
         </div>
       </div>
 
-      <div className="two">
-        <div className="field">
-          <label>
-            Tên tác phẩm <span className="req">*</span>
-          </label>
-          <input className="input" name="title" required />
-        </div>
-        <div className="field">
-          <label>Thể loại / Hạng mục</label>
-          <input className="input" name="category" placeholder="VD: Thiết kế bìa" />
-        </div>
+      <div className="field">
+        <label>
+          Tên tác phẩm <span className="req">*</span>
+        </label>
+        <input className="input" name="title" required />
       </div>
 
       <div className="field">
@@ -104,15 +98,6 @@ const SubmitForm = ({
           placeholder="Vài dòng giới thiệu ý tưởng thiết kế (không bắt buộc)"
         />
       </div>
-
-      {requireCode && (
-        <div className="field">
-          <label>
-            Mã dự thi <span className="req">*</span>
-          </label>
-          <input className="input" name="accessCode" required placeholder="Mã do Ban tổ chức cung cấp" />
-        </div>
-      )}
 
       <div className="field">
         <label>

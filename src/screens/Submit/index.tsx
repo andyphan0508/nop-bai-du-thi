@@ -6,7 +6,7 @@ import SuccessCard from './components/SuccessCard';
 import Confetti from './components/Confetti';
 import EntryListPanel from './components/EntryListPanel';
 import { submissionApi } from '../../api/submissionApi';
-import { IS_CONFIGURED, MAX_UPLOAD_MB, REQUIRE_CODE } from '../../config';
+import { IS_CONFIGURED, MAX_UPLOAD_MB } from '../../config';
 import type { ContestEntry, SubmitPayload } from '../../types';
 import { readFileAsBase64 } from '../../utils/file';
 import { formatMb } from '../../utils/format';
@@ -42,13 +42,48 @@ const SubmitScreen = () => {
     return true;
   };
 
-  const validateSubmission = (sourceLink: string): boolean => {
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  // SĐT Việt Nam: 0xxxxxxxxx hoặc +84xxxxxxxxx (9–10 số sau đầu số)
+  const PHONE_REGEX = /^(0|\+84)(\d[\s.-]?){8,10}$/;
+
+  const validateSubmission = (formData: FormData, sourceLink: string): boolean => {
+    const getField = (name: string) => String(formData.get(name) || '').trim();
+
+    const requiredFields: Array<[string, string]> = [
+      ['fullName', 'Họ và tên'],
+      ['group', 'Nhóm / Chi hội'],
+      ['email', 'Email'],
+      ['phone', 'Số điện thoại'],
+      ['title', 'Tên tác phẩm'],
+    ];
+    for (const [name, label] of requiredFields) {
+      if (!getField(name)) {
+        setSubmitError(`Vui lòng nhập đầy đủ thông tin: thiếu "${label}".`);
+        return false;
+      }
+    }
+    if (getField('fullName').length < 2) {
+      setSubmitError('Họ và tên quá ngắn, vui lòng nhập đầy đủ.');
+      return false;
+    }
+    if (!EMAIL_REGEX.test(getField('email'))) {
+      setSubmitError('Email không hợp lệ, vui lòng kiểm tra lại.');
+      return false;
+    }
+    if (!PHONE_REGEX.test(getField('phone'))) {
+      setSubmitError('Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678).');
+      return false;
+    }
     if (!selectedPdfFile) {
       setSubmitError('Vui lòng chọn bản PDF dự thi.');
       return false;
     }
     if (!selectedSrcFile && !sourceLink) {
       setSubmitError('Vui lòng tải file nguồn (.ai/.psd) hoặc dán link Google Drive.');
+      return false;
+    }
+    if (sourceLink && !/^https?:\/\/\S+$/i.test(sourceLink)) {
+      setSubmitError('Link file nguồn không hợp lệ — hãy dán link đầy đủ bắt đầu bằng https://');
       return false;
     }
     const files = [selectedPdfFile, selectedSrcFile].filter(Boolean) as File[];
@@ -74,15 +109,13 @@ const SubmitScreen = () => {
       });
     }
     return {
-      fullName: String(formData.get('fullName') || ''),
-      email: String(formData.get('email') || ''),
-      phone: String(formData.get('phone') || ''),
-      group: String(formData.get('group') || ''),
-      title: String(formData.get('title') || ''),
-      category: String(formData.get('category') || ''),
-      notes: String(formData.get('notes') || ''),
+      fullName: String(formData.get('fullName') || '').trim(),
+      email: String(formData.get('email') || '').trim(),
+      phone: String(formData.get('phone') || '').trim(),
+      group: String(formData.get('group') || '').trim(),
+      title: String(formData.get('title') || '').trim(),
+      notes: String(formData.get('notes') || '').trim(),
       sourceLink,
-      accessCode: String(formData.get('accessCode') || ''),
       files: encodedFiles,
     };
   };
@@ -133,7 +166,7 @@ const SubmitScreen = () => {
       setSubmitError('Trang chưa cấu hình ENDPOINT (Apps Script). Xem HUONG-DAN.md.');
       return false;
     }
-    if (!validateSubmission(sourceLink)) return false;
+    if (!validateSubmission(formData, sourceLink)) return false;
 
     try {
       setIsSubmitting(true);
@@ -187,7 +220,6 @@ const SubmitScreen = () => {
             ) : (
               <SubmitForm
                 isConfigured={IS_CONFIGURED}
-                requireCode={REQUIRE_CODE}
                 maxUploadMb={MAX_UPLOAD_MB}
                 isSubmitting={isSubmitting}
                 uploadProgressRatio={uploadProgressRatio}

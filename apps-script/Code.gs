@@ -15,9 +15,6 @@ var FOLDER_ID = 'PASTE_FOLDER_ID';
 // ID Google Sheet dùng để ghi record (lấy từ URL của Sheet)
 var SHEET_ID = 'PASTE_SHEET_ID';
 
-// Mã dự thi (để chống spam). Để trống '' nếu không yêu cầu mã.
-var ACCESS_CODE = '';
-
 // Giới hạn dung lượng mỗi file upload trực tiếp (MB). File nặng hơn → dùng link.
 var MAX_FILE_MB = 45;
 
@@ -27,7 +24,7 @@ var TZ = 'GMT+7';
 
 var HEADERS = [
   'Thời gian nộp', 'Họ tên', 'Email', 'SĐT', 'Nhóm/Chi hội',
-  'Tên tác phẩm', 'Thể loại', 'Ghi chú', 'Link file nguồn (dán)',
+  'Tên tác phẩm', 'Ghi chú', 'Link file nguồn (dán)',
   'File đã upload', 'Thư mục bài nộp',
 ];
 
@@ -75,27 +72,34 @@ function doPost(e) {
     }
     var data = JSON.parse(e.postData.contents);
 
-    // 1) Mã dự thi (nếu bật)
-    if (ACCESS_CODE && String(data.accessCode || '') !== ACCESS_CODE) {
-      return json({ ok: false, error: 'Mã dự thi không đúng.' });
+    // 1) Kiểm tra thông tin bắt buộc
+    var required = [
+      ['fullName', 'Họ tên'], ['email', 'Email'], ['phone', 'SĐT'],
+      ['group', 'Nhóm/Chi hội'], ['title', 'Tên tác phẩm'],
+    ];
+    for (var i = 0; i < required.length; i++) {
+      if (!String(data[required[i][0]] || '').trim()) {
+        return json({ ok: false, error: 'Vui lòng nhập đầy đủ thông tin: thiếu "' + required[i][1] + '".' });
+      }
     }
-
-    // 2) Kiểm tra thông tin bắt buộc
-    if (!data.fullName || !data.title) {
-      return json({ ok: false, error: 'Vui lòng nhập đầy đủ Họ tên và Tên tác phẩm.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(data.email).trim())) {
+      return json({ ok: false, error: 'Email không hợp lệ.' });
+    }
+    if (!/^(0|\+84)(\d[\s.-]?){8,10}$/.test(String(data.phone).trim())) {
+      return json({ ok: false, error: 'Số điện thoại không hợp lệ.' });
     }
     if ((!data.files || !data.files.length) && !data.sourceLink) {
       return json({ ok: false, error: 'Cần tải lên ít nhất 1 file hoặc dán link bài dự thi.' });
     }
 
-    // 3) Tạo thư mục con cho bài nộp
+    // 2) Tạo thư mục con cho bài nộp
     var parent = DriveApp.getFolderById(FOLDER_ID);
     var stamp = Utilities.formatDate(new Date(), TZ, 'yyyyMMdd-HHmmss');
     var safeName = String(data.fullName).replace(/[\\/:*?"<>|]/g, '').slice(0, 60).trim();
     var safeTitle = String(data.title).replace(/[\\/:*?"<>|]/g, '').slice(0, 60).trim();
     var folder = parent.createFolder(stamp + ' · ' + safeName + ' · ' + safeTitle);
 
-    // 4) Lưu từng file
+    // 3) Lưu từng file
     var fileLinks = [];
     (data.files || []).forEach(function (f) {
       var bytes = Utilities.base64Decode(f.data);
@@ -108,7 +112,7 @@ function doPost(e) {
       fileLinks.push(f.name + ': ' + file.getUrl());
     });
 
-    // 5) Ghi record vào Sheet
+    // 4) Ghi record vào Sheet
     var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
     ensureHeader(sheet);
     sheet.appendRow([
@@ -118,7 +122,6 @@ function doPost(e) {
       data.phone || '',
       data.group || '',
       data.title || '',
-      data.category || '',
       data.notes || '',
       data.sourceLink || '',
       fileLinks.join('\n'),

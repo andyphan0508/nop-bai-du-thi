@@ -58,7 +58,6 @@ Người dự thi **không cần tài khoản Google**, và bạn **không lộ 
 Mở **`src/config.ts`** và dán URL vừa copy:
 ```ts
 export const ENDPOINT = 'https://script.google.com/macros/s/AKfy.../exec';
-export const REQUIRE_CODE = false;   // đổi true nếu bạn đặt ACCESS_CODE ở Bước 3
 export const MAX_UPLOAD_MB = 45;     // khớp với MAX_FILE_MB trong Code.gs
 ```
 
@@ -100,7 +99,6 @@ Trang web hiển thị **danh sách các bạn đã nộp bài + tổng số lư
 ## Lưu ý & giới hạn
 
 - **Dung lượng:** mỗi file upload trực tiếp nên **< ~45MB**. File .ai/.psd nặng hơn → người dự thi tải lên Google Drive của họ, đặt chia sẻ "Bất kỳ ai có link" rồi **dán link** vào form (form đã có sẵn ô này).
-- **Chống spam:** bật `ACCESS_CODE` (Bước 3) + `REQUIRE_CODE = true` (Bước 4) để chỉ người có mã mới nộp được.
 - **Riêng tư:** bài nộp nằm trong Drive của bạn; chỉ bạn (và người bạn chia sẻ) xem được.
 - **Bảo mật:** trang không thu thập mật khẩu; script chạy dưới quyền bạn nên không cần đăng nhập phía người dự thi.
 - Muốn đổi cột ghi nhận: sửa mảng `HEADERS` và dòng `sheet.appendRow([...])` trong `Code.gs`.
@@ -114,7 +112,7 @@ nop-bai-du-thi/
 ├─ public/logo.jpg                  Logo (favicon)
 ├─ src/
 │  ├─ main.tsx                      Điểm khởi động React
-│  ├─ config.ts                     ENDPOINT / REQUIRE_CODE / MAX_UPLOAD_MB
+│  ├─ config.ts                     ENDPOINT / MAX_UPLOAD_MB
 │  ├─ types.ts                      Kiểu dữ liệu chung
 │  ├─ api/submissionApi.ts          Gọi API Apps Script (list + submit có % upload)
 │  ├─ assets/logobtnsg.jpg          Logo Ban Thanh Niên
