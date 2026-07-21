@@ -23,7 +23,7 @@ var TZ = 'GMT+7';
 // ----------------------------------------------------------------------------
 
 var HEADERS = [
-  'Thời gian nộp', 'Họ tên', 'Email', 'SĐT', 'Nhóm/Chi hội',
+  'Thời gian nộp', 'Họ tên', 'Email', 'SĐT', 'Nhóm/Ban ngành',
   'Tên tác phẩm', 'Ghi chú', 'Link file nguồn (dán)',
   'File đã upload', 'Thư mục bài nộp',
 ];
@@ -75,7 +75,7 @@ function doPost(e) {
     // 1) Kiểm tra thông tin bắt buộc
     var required = [
       ['fullName', 'Họ tên'], ['email', 'Email'], ['phone', 'SĐT'],
-      ['group', 'Nhóm/Chi hội'], ['title', 'Tên tác phẩm'],
+      ['group', 'Nhóm/Ban ngành'], ['title', 'Tên tác phẩm'],
     ];
     for (var i = 0; i < required.length; i++) {
       if (!String(data[required[i][0]] || '').trim()) {

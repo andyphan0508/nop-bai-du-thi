@@ -51,7 +51,7 @@ const SubmitScreen = () => {
 
     const requiredFields: Array<[string, string]> = [
       ['fullName', 'Họ và tên'],
-      ['group', 'Nhóm / Chi hội'],
+      ['group', 'Nhóm / Ban ngành'],
       ['email', 'Email'],
       ['phone', 'Số điện thoại'],
       ['title', 'Tên tác phẩm'],

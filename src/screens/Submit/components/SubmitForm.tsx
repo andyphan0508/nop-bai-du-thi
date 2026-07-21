@@ -3,6 +3,8 @@ import FileDropBox from './FileDropBox';
 import UploadProgress from './UploadProgress';
 import { formatMb } from '../../../utils/format';
 
+const GROUP_OPTIONS = ['Áp-ra-ham', 'Ti-mô-thê', 'Phao-lô', 'Đa-vít', 'Nhóm ban ngành'];
+
 type SubmitFormProps = {
   isConfigured: boolean;
   maxUploadMb: number;
@@ -62,9 +64,18 @@ const SubmitForm = ({
         </div>
         <div className="field">
           <label>
-            Nhóm / Chi hội <span className="req">*</span>
+            Nhóm / Ban ngành <span className="req">*</span>
           </label>
-          <input className="input" name="group" required placeholder="VD: Ban Thanh Niên" />
+          <select className="input select" name="group" required defaultValue="">
+            <option value="" disabled>
+              — Chọn nhóm / ban ngành —
+            </option>
+            {GROUP_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
