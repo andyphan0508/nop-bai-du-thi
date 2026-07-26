@@ -15,6 +15,13 @@ var FOLDER_ID = 'PASTE_FOLDER_ID';
 // ID Google Sheet dùng để ghi record (lấy từ URL của Sheet)
 var SHEET_ID = 'PASTE_SHEET_ID';
 
+// Mã quản trị: cần để xoá bài trên web (mở web với ?admin=1).
+// Để trống '' nếu muốn TẮT hẳn tính năng xoá.
+var ADMIN_KEY = '';
+
+// Tên sheet lưu các bài đã xoá (xoá mềm — không mất dữ liệu)
+var TRASH_SHEET_NAME = 'Đã xoá';
+
 // Giới hạn dung lượng mỗi file upload trực tiếp (MB). File nặng hơn → dùng link.
 var MAX_FILE_MB = 45;
 
@@ -50,12 +57,17 @@ function handleList() {
     var lastRow = sheet.getLastRow();
     if (lastRow <= 1) return json({ ok: true, count: 0, entries: [] });
 
-    var values = sheet.getRange(2, 1, lastRow - 1, 6).getValues(); // Thời gian, Họ tên, Email, SĐT, Nhóm, Tác phẩm
-    var entries = values.map(function (r) {
+    var values = sheet.getRange(2, 1, lastRow - 1, 8).getValues(); // Thời gian, Họ tên, Email, SĐT, Nhóm, Tác phẩm, Hình thức, Thành viên
+    var entries = values.map(function (r, i) {
       var time = r[0];
       if (time instanceof Date) time = Utilities.formatDate(time, TZ, 'dd/MM HH:mm');
       else time = String(time || '').replace(/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2}).*$/, '$2/$1 $3');
-      return { time: time, name: String(r[1] || ''), group: String(r[4] || ''), title: String(r[5] || '') };
+      var members = String(r[7] || '').split(',').map(function (m) { return m.trim(); }).filter(String);
+      // row: số dòng thật trong Sheet — dùng cho chức năng xoá của quản trị viên
+      return {
+        time: time, name: String(r[1] || ''), group: String(r[4] || ''), title: String(r[5] || ''),
+        entryType: String(r[6] || ''), members: members, row: i + 2,
+      };
     });
     entries.reverse(); // mới nhất lên đầu
 
@@ -71,6 +83,9 @@ function doPost(e) {
       return json({ ok: false, error: 'Không có dữ liệu gửi lên.' });
     }
     var data = JSON.parse(e.postData.contents);
+
+    // Yêu cầu xoá bài (chỉ quản trị viên có ADMIN_KEY)
+    if (data.action === 'delete') return handleDelete(data);
 
     // 1) Kiểm tra thông tin bắt buộc
     var required = [
@@ -146,10 +161,48 @@ function doPost(e) {
   }
 }
 
-// Thêm dòng tiêu đề nếu Sheet đang trống
+// Xoá mềm 1 bài: chuyển dòng sang sheet "Đã xoá" rồi xoá khỏi sheet chính.
+// An toàn: cần đúng ADMIN_KEY, và tên trên dòng phải khớp với tên phía web gửi lên
+// (nếu Sheet đã bị thay đổi giữa chừng thì từ chối để tránh xoá nhầm dòng khác).
+function handleDelete(data) {
+  if (!ADMIN_KEY) {
+    return json({ ok: false, error: 'Tính năng xoá đang tắt (chưa đặt ADMIN_KEY).' });
+  }
+  if (String(data.adminKey || '') !== ADMIN_KEY) {
+    return json({ ok: false, error: 'Mã quản trị không đúng.' });
+  }
+  var row = Number(data.row);
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheets()[0];
+  if (!row || row < 2 || row > sheet.getLastRow()) {
+    return json({ ok: false, error: 'Dòng không hợp lệ, hãy tải lại danh sách.' });
+  }
+  var values = sheet.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+  if (String(values[1] || '') !== String(data.name || '')) {
+    return json({ ok: false, error: 'Danh sách đã thay đổi, hãy tải lại rồi thử xoá lại.' });
+  }
+  var trash = ss.getSheetByName(TRASH_SHEET_NAME) || ss.insertSheet(TRASH_SHEET_NAME);
+  if (trash.getLastRow() === 0) {
+    trash.appendRow(HEADERS.concat(['Xoá lúc']));
+    trash.getRange(1, 1, 1, HEADERS.length + 1).setFontWeight('bold');
+    trash.setFrozenRows(1);
+  }
+  trash.appendRow(values.concat([Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]));
+  sheet.deleteRow(row);
+  return json({ ok: true, count: Math.max(0, sheet.getLastRow() - 1) });
+}
+
+// Ghi dòng tiêu đề nếu Sheet trống, hoặc tự cập nhật khi tiêu đề cũ lệch chuẩn
 function ensureHeader(sheet) {
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(HEADERS);
+  var needWrite = sheet.getLastRow() === 0;
+  if (!needWrite) {
+    var current = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+    needWrite = HEADERS.some(function (header, i) {
+      return String(current[i] || '') !== header;
+    });
+  }
+  if (needWrite) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
   }

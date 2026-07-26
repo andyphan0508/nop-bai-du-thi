@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { MdAutoAwesome, MdEmojiEvents, MdErrorOutline, MdRefresh } from 'react-icons/md';
+import {
+  MdAdminPanelSettings,
+  MdAutoAwesome,
+  MdEmojiEvents,
+  MdErrorOutline,
+  MdRefresh,
+} from 'react-icons/md';
 import type { ContestEntry } from '../../../types';
 import AnimatedCounter from './AnimatedCounter';
 import EntryItem from './EntryItem';
@@ -12,6 +18,10 @@ type EntryListPanelProps = {
   freshEntryName: string | null;
   isConfigured: boolean;
   onRefresh: () => Promise<boolean>;
+  isAdmin: boolean;
+  adminKey: string;
+  onAdminKeyChange: (key: string) => void;
+  onDeleteEntry: (entry: ContestEntry) => Promise<void>;
 };
 
 const EntryListPanel = ({
@@ -22,6 +32,10 @@ const EntryListPanel = ({
   freshEntryName,
   isConfigured,
   onRefresh,
+  isAdmin,
+  adminKey,
+  onAdminKeyChange,
+  onDeleteEntry,
 }: EntryListPanelProps) => {
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
 
@@ -52,6 +66,19 @@ const EntryListPanel = ({
       </div>
 
       <AnimatedCounter value={entryCount} />
+
+      {isAdmin && (
+        <div className="admin-box">
+          <MdAdminPanelSettings size={18} />
+          <input
+            className="input admin-input"
+            type="password"
+            value={adminKey}
+            placeholder="Mã quản trị để xoá bài"
+            onChange={(event) => onAdminKeyChange(event.target.value)}
+          />
+        </div>
+      )}
 
       {isLoading && (
         <div style={styles.skeletonList}>
@@ -97,6 +124,7 @@ const EntryListPanel = ({
               entry={entry}
               index={index}
               isFresh={index === 0 && freshEntryName !== null && entry.name === freshEntryName}
+              onDelete={isAdmin ? onDeleteEntry : undefined}
             />
           ))}
         </ul>

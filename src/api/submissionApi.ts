@@ -54,4 +54,19 @@ const postSubmission = (
   });
 };
 
-export const submissionApi = { getEntryList, postSubmission };
+// Xoá 1 bài (chỉ quản trị viên): server đối chiếu tên trên dòng trước khi xoá,
+// dòng bị xoá được chuyển sang sheet "Đã xoá" chứ không mất hẳn.
+const deleteEntry = async (
+  row: number,
+  name: string,
+  adminKey: string,
+): Promise<SubmitResponse> => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "delete", row, name, adminKey }),
+  });
+  return (await response.json()) as SubmitResponse;
+};
+
+export const submissionApi = { getEntryList, postSubmission, deleteEntry };

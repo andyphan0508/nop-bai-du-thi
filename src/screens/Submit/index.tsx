@@ -14,7 +14,7 @@ import { formatMb } from '../../utils/format';
 
 const SubmitScreen = () => {
   // 1. State declarations
-  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [selectedSrcFile, setSelectedSrcFile] = useState<File | null>(null);
 
   const [entryList, setEntryList] = useState<ContestEntry[]>([]);
@@ -29,6 +29,10 @@ const SubmitScreen = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitSuccess, setIsSubmitSuccess] = useState<boolean>(false);
   const [submitOrderNumber, setSubmitOrderNumber] = useState<number | null>(null);
+
+  // Chế độ quản trị: mở trang với ?admin=1, nhập mã quản trị (ADMIN_KEY trong Apps Script)
+  const [isAdmin] = useState<boolean>(() => new URLSearchParams(window.location.search).has('admin'));
+  const [adminKey, setAdminKey] = useState<string>(() => sessionStorage.getItem('adminKey') || '');
 
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef<number>(0);
@@ -45,10 +49,38 @@ const SubmitScreen = () => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
+  const handleAdminKeyChange = (key: string) => {
+    setAdminKey(key);
+    sessionStorage.setItem('adminKey', key);
+  };
+
+  const handleDeleteEntry = async (entry: ContestEntry): Promise<void> => {
+    if (!entry.row) {
+      showToast('Danh sách chưa có mã dòng — hãy tải lại danh sách trước.');
+      return;
+    }
+    if (!adminKey.trim()) {
+      showToast('Nhập mã quản trị trước khi xoá.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Xoá bài dự thi của "${entry.name}"?\nDòng sẽ được chuyển sang sheet "Đã xoá" (không mất hẳn).`,
+    );
+    if (!confirmed) return;
+    try {
+      const response = await submissionApi.deleteEntry(entry.row, entry.name, adminKey.trim());
+      if (!response.ok) throw new Error(response.error || 'Xoá thất bại.');
+      showToast(`Đã xoá bài của ${entry.name}.`, 'success');
+      fetchEntryList();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   // 2. Logic functions
-  const validatePdfFile = (file: File): boolean => {
+  const validateImageFile = (file: File): boolean => {
     if (!file) return false;
-    if (!/\.pdf$/i.test(file.name)) return false;
+    if (!/\.(jpe?g|png|webp)$/i.test(file.name)) return false;
     return true;
   };
 
@@ -102,8 +134,8 @@ const SubmitScreen = () => {
         }
       }
     }
-    if (!selectedPdfFile) {
-      return fail('Vui lòng chọn bản PDF dự thi.');
+    if (!selectedImageFile) {
+      return fail('Vui lòng chọn file ảnh bài dự thi.');
     }
     if (!selectedSrcFile && !sourceLink) {
       return fail('Vui lòng tải file nguồn (.ai/.psd) hoặc dán link Google Drive.');
@@ -111,7 +143,7 @@ const SubmitScreen = () => {
     if (sourceLink && !/^https?:\/\/\S+$/i.test(sourceLink)) {
       return fail('Link file nguồn không hợp lệ — hãy dán link đầy đủ bắt đầu bằng https://');
     }
-    const files = [selectedPdfFile, selectedSrcFile].filter(Boolean) as File[];
+    const files = [selectedImageFile, selectedSrcFile].filter(Boolean) as File[];
     for (const file of files) {
       if (file.size > MAX_UPLOAD_MB * 1048576) {
         return fail(
@@ -123,7 +155,7 @@ const SubmitScreen = () => {
   };
 
   const buildSubmitPayload = async (formData: FormData, sourceLink: string): Promise<SubmitPayload> => {
-    const files = [selectedPdfFile, selectedSrcFile].filter(Boolean) as File[];
+    const files = [selectedImageFile, selectedSrcFile].filter(Boolean) as File[];
     const encodedFiles = [];
     for (const file of files) {
       encodedFiles.push({
@@ -152,13 +184,13 @@ const SubmitScreen = () => {
     };
   };
 
-  const handleSelectPdfFile = (file: File | null) => {
-    if (file && !validatePdfFile(file)) {
-      setSubmitError('Bản dự thi phải là file .pdf.');
+  const handleSelectImageFile = (file: File | null) => {
+    if (file && !validateImageFile(file)) {
+      setSubmitError('Bài dự thi phải là file ảnh .jpg, .png hoặc .webp.');
       return;
     }
     setSubmitError(null);
-    setSelectedPdfFile(file);
+    setSelectedImageFile(file);
   };
 
   const handleSelectSrcFile = (file: File | null) => {
@@ -246,7 +278,7 @@ const SubmitScreen = () => {
       {isSubmitSuccess && <Confetti />}
 
       <div className="wrap">
-        <SubmitHeader subtitle="Điền thông tin và tải lên bài dự thi của bạn (.ai / .psd / .pdf)." />
+        <SubmitHeader subtitle="Điền thông tin và tải lên bài dự thi của bạn (file ảnh + file nguồn .ai / .psd)." />
 
         <div className="layout">
           <div className="card">
@@ -260,9 +292,9 @@ const SubmitScreen = () => {
                 uploadProgressRatio={uploadProgressRatio}
                 uploadProgressLabel={uploadProgressLabel}
                 submitError={submitError}
-                selectedPdfFile={selectedPdfFile}
+                selectedImageFile={selectedImageFile}
                 selectedSrcFile={selectedSrcFile}
-                onSelectPdfFile={handleSelectPdfFile}
+                onSelectImageFile={handleSelectImageFile}
                 onSelectSrcFile={handleSelectSrcFile}
                 onSubmit={submitEntry}
               />
@@ -277,6 +309,10 @@ const SubmitScreen = () => {
             freshEntryName={freshEntryName}
             isConfigured={IS_CONFIGURED}
             onRefresh={fetchEntryList}
+            isAdmin={isAdmin}
+            adminKey={adminKey}
+            onAdminKeyChange={handleAdminKeyChange}
+            onDeleteEntry={handleDeleteEntry}
           />
         </div>
 

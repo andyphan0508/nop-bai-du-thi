@@ -3,6 +3,10 @@ export type ContestEntry = {
   name: string;
   group: string;
   title: string;
+  entryType: string;
+  members: string[];
+  // Số dòng thật trong Sheet — chỉ dùng cho chức năng xoá của quản trị viên
+  row?: number;
 };
 
 export type SubmitFilePayload = {

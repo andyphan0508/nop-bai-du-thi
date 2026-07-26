@@ -1,23 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
+  MdBadge,
   MdBrush,
   MdCheck,
+  MdCloudUpload,
   MdErrorOutline,
   MdGroups,
   MdInfoOutline,
+  MdPalette,
   MdPerson,
-  MdPictureAsPdf,
+  MdImage,
   MdSend,
   MdSettingsSuggest,
-} from 'react-icons/md';
-import FileDropBox from './FileDropBox';
-import UploadProgress from './UploadProgress';
-import { formatMb } from '../../../utils/format';
+} from "react-icons/md";
+import FileDropBox from "./FileDropBox";
+import UploadProgress from "./UploadProgress";
+import { formatMb } from "../../../utils/format";
 
-const GROUP_OPTIONS = ['Áp-ra-ham', 'Ti-mô-thê', 'Phao-lô', 'Đa-vít', 'Nhóm ban ngành'];
+const GROUP_OPTIONS = [
+  "Áp-ra-ham",
+  "Ti-mô-thê",
+  "Phao-lô",
+  "Đa-ni-ên",
+  "Nhóm ban ngành",
+];
 
-export const ENTRY_TYPE_SOLO = 'Cá nhân';
-export const ENTRY_TYPE_TEAM = 'Làm nhóm';
+export const ENTRY_TYPE_SOLO = "Cá nhân";
+export const ENTRY_TYPE_TEAM = "Làm nhóm";
 const TEAM_MEMBER_COUNT = 3;
 
 type SubmitFormProps = {
@@ -27,9 +36,9 @@ type SubmitFormProps = {
   uploadProgressRatio: number;
   uploadProgressLabel: string;
   submitError: string | null;
-  selectedPdfFile: File | null;
+  selectedImageFile: File | null;
   selectedSrcFile: File | null;
-  onSelectPdfFile: (file: File | null) => void;
+  onSelectImageFile: (file: File | null) => void;
   onSelectSrcFile: (file: File | null) => void;
   onSubmit: (formData: FormData) => void;
 };
@@ -41,9 +50,9 @@ const SubmitForm = ({
   uploadProgressRatio,
   uploadProgressLabel,
   submitError,
-  selectedPdfFile,
+  selectedImageFile,
   selectedSrcFile,
-  onSelectPdfFile,
+  onSelectImageFile,
   onSelectSrcFile,
   onSubmit,
 }: SubmitFormProps) => {
@@ -67,8 +76,8 @@ const SubmitForm = ({
         <div className="banner">
           <MdSettingsSuggest size={18} />
           <span>
-            Trang chưa được cấu hình: hãy dán URL Apps Script vào biến <b>ENDPOINT</b> trong{' '}
-            <b>src/config.ts</b> (xem HUONG-DAN.md).
+            Trang chưa được cấu hình: hãy dán URL Apps Script vào biến{" "}
+            <b>ENDPOINT</b> trong <b>src/config.ts</b> (xem HUONG-DAN.md).
           </span>
         </div>
       )}
@@ -79,6 +88,11 @@ const SubmitForm = ({
           <span>{submitError}</span>
         </div>
       )}
+
+      <div className="section-head">
+        <MdBadge size={16} />
+        Thông tin người dự thi
+      </div>
 
       <div className="two">
         <div className="field">
@@ -91,7 +105,12 @@ const SubmitForm = ({
           <label>
             Nhóm / Ban ngành <span className="req">*</span>
           </label>
-          <select className="input select" name="group" required defaultValue="">
+          <select
+            className="input select"
+            name="group"
+            required
+            defaultValue=""
+          >
             <option value="" disabled>
               — Chọn nhóm / ban ngành —
             </option>
@@ -119,6 +138,11 @@ const SubmitForm = ({
         </div>
       </div>
 
+      <div className="section-head">
+        <MdPalette size={16} />
+        Tác phẩm dự thi
+      </div>
+
       <div className="field">
         <label>
           Tên tác phẩm <span className="req">*</span>
@@ -131,7 +155,11 @@ const SubmitForm = ({
           Hình thức dự thi <span className="req">*</span>
         </label>
         <div className="segmented">
-          <label className={entryType === ENTRY_TYPE_SOLO ? 'segment active' : 'segment'}>
+          <label
+            className={
+              entryType === ENTRY_TYPE_SOLO ? "segment active" : "segment"
+            }
+          >
             <input
               type="radio"
               name="entryType"
@@ -140,11 +168,19 @@ const SubmitForm = ({
               onChange={() => setEntryType(ENTRY_TYPE_SOLO)}
             />
             <span className="segment-icon">
-              {entryType === ENTRY_TYPE_SOLO ? <MdCheck size={18} /> : <MdPerson size={18} />}
+              {entryType === ENTRY_TYPE_SOLO ? (
+                <MdCheck size={18} />
+              ) : (
+                <MdPerson size={18} />
+              )}
             </span>
             <span>Cá nhân</span>
           </label>
-          <label className={entryType === ENTRY_TYPE_TEAM ? 'segment active' : 'segment'}>
+          <label
+            className={
+              entryType === ENTRY_TYPE_TEAM ? "segment active" : "segment"
+            }
+          >
             <input
               type="radio"
               name="entryType"
@@ -153,7 +189,11 @@ const SubmitForm = ({
               onChange={() => setEntryType(ENTRY_TYPE_TEAM)}
             />
             <span className="segment-icon">
-              {entryType === ENTRY_TYPE_TEAM ? <MdCheck size={18} /> : <MdGroups size={18} />}
+              {entryType === ENTRY_TYPE_TEAM ? (
+                <MdCheck size={18} />
+              ) : (
+                <MdGroups size={18} />
+              )}
             </span>
             <span>Làm nhóm</span>
           </label>
@@ -163,7 +203,8 @@ const SubmitForm = ({
       {entryType === ENTRY_TYPE_TEAM && (
         <div className="field member-fields">
           <label>
-            Danh sách thành viên nhóm ({TEAM_MEMBER_COUNT} bạn) <span className="req">*</span>
+            Danh sách thành viên nhóm ({TEAM_MEMBER_COUNT} bạn){" "}
+            <span className="req">*</span>
           </label>
           <div className="member-card">
             {Array.from({ length: TEAM_MEMBER_COUNT }, (_, index) => (
@@ -197,18 +238,23 @@ const SubmitForm = ({
         />
       </div>
 
+      <div className="section-head">
+        <MdCloudUpload size={16} />
+        Tệp bài dự thi
+      </div>
+
       <div className="field">
         <label>
-          Bản PDF dự thi <span className="req">*</span>
+          Ảnh bài dự thi <span className="req">*</span>
         </label>
         <FileDropBox
-          inputId="pdfInput"
-          icon={<MdPictureAsPdf size={24} />}
-          emptyText="Chọn / kéo thả file PDF vào đây"
-          subText="Chỉ nhận .pdf"
-          accept="application/pdf,.pdf"
-          file={selectedPdfFile}
-          onSelectFile={onSelectPdfFile}
+          inputId="imageInput"
+          icon={<MdImage size={24} />}
+          emptyText="Chọn / kéo thả file ảnh vào đây"
+          subText="Chỉ nhận ảnh .jpg, .png, .webp"
+          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+          file={selectedImageFile}
+          onSelectFile={onSelectImageFile}
         />
       </div>
 
@@ -231,8 +277,8 @@ const SubmitForm = ({
         />
         <div className="hint">
           <MdInfoOutline size={14} />
-          Nếu file .ai/.psd quá nặng: tải lên Google Drive của bạn, đặt chia sẻ "Bất kỳ ai có link", rồi dán
-          link vào đây.
+          Nếu file .ai/.psd quá nặng: tải lên Google Drive của bạn, đặt chia sẻ
+          "Bất kỳ ai có link", rồi dán link vào đây.
         </div>
       </div>
 
@@ -241,7 +287,12 @@ const SubmitForm = ({
         Gửi bài dự thi
       </button>
 
-      {isSubmitting && <UploadProgress progressRatio={uploadProgressRatio} label={uploadProgressLabel} />}
+      {isSubmitting && (
+        <UploadProgress
+          progressRatio={uploadProgressRatio}
+          label={uploadProgressLabel}
+        />
+      )}
     </form>
   );
 };
