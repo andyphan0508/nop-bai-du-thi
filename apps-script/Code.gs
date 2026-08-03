@@ -114,14 +114,31 @@ function doPost(e) {
       return json({ ok: false, error: 'Cần tải lên ít nhất 1 file hoặc dán link bài dự thi.' });
     }
 
-    // 2) Tạo thư mục con cho bài nộp
+    // 2) Chặn nộp lần 2: email hoặc SĐT đã có bài trong Sheet thì từ chối
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      var contactRows = sheet.getRange(2, 3, lastRow - 1, 2).getValues(); // Email, SĐT
+      var emailNorm = String(data.email).trim().toLowerCase();
+      var phoneNorm = normalizePhone(data.phone);
+      for (var c = 0; c < contactRows.length; c++) {
+        if (String(contactRows[c][0] || '').trim().toLowerCase() === emailNorm) {
+          return json({ ok: false, error: 'Email này đã nộp bài rồi — mỗi người chỉ được nộp 1 lần.' });
+        }
+        if (phoneNorm && normalizePhone(contactRows[c][1]) === phoneNorm) {
+          return json({ ok: false, error: 'Số điện thoại này đã nộp bài rồi — mỗi người chỉ được nộp 1 lần.' });
+        }
+      }
+    }
+
+    // 3) Tạo thư mục con cho bài nộp
     var parent = DriveApp.getFolderById(FOLDER_ID);
     var stamp = Utilities.formatDate(new Date(), TZ, 'yyyyMMdd-HHmmss');
     var safeName = String(data.fullName).replace(/[\\/:*?"<>|]/g, '').slice(0, 60).trim();
     var safeTitle = String(data.title).replace(/[\\/:*?"<>|]/g, '').slice(0, 60).trim();
     var folder = parent.createFolder(stamp + ' · ' + safeName + ' · ' + safeTitle);
 
-    // 3) Lưu từng file
+    // 4) Lưu từng file
     var fileLinks = [];
     (data.files || []).forEach(function (f) {
       var bytes = Utilities.base64Decode(f.data);
@@ -134,8 +151,7 @@ function doPost(e) {
       fileLinks.push(f.name + ': ' + file.getUrl());
     });
 
-    // 4) Ghi record vào Sheet
-    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+    // 5) Ghi record vào Sheet
     ensureHeader(sheet);
     sheet.appendRow([
       Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'),
@@ -159,6 +175,13 @@ function doPost(e) {
   } catch (err) {
     return json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
+}
+
+// Chuẩn hoá SĐT về dạng 0xxxxxxxxx để so trùng (bỏ khoảng trắng/gạch, +84 → 0)
+function normalizePhone(phone) {
+  var digits = String(phone || '').replace(/\D/g, '');
+  if (digits.indexOf('84') === 0) digits = '0' + digits.slice(2);
+  return digits;
 }
 
 // Xoá mềm 1 bài: chuyển dòng sang sheet "Đã xoá" rồi xoá khỏi sheet chính.

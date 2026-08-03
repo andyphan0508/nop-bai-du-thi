@@ -66,7 +66,7 @@ const SubmitForm = ({
   const srcSubText =
     selectedSrcFile && selectedSrcFile.size > maxUploadMb * 1048576
       ? `${formatMb(selectedSrcFile.size)} — quá lớn, hãy dùng ô dán link bên dưới!`
-      : `.ai, .psd, .zip — nếu file > ${maxUploadMb}MB hãy dùng ô link bên dưới`;
+      : `.ai, .psd, .zip, .pdf — nếu file > ${maxUploadMb}MB hãy dùng ô link bên dưới`;
 
   const styles = createStyles();
 
@@ -259,13 +259,13 @@ const SubmitForm = ({
       </div>
 
       <div className="field">
-        <label>File thiết kế nguồn (.ai / .psd)</label>
+        <label>File thiết kế nguồn (.ai / .psd / .zip / .pdf)</label>
         <FileDropBox
           inputId="srcInput"
           icon={<MdBrush size={24} />}
           emptyText="Chọn / kéo thả file nguồn vào đây"
           subText={srcSubText}
-          accept=".ai,.psd,.zip,image/vnd.adobe.photoshop,application/postscript,application/illustrator"
+          accept=".ai,.psd,.zip,.pdf,image/vnd.adobe.photoshop,application/postscript,application/illustrator,application/pdf"
           file={selectedSrcFile}
           onSelectFile={onSelectSrcFile}
         />

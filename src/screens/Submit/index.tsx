@@ -12,6 +12,23 @@ import type { ContestEntry, SubmitPayload } from '../../types';
 import { readFileAsBase64 } from '../../utils/file';
 import { formatMb } from '../../utils/format';
 
+// Mỗi máy chỉ được nộp 1 lần — dấu vết lưu trong localStorage của trình duyệt
+const SUBMITTED_STORAGE_KEY = 'nbdt-da-nop';
+
+type SubmittedRecord = {
+  name: string;
+  order: number | null;
+  at: string;
+};
+
+const readSubmittedRecord = (): SubmittedRecord | null => {
+  try {
+    return JSON.parse(localStorage.getItem(SUBMITTED_STORAGE_KEY) || 'null');
+  } catch {
+    return null;
+  }
+};
+
 const SubmitScreen = () => {
   // 1. State declarations
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -34,6 +51,9 @@ const SubmitScreen = () => {
   const [isAdmin] = useState<boolean>(() => new URLSearchParams(window.location.search).has('admin'));
   const [adminKey, setAdminKey] = useState<string>(() => sessionStorage.getItem('adminKey') || '');
 
+  // Bài đã nộp trước đó trên máy này (nếu có) → khoá form
+  const [priorSubmission, setPriorSubmission] = useState<SubmittedRecord | null>(readSubmittedRecord);
+
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef<number>(0);
 
@@ -52,6 +72,13 @@ const SubmitScreen = () => {
   const handleAdminKeyChange = (key: string) => {
     setAdminKey(key);
     sessionStorage.setItem('adminKey', key);
+  };
+
+  // Quản trị viên mở lại quyền nộp bài trên máy này (VD: sau khi xoá bài giúp ai đó)
+  const handleResetLocalSubmission = () => {
+    localStorage.removeItem(SUBMITTED_STORAGE_KEY);
+    setPriorSubmission(null);
+    showToast('Đã mở lại quyền nộp bài trên máy này.', 'success');
   };
 
   const handleDeleteEntry = async (entry: ContestEntry): Promise<void> => {
@@ -86,7 +113,7 @@ const SubmitScreen = () => {
 
   const validateSrcFile = (file: File): boolean => {
     if (!file) return false;
-    if (!/\.(ai|psd|zip)$/i.test(file.name)) return false;
+    if (!/\.(ai|psd|zip|pdf)$/i.test(file.name)) return false;
     return true;
   };
 
@@ -138,7 +165,7 @@ const SubmitScreen = () => {
       return fail('Vui lòng chọn file ảnh bài dự thi.');
     }
     if (!selectedSrcFile && !sourceLink) {
-      return fail('Vui lòng tải file nguồn (.ai/.psd) hoặc dán link Google Drive.');
+      return fail('Vui lòng tải file nguồn (.ai/.psd/.zip/.pdf) hoặc dán link Google Drive.');
     }
     if (sourceLink && !/^https?:\/\/\S+$/i.test(sourceLink)) {
       return fail('Link file nguồn không hợp lệ — hãy dán link đầy đủ bắt đầu bằng https://');
@@ -195,7 +222,7 @@ const SubmitScreen = () => {
 
   const handleSelectSrcFile = (file: File | null) => {
     if (file && !validateSrcFile(file)) {
-      setSubmitError('File nguồn phải là .ai, .psd hoặc .zip.');
+      setSubmitError('File nguồn phải là .ai, .psd, .zip hoặc .pdf.');
       return;
     }
     setSubmitError(null);
@@ -250,6 +277,14 @@ const SubmitScreen = () => {
       setUploadProgressRatio(1);
       setSubmitOrderNumber(response.count ?? null);
       setIsSubmitSuccess(true);
+      // Ghi nhớ máy này đã nộp để chặn nộp lần 2
+      const submittedRecord: SubmittedRecord = {
+        name: String(formData.get('fullName') || '').trim(),
+        order: response.count ?? null,
+        at: new Date().toISOString(),
+      };
+      localStorage.setItem(SUBMITTED_STORAGE_KEY, JSON.stringify(submittedRecord));
+      setPriorSubmission(submittedRecord);
       showToast('Nộp bài dự thi thành công!', 'success');
       fetchEntryList(String(formData.get('fullName') || ''));
       return true;
@@ -283,7 +318,15 @@ const SubmitScreen = () => {
         <div className="layout">
           <div className="card">
             {isSubmitSuccess ? (
-              <SuccessCard orderNumber={submitOrderNumber} />
+              <SuccessCard variant="fresh" orderNumber={submitOrderNumber} name={priorSubmission?.name} />
+            ) : priorSubmission ? (
+              <SuccessCard
+                variant="blocked"
+                orderNumber={priorSubmission.order}
+                name={priorSubmission.name}
+                canReset={isAdmin}
+                onReset={handleResetLocalSubmission}
+              />
             ) : (
               <SubmitForm
                 isConfigured={IS_CONFIGURED}
