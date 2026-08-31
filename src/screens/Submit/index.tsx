@@ -3,14 +3,15 @@ import BackgroundDecor from './components/BackgroundDecor';
 import SubmitHeader from './components/SubmitHeader';
 import SubmitForm, { ENTRY_TYPE_TEAM } from './components/SubmitForm';
 import SuccessCard from './components/SuccessCard';
+import ClosedCard from './components/ClosedCard';
 import Confetti from './components/Confetti';
 import EntryListPanel from './components/EntryListPanel';
 import ToastStack, { type ToastItem } from './components/Toast';
 import { submissionApi } from '../../api/submissionApi';
-import { IS_CONFIGURED, MAX_UPLOAD_MB } from '../../config';
+import { CONTEST_END_DATE, IS_CONFIGURED, MAX_UPLOAD_MB } from '../../config';
 import type { ContestEntry, SubmitPayload } from '../../types';
 import { readFileAsBase64 } from '../../utils/file';
-import { formatMb } from '../../utils/format';
+import { daysSince, formatDateVi, formatMb } from '../../utils/format';
 
 // Mỗi máy chỉ được nộp 1 lần — dấu vết lưu trong localStorage của trình duyệt
 const SUBMITTED_STORAGE_KEY = 'nbdt-da-nop';
@@ -53,6 +54,10 @@ const SubmitScreen = () => {
 
   // Bài đã nộp trước đó trên máy này (nếu có) → khoá form
   const [priorSubmission, setPriorSubmission] = useState<SubmittedRecord | null>(readSubmittedRecord);
+
+  // Đã qua hạn nộp bài → thay form bằng lời cảm ơn
+  const daysSinceEnd = daysSince(CONTEST_END_DATE);
+  const isContestClosed = Date.now() > new Date(`${CONTEST_END_DATE}T23:59:59+07:00`).getTime();
 
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef<number>(0);
@@ -313,11 +318,23 @@ const SubmitScreen = () => {
       {isSubmitSuccess && <Confetti />}
 
       <div className="wrap">
-        <SubmitHeader subtitle="Điền thông tin và tải lên bài dự thi của bạn (file ảnh + file nguồn .ai / .psd)." />
+        <SubmitHeader
+          subtitle={
+            isContestClosed
+              ? 'Cuộc thi đã kết thúc nhận bài. Cảm ơn các bạn đã tham gia!'
+              : 'Điền thông tin và tải lên bài dự thi của bạn (file ảnh + file nguồn .ai / .psd).'
+          }
+        />
 
         <div className="layout">
           <div className="card">
-            {isSubmitSuccess ? (
+            {isContestClosed && !isSubmitSuccess ? (
+              <ClosedCard
+                daysSinceEnd={daysSinceEnd}
+                endDateLabel={formatDateVi(CONTEST_END_DATE)}
+                entryCount={entryCount}
+              />
+            ) : isSubmitSuccess ? (
               <SuccessCard variant="fresh" orderNumber={submitOrderNumber} name={priorSubmission?.name} />
             ) : priorSubmission ? (
               <SuccessCard

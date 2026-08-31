@@ -424,6 +424,38 @@ label.segment.active {
   box-shadow: none; max-width: 320px; margin: 20px auto 0;
 }
 .btn-tonal:hover { box-shadow: var(--md-elev-1); }
+a.btn { text-decoration: none; }
+
+/* ===== Đã hết hạn nộp bài — lời cảm ơn ===== */
+.closed { text-align: center; padding: 20px 0 8px; animation: fadeUp 0.5s ease both; }
+.closed-icon {
+  display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 14px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-tertiary-container); color: var(--md-tertiary);
+  animation: markFloat 5s ease-in-out infinite;
+}
+.closed-kick {
+  display: inline-flex; align-items: center; gap: 8px;
+  letter-spacing: 2px; text-transform: uppercase; font-size: 0.7rem; font-weight: 700;
+  color: var(--md-on-primary-container); background: var(--md-primary-container);
+  padding: 6px 16px; border-radius: var(--md-shape-full);
+}
+.closed-title {
+  font-family: var(--title-font); font-weight: 800; color: var(--md-on-surface);
+  margin: 18px 0 2px; font-size: 1.5rem;
+}
+.closed-days {
+  font-size: 2.4rem; font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #b5561f, var(--md-primary));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.closed-sub { color: var(--md-on-surface-variant); margin: 0; font-size: 0.92rem; }
+.closed-sub b { color: var(--md-on-surface); font-variant-numeric: tabular-nums; }
+.closed-thanks {
+  color: var(--md-on-surface); font-size: 1.06rem; font-weight: 600;
+  margin: 20px auto 0; max-width: 420px;
+}
+.closed .order { margin-left: auto; margin-right: auto; }
 
 /* ===== Panel danh sách dự thi ===== */
 .panel {
