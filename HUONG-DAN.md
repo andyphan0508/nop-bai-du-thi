@@ -111,6 +111,10 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 7. **Bình chọn kín danh (blind voting)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + nhóm/ban ngành. `?action=voteEntries` cũng không trả các trường này về — tránh người bình chọn chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
 8. **Không cho tự bình chọn cho bài của chính mình** — nếu email tài khoản Google đăng nhập trùng với email đã dùng để nộp bài đó, server sẽ từ chối đúng lựa chọn đó (chưa tính là đã dùng lượt bình chọn) và yêu cầu chọn bài khác.
 
+> **Trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau** (VD 5 bài của cùng 1 bạn nhưng mỗi bài dùng 1 email khác nhau): mục 8 ở trên chỉ so đúng 1 email/1 bài nên KHÔNG tự phát hiện được — hệ thống không thể tự biết 5 email đó là cùng 1 người thật. Cách xử lý: tạo thêm 1 sheet tên **đúng** `Email liên kết (cùng 1 người)` trong cùng Google Sheet, mỗi dòng (không có tiêu đề, bắt đầu từ dòng 1) là các email của 1 người, cách nhau bởi dấu phẩy — VD dòng: `email1@gmail.com, email2@gmail.com, email3@gmail.com, email4@gmail.com, email5@gmail.com`. Sau khi có sheet này, hễ ai đăng nhập bằng BẤT KỲ email nào trong nhóm đó sẽ bị chặn bình chọn cho TẤT CẢ các bài của nhóm đó (không chỉ đúng 1 bài). Không tạo sheet này thì tính năng vẫn chạy bình thường theo mục 8, không bắt buộc phải dùng.
+>
+> Cố ý **không** dùng cách so tên/regex để tự động phát hiện: tên hiển thị Google do người dùng tự đặt (không xác minh được như email) nên dễ né tránh, và tên tiếng Việt rất dễ trùng giữa 2 người hoàn toàn khác nhau — tự động chặn theo tên giống sẽ dễ **chặn oan người vô tội** trùng tên với thí sinh, một lỗi công bằng còn tệ hơn việc bỏ sót vài phiếu gian lận. Vì vậy việc xác nhận "đây là cùng 1 người" cần bạn (người biết rõ thành viên nhóm/hội thánh) khai báo thủ công qua sheet trên.
+
 **Việc bạn cần làm:**
 
 1. **Tạo Google OAuth Client ID** (miễn phí, dùng chung tài khoản Google đang chạy Apps Script):

@@ -46,6 +46,21 @@ var TRASH_SHEET_NAME = 'Đã xoá';
 var VOTERS_SHEET_NAME = 'Người bình chọn';
 var VOTES_SHEET_NAME = 'Kết quả bình chọn';
 
+// Sheet TUỲ CHỌN, tạo thủ công khi cần: dùng cho trường hợp 1 người nộp nhiều
+// bài dự thi bằng NHIỀU EMAIL KHÁC NHAU (nên hệ thống không tự phát hiện được
+// qua email nộp bài). Mỗi dòng là các email bạn XÁC NHẬN NGOÀI ĐỜI là CÙNG 1
+// NGƯỜI, cách nhau bởi dấu phẩy, KHÔNG có dòng tiêu đề (bắt đầu từ dòng 1
+// luôn). VD dòng: "email1@gmail.com, email2@gmail.com, email3@gmail.com".
+// Không tạo sheet này thì tính năng chặn tự bình chọn vẫn hoạt động bình
+// thường theo đúng email đã nộp bài (không ảnh hưởng gì nếu không dùng).
+//
+// CỐ Ý không dùng cách so tên (regex/độ giống tên) để tự phát hiện: tên hiển
+// thị Google do người dùng tự đặt (không xác minh như email) nên dễ bị né
+// tránh, và tên tiếng Việt rất dễ trùng giữa 2 người HOÀN TOÀN khác nhau →
+// tự động chặn theo tên giống sẽ dễ chặn OAN người vô tội trùng tên với thí
+// sinh, một lỗi công bằng còn tệ hơn việc bỏ sót vài phiếu gian lận.
+var LINKED_EMAILS_SHEET_NAME = 'Email liên kết (cùng 1 người)';
+
 // Giới hạn dung lượng mỗi file upload trực tiếp (MB). File nặng hơn → dùng link.
 var MAX_FILE_MB = 45;
 
@@ -401,6 +416,30 @@ function verifyGoogleIdToken(token) {
   }
 }
 
+// Với 1 email nộp bài, tìm "cụm email" cùng 1 người thật — dựa vào sheet
+// LINKED_EMAILS_SHEET_NAME do quản trị viên khai báo thủ công (xem giải thích
+// ở khai báo hằng số phía trên). Trả về mảng email đã chuẩn hoá (chữ thường,
+// trim); rỗng nếu sheet chưa tồn tại hoặc email không thuộc cụm nào đã khai.
+function findLinkedEmailCluster(email) {
+  var normalizedTarget = String(email || '').trim().toLowerCase();
+  if (!normalizedTarget) return [];
+  try {
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(LINKED_EMAILS_SHEET_NAME);
+    if (!sheet || sheet.getLastRow() < 1) return [];
+    var rows = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      var cluster = String(rows[i][0] || '')
+        .split(',')
+        .map(function (e) { return e.trim().toLowerCase(); })
+        .filter(String);
+      if (cluster.indexOf(normalizedTarget) !== -1) return cluster;
+    }
+    return [];
+  } catch (err) {
+    return [];
+  }
+}
+
 // Ghi nhận 1 phiếu bầu — "phiếu kín, chống spam":
 //  1) Honeypot 'hp' (field ẩn, chỉ bot điền vào) → coi như đã xử lý, không lộ lý do.
 //  2) Chặn gửi quá nhanh sau khi tải trang (bot gửi ngay lập tức) — đo bằng số ms
@@ -415,8 +454,10 @@ function verifyGoogleIdToken(token) {
 //     (double-click, mạng chậm gửi lại...) không thể cùng lọt qua bước kiểm tra
 //     "đã bình chọn chưa" (tránh race condition khiến 1 người bình chọn được 2 lần).
 //  6) Không cho tự bình chọn cho bài dự thi CỦA CHÍNH MÌNH — so email Google
-//     đã xác minh với email đã dùng để nộp bài đó. Chỉ chặn đúng bài đó, vẫn
-//     được chọn bài khác để bình chọn (không tính là đã dùng hết lượt).
+//     đã xác minh với email đã dùng để nộp bài đó, CỘNG THÊM cụm email liên kết
+//     (nếu quản trị viên đã khai báo — dùng cho trường hợp 1 người nộp nhiều
+//     bài bằng nhiều email khác nhau). Chỉ chặn đúng (các) bài của người đó,
+//     vẫn được chọn bài khác để bình chọn (không tính là đã dùng hết lượt).
 //  7) Danh tính chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
 //     "Người bình chọn"; lựa chọn bài dự thi lưu ở sheet riêng "Kết quả bình chọn"
 //     không kèm danh tính → không sheet nào nối được "ai" với "chọn bài nào".
@@ -452,11 +493,9 @@ function handleVote(data) {
   }
   if (entryEmail === null) return json({ ok: false, error: 'Bài dự thi không hợp lệ — hãy tải lại trang.' });
 
-  if (
-    entryEmail &&
-    googleCheck.email &&
-    entryEmail.trim().toLowerCase() === googleCheck.email.trim().toLowerCase()
-  ) {
+  var voterEmailNorm = String(googleCheck.email || '').trim().toLowerCase();
+  var sameContestantEmails = [entryEmail.trim().toLowerCase()].concat(findLinkedEmailCluster(entryEmail));
+  if (voterEmailNorm && sameContestantEmails.indexOf(voterEmailNorm) !== -1) {
     return json({ ok: false, error: 'Đây là bài dự thi của bạn — hãy chọn 1 bài dự thi khác để bình chọn.' });
   }
 
