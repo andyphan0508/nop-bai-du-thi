@@ -105,6 +105,12 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 - **Xếp hạng theo tổng điểm** = (số lượt React × 2) + (số lượt bình luận × 1). Ai tổng điểm cao nhất là hạng 1.
 - Bình luận **hiển thị công khai** ngay trên trang (dạng lời khích lệ) nhưng **ẩn danh** — không kèm tên người bình luận. Điểm/xếp hạng thì **ngược lại**, ẩn công khai, chỉ quản trị viên xem được.
 
+**Bản mobile — `/binh-chon/mobile`:** cùng backend, cùng luật, chỉ khác giao diện — hướng dẫn từng bước thay vì lưới ảnh:
+1. Màn hình chính hiện 2 thẻ **"Lượt 1"** / **"Lượt 2"** (Lượt 2 khoá tới khi xong Lượt 1).
+2. Bấm 1 lượt → hiện danh sách bài (dạng dòng, dễ bấm ngón tay) → chọn 1 bài → hiện ảnh to + mô tả ý tưởng + lời khích lệ đã có + 2 nút React/Bình luận.
+3. Làm xong Lượt 1 tự chuyển sang chọn bài cho Lượt 2 — **bài đã chọn ở Lượt 1 không hiện lại**, và hành động đã dùng (React hoặc Bình luận) cũng bị khoá ở Lượt 2, chỉ còn hành động kia.
+4. Xong cả 2 lượt (hoặc bấm "Bỏ qua lượt này" nếu không muốn dùng) → bấm **"Xác nhận & Gửi"** → hiện đúng modal đăng nhập Google như bản desktop để gửi đi.
+
 **Cơ chế chống spam / đảm bảo công bằng** (đã cài sẵn trong `Code.gs`):
 
 1. **Định danh bằng đăng nhập Google thật** (Google Sign-In) — KHÔNG dùng tự khai SĐT, vì tự khai thì ai cũng bịa số khác được. Bắt buộc đăng nhập Google mới gửi được lượt → mở ẩn danh (incognito) không giúp ích gì vì vẫn phải đăng nhập lại bằng 1 tài khoản Google thật; muốn dùng thêm lượt phải có nhiều tài khoản Google khác nhau.
@@ -183,15 +189,22 @@ nop-bai-du-thi/
 │  │     ├─ AnimatedCounter.tsx     Bộ đếm chạy số
 │  │     ├─ Toast.tsx               Thông báo dạng snackbar (dùng chung)
 │  │     └─ BackgroundDecor.tsx     Nền quầng sáng + hạt
-│  └─ screens/Vote/                 Trang React + bình luận — route "/binh-chon"
-│     ├─ index.tsx                  CHỈ logic: tải danh sách/bình luận, chọn React/comment, gửi
+│  ├─ screens/Vote/                 Trang React + bình luận (dạng lưới) — route "/binh-chon"
+│  │  ├─ index.tsx                  CHỈ logic: tải danh sách/bình luận, chọn React/comment, gửi
+│  │  └─ components/
+│  │     ├─ VoteCard.tsx            1 thẻ bài dự thi (ảnh + nút React/Bình luận + lời khích lệ)
+│  │     ├─ VoteLightbox.tsx        Xem ảnh bìa cỡ lớn
+│  │     ├─ GoogleSignIn.tsx        Nút đăng nhập Google (dùng chung trong modal)
+│  │     ├─ EngageModal.tsx         Modal xác nhận React + bình luận (đăng nhập Google) — dùng chung với VoteMobile
+│  │     ├─ VoteDoneCard.tsx        Màn hình đã dùng hết lượt — dùng chung với VoteMobile
+│  │     └─ AdminResultsPanel.tsx   Bảng xếp hạng điểm (chỉ quản trị viên, ?admin=1)
+│  └─ screens/VoteMobile/           Luồng "Lượt 1 / Lượt 2" từng bước — route "/binh-chon/mobile"
+│     ├─ index.tsx                  Máy trạng thái home/list/detail cho từng lượt, tái dùng EngageModal
+│     ├─ turnTypes.ts               Kiểu TurnResult (chưa làm / đã bỏ qua / đã chọn xong)
 │     └─ components/
-│        ├─ VoteCard.tsx            1 thẻ bài dự thi (ảnh + nút React/Bình luận + lời khích lệ)
-│        ├─ VoteLightbox.tsx        Xem ảnh bìa cỡ lớn
-│        ├─ GoogleSignIn.tsx        Nút đăng nhập Google (dùng chung trong modal)
-│        ├─ EngageModal.tsx         Modal xác nhận React + bình luận (đăng nhập Google)
-│        ├─ VoteDoneCard.tsx        Màn hình đã dùng hết lượt
-│        └─ AdminResultsPanel.tsx   Bảng xếp hạng điểm (chỉ quản trị viên, ?admin=1)
+│        ├─ TurnHome.tsx            2 thẻ "Lượt 1"/"Lượt 2" + nút Xác nhận & Gửi
+│        ├─ EntryPickerList.tsx     Danh sách bài dạng dòng để chọn cho 1 lượt
+│        └─ EntryActionDetail.tsx   Ảnh + mô tả + chọn React/Bình luận cho 1 bài
 ├─ apps-script/Code.gs              Backend Google Apps Script (nộp bài + bình chọn)
 ├─ legacy/index-static.html         Bản HTML tĩnh cũ (backup, không dùng nữa)
 └─ HUONG-DAN.md                     File này

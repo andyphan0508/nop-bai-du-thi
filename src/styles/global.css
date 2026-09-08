@@ -784,6 +784,62 @@ a.btn { text-decoration: none; }
 .result-bar { height: 100%; background: linear-gradient(90deg, #b5561f, var(--md-primary)); border-radius: var(--md-shape-full); }
 .result-votes { flex: none; font-weight: 800; font-size: 1rem; color: var(--md-primary); font-variant-numeric: tabular-nums; }
 
+/* ===== Luồng bình chọn trên mobile (/binh-chon/mobile) ===== */
+.wrap-mobile { max-width: 480px; }
+
+.mobile-topbar {
+  display: flex; align-items: center; gap: 10px; margin: -6px -6px 14px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--md-outline-variant); font-weight: 700; color: var(--md-on-surface);
+}
+.mobile-back {
+  flex: none; border: none; background: var(--md-surface-container-high); color: var(--md-on-surface-variant);
+  width: 34px; height: 34px; border-radius: var(--md-shape-full); display: grid; place-items: center; cursor: pointer;
+}
+
+/* Danh sách chọn bài (dạng dòng, dễ bấm bằng ngón tay) */
+.mobile-entry-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mobile-entry-row {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left;
+  border: 1px solid var(--md-outline-variant); background: var(--md-surface-container-lowest);
+  border-radius: var(--md-shape-lg); padding: 8px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+}
+.mobile-entry-row:hover { border-color: var(--md-primary); background: var(--md-surface-container-low); }
+.mobile-entry-row img { width: 56px; height: 70px; object-fit: cover; border-radius: var(--md-shape-md); flex: none; }
+.mobile-entry-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mobile-entry-row-title {
+  font-family: var(--title-font); font-weight: 700; font-size: 0.92rem; color: var(--md-on-surface);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mobile-entry-row svg:last-child { flex: none; color: var(--md-outline); }
+
+/* Màn hình chi tiết 1 bài + chọn React/Bình luận */
+.mobile-detail-img { width: 100%; border-radius: var(--md-shape-lg); display: block; object-fit: cover; max-height: 55vh; }
+.mobile-detail-desc {
+  color: var(--md-on-surface-variant); font-size: 0.86rem; margin: 0 0 6px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.mobile-detail-actions { display: flex; gap: 10px; margin-top: 18px; }
+.mobile-detail-actions .btn-tonal { flex: 1; }
+.mobile-detail-actions .btn:not(.btn-tonal) { flex: 1.4; }
+
+/* Thẻ tổng quan "Lượt 1 / Lượt 2" */
+.turn-tile {
+  width: 100%; display: block; text-align: left; border: 1.5px dashed var(--md-outline-variant);
+  background: var(--md-surface-container-low); border-radius: var(--md-shape-lg); padding: 16px 18px;
+  cursor: pointer; margin-bottom: 14px; transition: border-color 0.2s, background 0.2s;
+}
+.turn-tile:hover:not(.locked) { border-color: var(--md-primary); }
+.turn-tile.locked { cursor: not-allowed; opacity: 0.55; }
+.turn-tile.done { border-style: solid; border-color: var(--md-success); background: #f0faf4; cursor: default; }
+.turn-tile-label {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--md-primary);
+  margin-bottom: 6px;
+}
+.turn-tile-body { display: flex; align-items: center; gap: 6px; color: var(--md-on-surface); font-size: 0.94rem; }
+.turn-tile-edit {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; border: none; background: none;
+  color: var(--md-primary); font-size: 0.78rem; font-weight: 700; cursor: pointer; padding: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

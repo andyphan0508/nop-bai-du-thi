@@ -10,28 +10,8 @@ import AdminResultsPanel from "./components/AdminResultsPanel";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
 import { getRecaptchaToken } from "../../utils/recaptcha";
+import { readEngagedRecord, writeEngagedRecord, type EngagedRecord } from "../../utils/engagedRecord";
 import type { EntryCommentsMap, VoteEntry } from "../../types";
-
-// Mỗi tài khoản Google chỉ dùng được 1 lượt (1 React + 1 bình luận) — dấu vết
-// phía trình duyệt. Chặn thật sự nằm ở server: mỗi tài khoản Google đăng nhập
-// chỉ được ghi 1 lượt duy nhất, xem apps-script/Code.gs → handleEngage/
-// verifyGoogleIdToken. Mở ẩn danh chỉ xoá được dấu vết này, KHÔNG giúp dùng
-// thêm lượt vì vẫn phải đăng nhập lại bằng 1 tài khoản Google thật.
-const ENGAGED_STORAGE_KEY = "nbdt-da-tuong-tac";
-
-type EngagedRecord = {
-  reactedTitle: string | null;
-  commentedTitle: string | null;
-  at: string;
-};
-
-const readEngagedRecord = (): EngagedRecord | null => {
-  try {
-    return JSON.parse(localStorage.getItem(ENGAGED_STORAGE_KEY) || "null");
-  } catch {
-    return null;
-  }
-};
 
 const VoteScreen = () => {
   const [entries, setEntries] = useState<VoteEntry[]>([]);
@@ -126,7 +106,7 @@ const VoteScreen = () => {
         commentedTitle: commentTarget?.title || null,
         at: new Date().toISOString(),
       };
-      localStorage.setItem(ENGAGED_STORAGE_KEY, JSON.stringify(record));
+      writeEngagedRecord(record);
       setEngagedRecord(record);
       setIsEngageModalOpen(false);
       showToast("Đã ghi nhận tương tác — cảm ơn bạn!", "success");
@@ -148,9 +128,15 @@ const VoteScreen = () => {
           title="React & bình luận bài dự thi"
           subtitle="Mỗi người có 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm) — dùng 1 lần duy nhất cho bài bạn thích."
           nav={
-            <a className="nav-link" href="/">
-              ← Về trang nộp bài
-            </a>
+            <>
+              <a className="nav-link" href="/">
+                ← Về trang nộp bài
+              </a>
+              {" · "}
+              <a className="nav-link" href="/binh-chon/mobile">
+                Đang dùng điện thoại? Thử giao diện dễ bấm hơn →
+              </a>
+            </>
           }
         />
 

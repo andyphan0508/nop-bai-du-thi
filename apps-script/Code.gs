@@ -110,7 +110,8 @@ function entryIdOf(timeValue) {
     : String(timeValue || '');
 }
 
-// Danh sách bài dự thi để hiển thị trang bình chọn: nhóm, tác phẩm + ảnh bìa.
+// Danh sách bài dự thi để hiển thị trang bình chọn: nhóm, tác phẩm, mô tả ý
+// tưởng + ảnh bìa.
 // CỐ Ý KHÔNG trả về Họ tên/Thành viên nhóm — để người bình chọn không biết
 // bài nào của ai, tránh thiên vị theo quen biết thay vì đánh giá tác phẩm.
 // (Tên đầy đủ vẫn có trong Sheet gốc và trong kết quả bình chọn cho quản trị
@@ -135,6 +136,7 @@ function handleVoteEntries() {
           group: String(r[4] || ''),
           title: String(r[5] || ''),
           entryType: String(r[6] || ''),
+          description: String(r[8] || ''), // "Ghi chú" (mô tả ý tưởng) — an toàn để công khai
           imageFileId: match ? match[1] : '',
         };
       })

@@ -51,6 +51,7 @@ export type VoteEntry = {
   group: string;
   title: string;
   entryType: string;
+  description: string;
   imageFileId: string;
 };
 
