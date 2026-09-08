@@ -56,15 +56,17 @@ function json(obj) {
 // GET:
 //   .../exec                      → kiểm tra sức khỏe (mở URL bằng trình duyệt để test)
 //   .../exec?action=list          → danh sách công khai các bài đã nộp (tên, nhóm, tác phẩm, giờ nộp)
-//   .../exec?action=voteEntries   → danh sách bài dự thi để bình chọn (kèm ảnh bìa)
-//   .../exec?action=image&id=...  → ảnh bìa 1 bài dự thi (proxy qua Drive, không cần đổi quyền chia sẻ)
-//   .../exec?action=voteResults&key=ADMIN_KEY → kết quả bình chọn (chỉ quản trị viên)
+//   .../exec?action=voteEntries   → danh sách bài dự thi để bình chọn (kèm ID ảnh bìa)
+//   .../exec?action=voteResults&key=ADMIN_KEY      → kết quả bình chọn (chỉ quản trị viên)
+//   .../exec?action=fixImageSharing&key=ADMIN_KEY  → bật chia sẻ "xem qua link" cho ảnh
+//                                                      bìa của các bài đã nộp TRƯỚC KHI có
+//                                                      tính năng bình chọn (chạy 1 lần)
 function doGet(e) {
   var action = e && e.parameter && e.parameter.action;
   if (action === 'list') return handleList();
   if (action === 'voteEntries') return handleVoteEntries();
-  if (action === 'image') return handleImage(e);
   if (action === 'voteResults') return handleVoteResults(e);
+  if (action === 'fixImageSharing') return handleFixImageSharing(e);
   return json({ ok: true, service: 'nop-bai-du-thi', time: new Date() });
 }
 
@@ -110,29 +112,41 @@ function handleVoteEntries() {
   }
 }
 
-// Trả ảnh trực tiếp (blob) thay vì link Drive: script chạy dưới quyền chủ sở hữu
-// nên đọc được file dù chưa bật chia sẻ công khai. QUAN TRỌNG: chỉ phục vụ file
-// ID đã thực sự xuất hiện trong cột "File đã upload" của Sheet — tránh biến
-// endpoint này thành cổng đọc trộm file bất kỳ trong Drive của chủ tài khoản.
-function handleImage(e) {
-  var fileId = e && e.parameter && e.parameter.id;
-  if (!fileId || !/^[a-zA-Z0-9_-]{10,80}$/.test(fileId)) {
-    return json({ ok: false, error: 'ID file không hợp lệ.' });
+// Bật chia sẻ "Anyone with link — Viewer" cho ảnh bìa của các bài đã nộp TRƯỚC
+// khi có tính năng bình chọn (bài nộp MỚI đã tự bật chia sẻ ngay lúc nộp, xem
+// doPost). Chỉ cần chạy 1 lần sau khi nâng cấp code này — mở URL này 1 lần
+// trên trình duyệt là xong: .../exec?action=fixImageSharing&key=ADMIN_KEY
+//
+// (Lưu ý kỹ thuật: KHÔNG dùng cách "trả blob ảnh thẳng từ doGet" — Apps Script
+// Web App không hỗ trợ kiểu trả về đó, chỉ nhận HtmlOutput/TextOutput. Vì vậy
+// ảnh phải được đọc trực tiếp qua link chia sẻ Drive, không proxy qua script.)
+function handleFixImageSharing(e) {
+  var key = e && e.parameter && e.parameter.key;
+  if (!ADMIN_KEY || String(key || '') !== ADMIN_KEY) {
+    return json({ ok: false, error: 'Không có quyền.' });
   }
   try {
     var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
     var lastRow = sheet.getLastRow();
-    var isKnownContestImage = false;
+    var fixed = 0;
+    var failed = 0;
     if (lastRow > 1) {
       var uploads = sheet.getRange(2, 11, lastRow - 1, 1).getValues(); // cột "File đã upload"
-      for (var i = 0; i < uploads.length; i++) {
-        if (String(uploads[i][0] || '').indexOf(fileId) !== -1) { isKnownContestImage = true; break; }
-      }
+      uploads.forEach(function (r) {
+        var firstLink = String(r[0] || '').split('\n')[0] || '';
+        var match = firstLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (!match) return;
+        try {
+          DriveApp.getFileById(match[1]).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          fixed++;
+        } catch (fileErr) {
+          failed++;
+        }
+      });
     }
-    if (!isKnownContestImage) return json({ ok: false, error: 'Không tìm thấy ảnh.' });
-    return DriveApp.getFileById(fileId).getBlob();
+    return json({ ok: true, fixed: fixed, failed: failed });
   } catch (err) {
-    return json({ ok: false, error: 'Không tải được ảnh: ' + String(err && err.message ? err.message : err) });
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
 }
 
@@ -269,7 +283,7 @@ function doPost(e) {
 
     // 4) Lưu từng file
     var fileLinks = [];
-    (data.files || []).forEach(function (f) {
+    (data.files || []).forEach(function (f, index) {
       var bytes = Utilities.base64Decode(f.data);
       var sizeMb = bytes.length / (1024 * 1024);
       if (sizeMb > MAX_FILE_MB) {
@@ -277,6 +291,13 @@ function doPost(e) {
       }
       var blob = Utilities.newBlob(bytes, f.mimeType || 'application/octet-stream', f.name);
       var file = folder.createFile(blob);
+      if (index === 0) {
+        // File đầu tiên luôn là ảnh bìa dự thi (form bắt buộc chọn ảnh trước —
+        // xem SubmitForm/validateSubmission phía web). Bật chia sẻ "xem qua
+        // link" để trang bình chọn hiển thị được ảnh mà không cần đăng nhập.
+        // File nguồn (.ai/.psd/...) nếu có KHÔNG bật chia sẻ — vẫn giữ riêng tư.
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      }
       fileLinks.push(f.name + ': ' + file.getUrl());
     });
 

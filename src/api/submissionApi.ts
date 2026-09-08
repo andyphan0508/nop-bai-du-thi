@@ -19,10 +19,13 @@ const getVoteEntries = async (): Promise<VoteEntryListResponse> => {
   return (await response.json()) as VoteEntryListResponse;
 };
 
-// URL ảnh bìa 1 bài dự thi — script trả trực tiếp bytes ảnh (không cần đổi
-// quyền chia sẻ Drive), nên dùng thẳng làm src cho <img>.
-const voteImageUrl = (fileId: string): string => {
-  return `${ENDPOINT}?action=image&id=${encodeURIComponent(fileId)}`;
+// URL ảnh bìa 1 bài dự thi — dùng thẳng link thumbnail công khai của Google
+// Drive (Apps Script Web App không hỗ trợ trả blob ảnh trực tiếp từ doGet).
+// Ảnh chỉ hiển thị được nếu file đã bật chia sẻ "Anyone with link" — bài nộp
+// mới tự bật khi nộp (xem Code.gs doPost); bài nộp cũ cần chạy 1 lần
+// ?action=fixImageSharing&key=ADMIN_KEY (xem HUONG-DAN.md).
+const voteImageUrl = (fileId: string, width = 800): string => {
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${width}`;
 };
 
 const submitVote = async (payload: VotePayload): Promise<VoteResponse> => {

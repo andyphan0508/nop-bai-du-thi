@@ -117,7 +117,10 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 
 > **Giới hạn cần biết:** đây là "phiếu kín ở mức hợp lý" cho quy mô nội bộ nhóm/hội thánh, không phải hệ thống bầu cử chống gian lận tuyệt đối — người cố tình dùng nhiều SĐT khác nhau vẫn bình chọn được nhiều lần (giống hạn chế của chặn nộp bài trùng). Muốn chặt hơn (VD: yêu cầu OTP xác thực SĐT) cần thêm dịch vụ gửi OTP bên ngoài, ngoài phạm vi bản miễn phí này.
 
-> **Về ảnh bìa hiển thị:** trang lấy ảnh qua `?action=image&id=...` — Apps Script trả thẳng file Drive (blob) nên không cần đổi quyền chia sẻ. Nếu sau khi deploy ảnh không hiện (một số phiên bản Apps Script giới hạn việc trả blob trực tiếp từ `doGet`), cách dự phòng: chọn thư mục Drive chứa bài dự thi → chia sẻ "Anyone with the link" → sửa `handleImage` trong `Code.gs` để `return` link `https://drive.google.com/thumbnail?id=FILE_ID&sz=w800` (redirect) thay vì blob.
+> **Về ảnh bìa hiển thị:** trang dùng thẳng link thumbnail công khai của Google Drive (`https://drive.google.com/thumbnail?id=...`) — **không** proxy qua Apps Script (đã thử cách `doGet` trả blob ảnh trực tiếp nhưng Apps Script Web App không hỗ trợ kiểu trả về này, chỉ nhận `HtmlOutput`/`TextOutput`). Vì vậy ảnh bìa cần được bật chia sẻ "Anyone with the link — Viewer":
+> - **Bài nộp mới** (sau khi cập nhật `Code.gs` này): tự động bật chia sẻ ngay lúc nộp, không cần làm gì thêm.
+> - **Bài đã nộp trước đó**: mở 1 lần trên trình duyệt `<ENDPOINT>/exec?action=fixImageSharing&key=<ADMIN_KEY>` để bật chia sẻ hàng loạt cho ảnh của các bài cũ (trả về `{ ok, fixed, failed }`).
+> File nguồn (.ai/.psd/...) đính kèm KHÔNG bị đổi quyền — vẫn riêng tư, chỉ ảnh bìa mới công khai xem-qua-link.
 
 ---
 

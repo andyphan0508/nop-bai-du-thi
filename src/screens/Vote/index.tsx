@@ -189,7 +189,7 @@ const VoteScreen = () => {
       {zoomEntry && (
         <VoteLightbox
           entry={zoomEntry}
-          imgSrc={submissionApi.voteImageUrl(zoomEntry.imageFileId)}
+          imgSrc={submissionApi.voteImageUrl(zoomEntry.imageFileId, 1600)}
           onClose={() => setZoomEntry(null)}
         />
       )}
