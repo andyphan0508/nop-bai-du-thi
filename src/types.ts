@@ -44,13 +44,13 @@ export type SubmitResponse = {
 };
 
 export type VoteEntry = {
-  // Mã định danh ổn định (= thời gian nộp) — dùng khi gửi phiếu bầu
+  // Mã định danh ổn định (= thời gian nộp) — dùng khi gửi phiếu bầu.
+  // CỐ Ý không có "name"/"members" — server không trả tên thí sinh ở đây để
+  // giữ bình chọn khách quan (xem apps-script/Code.gs handleVoteEntries).
   id: string;
-  name: string;
   group: string;
   title: string;
   entryType: string;
-  members: string[];
   imageFileId: string;
 };
 

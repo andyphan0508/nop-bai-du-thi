@@ -25,7 +25,7 @@ const VoteLightbox = ({ entry, imgSrc, onClose }: VoteLightboxProps) => {
         </button>
         <img className="lightbox-img" src={imgSrc} alt={`Bìa dự thi: ${entry.title}`} />
         <div className="lightbox-caption">
-          <b>{entry.title}</b> — {entry.name}
+          <b>{entry.title}</b>
         </div>
       </div>
     </div>

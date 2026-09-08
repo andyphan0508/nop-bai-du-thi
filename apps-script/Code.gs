@@ -90,7 +90,12 @@ function entryIdOf(timeValue) {
     : String(timeValue || '');
 }
 
-// Danh sách bài dự thi để hiển thị trang bình chọn: tên, nhóm, tác phẩm + ảnh bìa.
+// Danh sách bài dự thi để hiển thị trang bình chọn: nhóm, tác phẩm + ảnh bìa.
+// CỐ Ý KHÔNG trả về Họ tên/Thành viên nhóm — để người bình chọn không biết
+// bài nào của ai, tránh thiên vị theo quen biết thay vì đánh giá tác phẩm.
+// (Tên đầy đủ vẫn có trong Sheet gốc và trong kết quả bình chọn cho quản trị
+// viên xem qua ?action=voteResults, chỉ ẩn ở danh sách công khai này thôi.)
+//
 // Ảnh bìa luôn là file được upload ĐẦU TIÊN của mỗi bài (form bắt buộc chọn ảnh
 // trước, xem SubmitForm/handleSubmit ở phía web) nên lấy link đầu tiên trong cột
 // "File đã upload" là an toàn.
@@ -103,16 +108,13 @@ function handleVoteEntries() {
     var values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
     var entries = values
       .map(function (r) {
-        var members = String(r[7] || '').split(',').map(function (m) { return m.trim(); }).filter(String);
         var firstLink = String(r[10] || '').split('\n')[0] || '';
         var match = firstLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
         return {
           id: entryIdOf(r[0]),
-          name: String(r[1] || ''),
           group: String(r[4] || ''),
           title: String(r[5] || ''),
           entryType: String(r[6] || ''),
-          members: members,
           imageFileId: match ? match[1] : '',
         };
       })
@@ -412,7 +414,10 @@ function verifyGoogleIdToken(token) {
 //  5) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
 //     (double-click, mạng chậm gửi lại...) không thể cùng lọt qua bước kiểm tra
 //     "đã bình chọn chưa" (tránh race condition khiến 1 người bình chọn được 2 lần).
-//  6) Danh tính chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
+//  6) Không cho tự bình chọn cho bài dự thi CỦA CHÍNH MÌNH — so email Google
+//     đã xác minh với email đã dùng để nộp bài đó. Chỉ chặn đúng bài đó, vẫn
+//     được chọn bài khác để bình chọn (không tính là đã dùng hết lượt).
+//  7) Danh tính chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
 //     "Người bình chọn"; lựa chọn bài dự thi lưu ở sheet riêng "Kết quả bình chọn"
 //     không kèm danh tính → không sheet nào nối được "ai" với "chọn bài nào".
 function handleVote(data) {
@@ -431,16 +436,29 @@ function handleVote(data) {
   var googleCheck = verifyGoogleIdToken(data.googleIdToken);
   if (!googleCheck.ok) return json({ ok: false, error: googleCheck.error });
 
+  // Tìm bài dự thi theo entryId + lấy email đã dùng để nộp bài đó (đọc cùng
+  // lúc để chặn tự bình chọn — không cần đọc lại Sheet lần 2).
   var mainSheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
   var lastRow = mainSheet.getLastRow();
-  var validEntry = false;
+  var entryEmail = null; // null = không tìm thấy bài dự thi
   if (lastRow > 1) {
-    var timeCol = mainSheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    for (var i = 0; i < timeCol.length; i++) {
-      if (entryIdOf(timeCol[i][0]) === entryId) { validEntry = true; break; }
+    var idAndEmail = mainSheet.getRange(2, 1, lastRow - 1, 3).getValues(); // Thời gian, Họ tên, Email
+    for (var i = 0; i < idAndEmail.length; i++) {
+      if (entryIdOf(idAndEmail[i][0]) === entryId) {
+        entryEmail = String(idAndEmail[i][2] || '');
+        break;
+      }
     }
   }
-  if (!validEntry) return json({ ok: false, error: 'Bài dự thi không hợp lệ — hãy tải lại trang.' });
+  if (entryEmail === null) return json({ ok: false, error: 'Bài dự thi không hợp lệ — hãy tải lại trang.' });
+
+  if (
+    entryEmail &&
+    googleCheck.email &&
+    entryEmail.trim().toLowerCase() === googleCheck.email.trim().toLowerCase()
+  ) {
+    return json({ ok: false, error: 'Đây là bài dự thi của bạn — hãy chọn 1 bài dự thi khác để bình chọn.' });
+  }
 
   var voterHash = Utilities.base64EncodeWebSafe(
     Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, googleCheck.sub + VOTE_SALT),

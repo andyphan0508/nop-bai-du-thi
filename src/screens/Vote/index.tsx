@@ -182,7 +182,7 @@ const VoteScreen = () => {
         <div className="vote-actionbar">
           <div className="vote-actionbar-inner">
             <span>
-              Đã chọn: <b>{selectedEntry.title}</b> — {selectedEntry.name}
+              Đã chọn: <b>{selectedEntry.title}</b>
             </span>
             <button className="btn" type="button" style={{ width: "auto" }} onClick={() => setIsBallotOpen(true)}>
               Gửi phiếu bầu

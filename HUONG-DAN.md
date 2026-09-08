@@ -108,6 +108,8 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã bình chọn chưa" + ghi phiếu, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và bình chọn được 2 lần.
 5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi phiếu nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
 6. **Ẩn kết quả khi đang bình chọn** — số phiếu từng bài KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
+7. **Bình chọn kín danh (blind voting)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + nhóm/ban ngành. `?action=voteEntries` cũng không trả các trường này về — tránh người bình chọn chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
+8. **Không cho tự bình chọn cho bài của chính mình** — nếu email tài khoản Google đăng nhập trùng với email đã dùng để nộp bài đó, server sẽ từ chối đúng lựa chọn đó (chưa tính là đã dùng lượt bình chọn) và yêu cầu chọn bài khác.
 
 **Việc bạn cần làm:**
 

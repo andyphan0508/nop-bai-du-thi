@@ -61,7 +61,7 @@ const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }:
           Xác nhận phiếu bầu
         </h3>
         <p className="ballot-pick">
-          Bạn chọn: <b>{entry.title}</b> — {entry.name}
+          Bạn chọn: <b>{entry.title}</b>
         </p>
 
         {!IS_VOTE_AUTH_CONFIGURED && (

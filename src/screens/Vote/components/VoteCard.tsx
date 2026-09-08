@@ -1,6 +1,5 @@
 import { MdCheckCircle, MdZoomIn } from "react-icons/md";
 import type { VoteEntry } from "../../../types";
-import { avatarColor, initialsOf } from "../../../utils/avatar";
 
 const ENTRY_TYPE_TEAM = "Làm nhóm";
 
@@ -54,13 +53,9 @@ const VoteCard = ({ entry, imgSrc, isSelected, disabled, onSelect, onZoom }: Vot
       <div className="vote-card-info">
         <div className="vote-card-title">{entry.title}</div>
         <div className="vote-card-sub">
-          <span className="avatar" style={{ background: avatarColor(entry.name), width: 26, height: 26, fontSize: "0.68rem" }}>
-            {initialsOf(entry.name)}
-          </span>
-          <span className="vote-card-name">{entry.name}</span>
           <span className={`type-pill ${isTeam ? "team" : "solo"}`}>{isTeam ? "Nhóm" : "Cá nhân"}</span>
+          {entry.group && <span className="vote-card-group">{entry.group}</span>}
         </div>
-        {entry.group && <div className="vote-card-group">{entry.group}</div>}
       </div>
     </div>
   );
