@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { MdClose, MdHowToVote, MdLock } from "react-icons/md";
+import { MdClose, MdFavorite, MdHowToVote, MdLock, MdModeComment } from "react-icons/md";
 import { IS_VOTE_AUTH_CONFIGURED } from "../../../config";
 import type { VoteEntry } from "../../../types";
 import GoogleSignIn from "./GoogleSignIn";
 
-type BallotModalProps = {
-  entry: VoteEntry;
+type EngageModalProps = {
+  reactTarget: VoteEntry | null;
+  commentTarget: VoteEntry | null;
+  commentText: string;
   isSubmitting: boolean;
   errorMessage: string | null;
   onCancel: () => void;
@@ -32,7 +34,15 @@ const decodeJwtPayloadForDisplay = (token: string): Record<string, unknown> | nu
   }
 };
 
-const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }: BallotModalProps) => {
+const EngageModal = ({
+  reactTarget,
+  commentTarget,
+  commentText,
+  isSubmitting,
+  errorMessage,
+  onCancel,
+  onConfirm,
+}: EngageModalProps) => {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
 
@@ -58,11 +68,21 @@ const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }:
 
         <h3>
           <MdHowToVote size={22} />
-          Xác nhận phiếu bầu
+          Xác nhận tương tác
         </h3>
-        <p className="ballot-pick">
-          Bạn chọn: <b>{entry.title}</b>
-        </p>
+
+        <div className="ballot-pick">
+          {reactTarget && (
+            <div className="ballot-pick-row">
+              <MdFavorite size={16} /> React cho <b>{reactTarget.title}</b>
+            </div>
+          )}
+          {commentTarget && (
+            <div className="ballot-pick-row">
+              <MdModeComment size={16} /> Bình luận cho <b>{commentTarget.title}</b>: "{commentText}"
+            </div>
+          )}
+        </div>
 
         {!IS_VOTE_AUTH_CONFIGURED && (
           <div className="msg err">
@@ -73,7 +93,8 @@ const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }:
         {IS_VOTE_AUTH_CONFIGURED && !profile && (
           <>
             <p className="ballot-note-plain">
-              Đăng nhập bằng Google để xác nhận đây là bạn — mỗi tài khoản Google chỉ được bình chọn 1 lần.
+              Đăng nhập bằng Google để xác nhận đây là bạn — mỗi tài khoản Google chỉ có 1 lượt React + 1 lượt bình
+              luận, dùng 1 lần duy nhất.
             </p>
             <GoogleSignIn onCredential={setIdToken} />
           </>
@@ -103,18 +124,18 @@ const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }:
 
         <div className="ballot-note">
           <MdLock size={14} />
-          Phiếu bầu được giữ kín — tài khoản Google chỉ dùng để đảm bảo mỗi người chỉ bình chọn 1 lần,
-          không ai xem được bạn đã chọn bài nào.
+          Bình luận sẽ hiển thị công khai (ẩn danh, không kèm tên) — tài khoản Google chỉ dùng để đảm bảo mỗi người
+          chỉ dùng đúng 1 lượt React + 1 lượt bình luận.
         </div>
 
         {errorMessage && <div className="msg err">{errorMessage}</div>}
 
         <button className="btn" type="submit" disabled={isSubmitting || !profile}>
-          {isSubmitting ? "Đang gửi phiếu…" : "Gửi phiếu bầu"}
+          {isSubmitting ? "Đang gửi…" : "Xác nhận"}
         </button>
       </form>
     </div>
   );
 };
 
-export default BallotModal;
+export default EngageModal;

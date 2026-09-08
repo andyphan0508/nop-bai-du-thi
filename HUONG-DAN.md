@@ -96,24 +96,29 @@ Trang web hiển thị **danh sách các bạn đã nộp bài + tổng số lư
 
 ---
 
-## Bình chọn (trang `/binh-chon`)
+## React & bình luận (trang `/binh-chon`)
 
-Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh bìa dự thi (đọc trực tiếp từ Google Drive qua Apps Script) để mọi người bình chọn bài yêu thích nhất — **1 người chỉ được bình chọn 1 lần**, phiếu bầu **kín** (không ai xem được ai đã chọn bài nào).
+Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh bìa dự thi (đọc trực tiếp từ Google Drive qua Apps Script) để mọi người ủng hộ bài yêu thích. Đây **không phải** kiểu "chọn 1 bài duy nhất" mà là chấm điểm theo tương tác:
+
+- **Mỗi người (1 tài khoản Google) có đúng 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm)**, dùng 1 lần duy nhất cho cả cuộc thi — có thể dùng cả 2, chỉ 1, hoặc bỏ qua.
+- Có thể React/bình luận cho **bất kỳ bài nào**, kể cả bài của chính mình — **riêng bài của chính mình chỉ được nhận 1 trong 2** (React HOẶC bình luận, không phải cả hai).
+- **Xếp hạng theo tổng điểm** = (số lượt React × 2) + (số lượt bình luận × 1). Ai tổng điểm cao nhất là hạng 1.
+- Bình luận **hiển thị công khai** ngay trên trang (dạng lời khích lệ) nhưng **ẩn danh** — không kèm tên người bình luận. Điểm/xếp hạng thì **ngược lại**, ẩn công khai, chỉ quản trị viên xem được.
 
 **Cơ chế chống spam / đảm bảo công bằng** (đã cài sẵn trong `Code.gs`):
 
-1. **Định danh người bình chọn bằng đăng nhập Google thật** (Google Sign-In) — KHÔNG dùng tự khai SĐT nữa, vì tự khai thì ai cũng bịa số khác được. Bắt buộc đăng nhập Google mới gửi được phiếu → mở ẩn danh (incognito) không giúp ích gì vì vẫn phải đăng nhập lại bằng 1 tài khoản Google thật; muốn bình chọn nhiều lần phải có nhiều tài khoản Google khác nhau (khó hơn nhiều so với gõ SĐT khác).
-2. **reCAPTCHA v3** (vô hình, không cần người dùng làm gì) — Google chấm điểm hành vi giống người/bot, phiếu bị nghi là bot sẽ bị từ chối.
-3. **Phiếu kín thật sự** — mã định danh Google (`sub`) được băm SHA-256 (kèm `VOTE_SALT`) và lưu ở sheet riêng **"Người bình chọn"** (chỉ để chặn bình chọn 2 lần, không lưu email/tên); lựa chọn bài dự thi lưu ở sheet riêng **"Kết quả bình chọn"** (không kèm danh tính). Hai sheet không có cột chung để nối lại → không ai, kể cả bạn, tra ngược được "ai chọn bài nào".
-4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã bình chọn chưa" + ghi phiếu, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và bình chọn được 2 lần.
-5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi phiếu nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
-6. **Ẩn kết quả khi đang bình chọn** — số phiếu từng bài KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
-7. **Bình chọn kín danh (blind voting)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + nhóm/ban ngành. `?action=voteEntries` cũng không trả các trường này về — tránh người bình chọn chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
-8. **Không cho tự bình chọn cho bài của chính mình** — nếu email tài khoản Google đăng nhập trùng với email đã dùng để nộp bài đó, server sẽ từ chối đúng lựa chọn đó (chưa tính là đã dùng lượt bình chọn) và yêu cầu chọn bài khác.
+1. **Định danh bằng đăng nhập Google thật** (Google Sign-In) — KHÔNG dùng tự khai SĐT, vì tự khai thì ai cũng bịa số khác được. Bắt buộc đăng nhập Google mới gửi được lượt → mở ẩn danh (incognito) không giúp ích gì vì vẫn phải đăng nhập lại bằng 1 tài khoản Google thật; muốn dùng thêm lượt phải có nhiều tài khoản Google khác nhau.
+2. **reCAPTCHA v3** (vô hình, không cần người dùng làm gì) — Google chấm điểm hành vi giống người/bot, lượt bị nghi là bot sẽ bị từ chối.
+3. **Danh tính giữ kín** — mã định danh Google (`sub`) được băm SHA-256 (kèm `VOTE_SALT`) và lưu ở sheet riêng **"Người bình chọn"** (chỉ để chặn dùng 2 lần, không lưu email/tên); React lưu ở sheet **"Kết quả bình chọn"**, bình luận lưu ở sheet **"Bình luận"** — cả 2 không kèm danh tính. Không sheet nào nối lại được → không ai, kể cả bạn, tra ngược được "ai đã react/bình luận bài nào".
+4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã dùng lượt chưa" + ghi lượt, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và dùng được 2 lần.
+5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
+6. **Ẩn điểm/xếp hạng khi đang mở tương tác** — KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
+7. **Kín danh khi tương tác (blind)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + nhóm/ban ngành. `?action=voteEntries` cũng không trả các trường này về — tránh chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
+8. **Bài của chính mình chỉ nhận 1 trong 2** — nếu email tài khoản Google đăng nhập trùng với email đã dùng để nộp bài đó, và người này đồng thời chọn CẢ React lẫn bình luận cho (các) bài của chính họ, server sẽ từ chối yêu cầu và nhắc chỉ được chọn 1 trong 2 (chưa tính là đã dùng hết lượt, có thể thử lại).
 
-> **Trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau** (VD 5 bài của cùng 1 bạn nhưng mỗi bài dùng 1 email khác nhau): mục 8 ở trên chỉ so đúng 1 email/1 bài nên KHÔNG tự phát hiện được — hệ thống không thể tự biết 5 email đó là cùng 1 người thật. Cách xử lý: tạo thêm 1 sheet tên **đúng** `Email liên kết (cùng 1 người)` trong cùng Google Sheet, mỗi dòng (không có tiêu đề, bắt đầu từ dòng 1) là các email của 1 người, cách nhau bởi dấu phẩy — VD dòng: `email1@gmail.com, email2@gmail.com, email3@gmail.com, email4@gmail.com, email5@gmail.com`. Sau khi có sheet này, hễ ai đăng nhập bằng BẤT KỲ email nào trong nhóm đó sẽ bị chặn bình chọn cho TẤT CẢ các bài của nhóm đó (không chỉ đúng 1 bài). Không tạo sheet này thì tính năng vẫn chạy bình thường theo mục 8, không bắt buộc phải dùng.
+> **Trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau** (VD 5 bài của cùng 1 bạn nhưng mỗi bài dùng 1 email khác nhau): mục 8 ở trên chỉ so đúng 1 email/1 bài nên KHÔNG tự phát hiện được — hệ thống không thể tự biết 5 email đó là cùng 1 người thật. Cách xử lý: tạo thêm 1 sheet tên **đúng** `Email liên kết (cùng 1 người)` trong cùng Google Sheet, mỗi dòng (không có tiêu đề, bắt đầu từ dòng 1) là các email của 1 người, cách nhau bởi dấu phẩy — VD dòng: `email1@gmail.com, email2@gmail.com, email3@gmail.com, email4@gmail.com, email5@gmail.com`. Sau khi có sheet này, hễ ai đăng nhập bằng BẤT KỲ email nào trong nhóm đó và chọn CẢ React lẫn bình luận nhắm vào (các) bài trong nhóm đó (dù là 2 bài khác nhau) sẽ bị chặn — coi như "1 người, 1 hành động lên chính mình". Không tạo sheet này thì tính năng vẫn chạy bình thường theo mục 8, không bắt buộc phải dùng.
 >
-> Cố ý **không** dùng cách so tên/regex để tự động phát hiện: tên hiển thị Google do người dùng tự đặt (không xác minh được như email) nên dễ né tránh, và tên tiếng Việt rất dễ trùng giữa 2 người hoàn toàn khác nhau — tự động chặn theo tên giống sẽ dễ **chặn oan người vô tội** trùng tên với thí sinh, một lỗi công bằng còn tệ hơn việc bỏ sót vài phiếu gian lận. Vì vậy việc xác nhận "đây là cùng 1 người" cần bạn (người biết rõ thành viên nhóm/hội thánh) khai báo thủ công qua sheet trên.
+> Cố ý **không** dùng cách so tên/regex để tự động phát hiện: tên hiển thị Google do người dùng tự đặt (không xác minh được như email) nên dễ né tránh, và tên tiếng Việt rất dễ trùng giữa 2 người hoàn toàn khác nhau — tự động chặn theo tên giống sẽ dễ **chặn oan người vô tội** trùng tên với thí sinh, một lỗi công bằng còn tệ hơn việc bỏ sót vài lượt gian lận. Vì vậy việc xác nhận "đây là cùng 1 người" cần bạn (người biết rõ thành viên nhóm/hội thánh) khai báo thủ công qua sheet trên.
 
 **Việc bạn cần làm:**
 
@@ -128,11 +133,11 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 4. Dán **Client ID** (phải khớp) + **Secret Key** vào `apps-script/Code.gs` (`GOOGLE_CLIENT_ID`, `RECAPTCHA_SECRET_KEY`); đổi `VOTE_SALT` thành 1 chuỗi ngẫu nhiên của riêng bạn.
 5. Đặt `ADMIN_KEY` (nếu chưa đặt) để xem kết quả sau khi đóng bình chọn.
 6. Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
-7. Mở `<domain>/binh-chon` để bình chọn, `<domain>/binh-chon?admin=1` để xem bảng kết quả (nhập `ADMIN_KEY` vào ô "Mã quản trị").
+7. Mở `<domain>/binh-chon` để React/bình luận, `<domain>/binh-chon?admin=1` để xem bảng xếp hạng điểm (nhập `ADMIN_KEY` vào ô "Mã quản trị").
 
-> **Chưa kịp setup Google Sign-In / reCAPTCHA?** Trang vẫn chạy được (xem được ảnh, chọn bài) nhưng nút "Gửi phiếu bầu" sẽ báo lỗi/không hiện nút đăng nhập cho tới khi bạn dán đủ 4 giá trị ở bước 3–4. Đây là chủ đích — tránh mở bình chọn "chay" (ai cũng gửi được, không xác thực).
+> **Chưa kịp setup Google Sign-In / reCAPTCHA?** Trang vẫn chạy được (xem được ảnh, chọn bài để React/bình luận) nhưng nút "Xác nhận" sẽ báo lỗi/không hiện nút đăng nhập cho tới khi bạn dán đủ 4 giá trị ở bước 3–4. Đây là chủ đích — tránh mở tương tác "chay" (ai cũng gửi được, không xác thực).
 
-> **Giới hạn cần biết:** đăng nhập Google chặn được kiểu spam phổ biến nhất (mở ẩn danh/đổi SĐT), nhưng không phải tuyệt đối — người thật sự muốn gian lận vẫn có thể tạo nhiều tài khoản Google khác nhau để bình chọn nhiều lần. Muốn chặt hơn nữa (VD: chỉ cho phép domain email nội bộ, hoặc yêu cầu OTP SĐT qua dịch vụ SMS trả phí) cần thêm cấu hình ngoài phạm vi bản miễn phí này.
+> **Giới hạn cần biết:** đăng nhập Google chặn được kiểu spam phổ biến nhất (mở ẩn danh/đổi SĐT), nhưng không phải tuyệt đối — người thật sự muốn gian lận vẫn có thể tạo nhiều tài khoản Google khác nhau để dùng thêm lượt. Muốn chặt hơn nữa (VD: chỉ cho phép domain email nội bộ, hoặc yêu cầu OTP SĐT qua dịch vụ SMS trả phí) cần thêm cấu hình ngoài phạm vi bản miễn phí này.
 
 > **Về ảnh bìa hiển thị:** trang dùng thẳng link thumbnail công khai của Google Drive (`https://drive.google.com/thumbnail?id=...`) — **không** proxy qua Apps Script (đã thử cách `doGet` trả blob ảnh trực tiếp nhưng Apps Script Web App không hỗ trợ kiểu trả về này, chỉ nhận `HtmlOutput`/`TextOutput`). Vì vậy ảnh bìa cần được bật chia sẻ "Anyone with the link — Viewer":
 > - **Bài nộp mới** (sau khi cập nhật `Code.gs` này): tự động bật chia sẻ ngay lúc nộp, không cần làm gì thêm.
@@ -178,14 +183,15 @@ nop-bai-du-thi/
 │  │     ├─ AnimatedCounter.tsx     Bộ đếm chạy số
 │  │     ├─ Toast.tsx               Thông báo dạng snackbar (dùng chung)
 │  │     └─ BackgroundDecor.tsx     Nền quầng sáng + hạt
-│  └─ screens/Vote/                 Trang bình chọn — route "/binh-chon"
-│     ├─ index.tsx                  CHỈ logic: tải danh sách, chọn bài, gửi phiếu
+│  └─ screens/Vote/                 Trang React + bình luận — route "/binh-chon"
+│     ├─ index.tsx                  CHỈ logic: tải danh sách/bình luận, chọn React/comment, gửi
 │     └─ components/
-│        ├─ VoteCard.tsx            1 thẻ bài dự thi (ảnh + chọn)
+│        ├─ VoteCard.tsx            1 thẻ bài dự thi (ảnh + nút React/Bình luận + lời khích lệ)
 │        ├─ VoteLightbox.tsx        Xem ảnh bìa cỡ lớn
-│        ├─ BallotModal.tsx         Modal xác nhận phiếu bầu (họ tên + SĐT)
-│        ├─ VoteDoneCard.tsx        Màn hình đã bình chọn xong
-│        └─ AdminResultsPanel.tsx   Bảng kết quả (chỉ quản trị viên, ?admin=1)
+│        ├─ GoogleSignIn.tsx        Nút đăng nhập Google (dùng chung trong modal)
+│        ├─ EngageModal.tsx         Modal xác nhận React + bình luận (đăng nhập Google)
+│        ├─ VoteDoneCard.tsx        Màn hình đã dùng hết lượt
+│        └─ AdminResultsPanel.tsx   Bảng xếp hạng điểm (chỉ quản trị viên, ?admin=1)
 ├─ apps-script/Code.gs              Backend Google Apps Script (nộp bài + bình chọn)
 ├─ legacy/index-static.html         Bản HTML tĩnh cũ (backup, không dùng nữa)
 └─ HUONG-DAN.md                     File này

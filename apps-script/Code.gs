@@ -38,13 +38,16 @@ var RECAPTCHA_MIN_SCORE = 0.5; // 0 (giống bot) → 1 (giống người thật
 // Tên sheet lưu các bài đã xoá (xoá mềm — không mất dữ liệu)
 var TRASH_SHEET_NAME = 'Đã xoá';
 
-// Tên 2 sheet phục vụ bình chọn — TÁCH RIÊNG có chủ đích:
-// "Người bình chọn" chỉ lưu mã băm tài khoản Google (ai đã bình chọn — chặn
-// bình chọn 2 lần), "Kết quả bình chọn" chỉ lưu bài được chọn (không kèm danh
-// tính) → phiếu kín, không ai (kể cả quản trị viên) tra ngược được ai đã chọn
-// bài nào.
+// Tên 3 sheet phục vụ React + Bình luận — TÁCH RIÊNG có chủ đích:
+// "Người bình chọn" chỉ lưu mã băm tài khoản Google (ai đã dùng lượt — chặn
+// dùng 2 lần), "Kết quả bình chọn" chỉ lưu bài được React (2 điểm/dòng),
+// "Bình luận" lưu bài + nội dung bình luận (1 điểm/dòng, hiển thị công khai).
+// KHÔNG sheet nào lưu kèm danh tính người tương tác → phiếu kín, không ai
+// (kể cả quản trị viên) tra ngược được ai đã react/bình luận bài nào.
 var VOTERS_SHEET_NAME = 'Người bình chọn';
-var VOTES_SHEET_NAME = 'Kết quả bình chọn';
+var VOTES_SHEET_NAME = 'Kết quả bình chọn'; // mỗi dòng = 1 lượt React (2 điểm)
+var COMMENTS_SHEET_NAME = 'Bình luận'; // mỗi dòng = 1 lượt bình luận (1 điểm), nội dung hiển thị công khai
+var COMMENT_MAX_LEN = 500;
 
 // Sheet TUỲ CHỌN, tạo thủ công khi cần: dùng cho trường hợp 1 người nộp nhiều
 // bài dự thi bằng NHIỀU EMAIL KHÁC NHAU (nên hệ thống không tự phát hiện được
@@ -83,8 +86,9 @@ function json(obj) {
 // GET:
 //   .../exec                      → kiểm tra sức khỏe (mở URL bằng trình duyệt để test)
 //   .../exec?action=list          → danh sách công khai các bài đã nộp (tên, nhóm, tác phẩm, giờ nộp)
-//   .../exec?action=voteEntries   → danh sách bài dự thi để bình chọn (kèm ID ảnh bìa)
-//   .../exec?action=voteResults&key=ADMIN_KEY      → kết quả bình chọn (chỉ quản trị viên)
+//   .../exec?action=voteEntries   → danh sách bài dự thi để React/bình luận (kèm ID ảnh bìa)
+//   .../exec?action=comments      → bình luận công khai của mọi bài (ẩn danh), gộp theo bài
+//   .../exec?action=voteResults&key=ADMIN_KEY      → bảng xếp hạng điểm (chỉ quản trị viên)
 //   .../exec?action=fixImageSharing&key=ADMIN_KEY  → bật chia sẻ "xem qua link" cho ảnh
 //                                                      bìa của các bài đã nộp TRƯỚC KHI có
 //                                                      tính năng bình chọn (chạy 1 lần)
@@ -92,6 +96,7 @@ function doGet(e) {
   var action = e && e.parameter && e.parameter.action;
   if (action === 'list') return handleList();
   if (action === 'voteEntries') return handleVoteEntries();
+  if (action === 'comments') return handleComments();
   if (action === 'voteResults') return handleVoteResults(e);
   if (action === 'fixImageSharing') return handleFixImageSharing(e);
   return json({ ok: true, service: 'nop-bai-du-thi', time: new Date() });
@@ -141,6 +146,29 @@ function handleVoteEntries() {
   }
 }
 
+// Bình luận công khai (ẩn danh — không kèm tên người bình luận) của mọi bài
+// dự thi, gộp theo entryId — dùng để hiển thị lời khích lệ ngay trên trang
+// bình chọn. Trả về dạng { entryId: [nội dung, nội dung, ...] }.
+function handleComments() {
+  try {
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(COMMENTS_SHEET_NAME);
+    var byEntry = {};
+    if (sheet && sheet.getLastRow() > 1) {
+      var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues(); // Mã bài dự thi, Nội dung
+      rows.forEach(function (r) {
+        var entryId = String(r[0] || '');
+        var text = String(r[1] || '');
+        if (!entryId || !text) return;
+        if (!byEntry[entryId]) byEntry[entryId] = [];
+        byEntry[entryId].push(text);
+      });
+    }
+    return json({ ok: true, comments: byEntry });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
+  }
+}
+
 // Bật chia sẻ "Anyone with link — Viewer" cho ảnh bìa của các bài đã nộp TRƯỚC
 // khi có tính năng bình chọn (bài nộp MỚI đã tự bật chia sẻ ngay lúc nộp, xem
 // doPost). Chỉ cần chạy 1 lần sau khi nâng cấp code này — mở URL này 1 lần
@@ -179,9 +207,24 @@ function handleFixImageSharing(e) {
   }
 }
 
-// Kết quả bình chọn (chỉ quản trị viên, cần đúng ADMIN_KEY) — dùng để công bố
-// người thắng cuộc sau khi đóng bình chọn. Không hiển thị công khai trong lúc
-// đang bình chọn để tránh hiệu ứng "chạy theo số đông" / spam vào bài đang dẫn đầu.
+// Đếm số dòng trong 1 sheet [Mã bài dự thi, ...] theo entryId (cột 1) — dùng
+// chung cho cả sheet React và sheet Bình luận, chỉ khác số cột cần đọc.
+function countByEntryId(sheet, columnCount) {
+  var counts = {};
+  if (sheet && sheet.getLastRow() > 1) {
+    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, columnCount).getValues();
+    rows.forEach(function (r) {
+      var id = String(r[0] || '');
+      if (id) counts[id] = (counts[id] || 0) + 1;
+    });
+  }
+  return counts;
+}
+
+// Bảng xếp hạng điểm (chỉ quản trị viên, cần đúng ADMIN_KEY) — dùng để công bố
+// người thắng cuộc sau khi đóng bình chọn. Điểm = số React ×2 + số bình luận ×1.
+// Không hiển thị công khai trong lúc đang mở tương tác, để tránh hiệu ứng
+// "chạy theo số đông" / spam vào bài đang dẫn đầu.
 function handleVoteResults(e) {
   var key = e && e.parameter && e.parameter.key;
   if (!ADMIN_KEY || String(key || '') !== ADMIN_KEY) {
@@ -189,31 +232,29 @@ function handleVoteResults(e) {
   }
   try {
     var ss = SpreadsheetApp.openById(SHEET_ID);
-    var votesSheet = ss.getSheetByName(VOTES_SHEET_NAME);
-    var tally = {};
-    if (votesSheet && votesSheet.getLastRow() > 1) {
-      var rows = votesSheet.getRange(2, 1, votesSheet.getLastRow() - 1, 1).getValues();
-      rows.forEach(function (r) {
-        var id = String(r[0] || '');
-        if (id) tally[id] = (tally[id] || 0) + 1;
-      });
-    }
+    var reactCounts = countByEntryId(ss.getSheetByName(VOTES_SHEET_NAME), 1);
+    var commentCounts = countByEntryId(ss.getSheetByName(COMMENTS_SHEET_NAME), 1);
+
     var mainSheet = ss.getSheets()[0];
     var lastRow = mainSheet.getLastRow();
     var results = [];
+    var totalPoints = 0;
     if (lastRow > 1) {
       var values = mainSheet.getRange(2, 1, lastRow - 1, 6).getValues();
       values.forEach(function (r) {
         var id = entryIdOf(r[0]);
+        var reactCount = reactCounts[id] || 0;
+        var commentCount = commentCounts[id] || 0;
+        var points = reactCount * 2 + commentCount;
+        totalPoints += points;
         results.push({
           id: id, name: String(r[1] || ''), group: String(r[4] || ''), title: String(r[5] || ''),
-          votes: tally[id] || 0,
+          points: points, reactCount: reactCount, commentCount: commentCount,
         });
       });
     }
-    results.sort(function (a, b) { return b.votes - a.votes; });
-    var totalVotes = Object.keys(tally).reduce(function (sum, k) { return sum + tally[k]; }, 0);
-    return json({ ok: true, totalVotes: totalVotes, results: results });
+    results.sort(function (a, b) { return b.points - a.points; });
+    return json({ ok: true, totalPoints: totalPoints, results: results });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
@@ -256,8 +297,8 @@ function doPost(e) {
     // Yêu cầu xoá bài (chỉ quản trị viên có ADMIN_KEY)
     if (data.action === 'delete') return handleDelete(data);
 
-    // Gửi phiếu bầu
-    if (data.action === 'vote') return handleVote(data);
+    // Gửi lượt React + bình luận
+    if (data.action === 'engage') return handleEngage(data);
 
     // 1) Kiểm tra thông tin bắt buộc
     var required = [
@@ -440,36 +481,72 @@ function findLinkedEmailCluster(email) {
   }
 }
 
-// Ghi nhận 1 phiếu bầu — "phiếu kín, chống spam":
+// Tìm 1 bài dự thi theo entryId, trả về email đã dùng để nộp bài đó (chữ
+// thường, trim) — hoặc null nếu không tìm thấy entryId này trong Sheet.
+function findEntryEmail(entryId) {
+  var mainSheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+  var lastRow = mainSheet.getLastRow();
+  if (lastRow > 1) {
+    var idAndEmail = mainSheet.getRange(2, 1, lastRow - 1, 3).getValues(); // Thời gian, Họ tên, Email
+    for (var i = 0; i < idAndEmail.length; i++) {
+      if (entryIdOf(idAndEmail[i][0]) === entryId) {
+        return String(idAndEmail[i][2] || '').trim().toLowerCase();
+      }
+    }
+  }
+  return null;
+}
+
+// Bài có email nộp bài "entryEmailNorm" có phải của cùng người đang đăng nhập
+// bằng "voterEmailNorm" không — gồm cả cụm email liên kết (nếu quản trị viên
+// đã khai báo cho trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau).
+function isSameContestant(entryEmailNorm, voterEmailNorm) {
+  if (!entryEmailNorm || !voterEmailNorm) return false;
+  var cluster = [entryEmailNorm].concat(findLinkedEmailCluster(entryEmailNorm));
+  return cluster.indexOf(voterEmailNorm) !== -1;
+}
+
+// Ghi nhận 1 lượt React + bình luận — "phiếu kín, chống spam":
 //  1) Honeypot 'hp' (field ẩn, chỉ bot điền vào) → coi như đã xử lý, không lộ lý do.
 //  2) Chặn gửi quá nhanh sau khi tải trang (bot gửi ngay lập tức) — đo bằng số ms
 //     đã trôi qua do CHÍNH TRÌNH DUYỆT tính (elapsedMs), không so trực tiếp với
 //     Date.now() của server, để tránh đồng hồ máy người dùng lệch giờ làm từ chối
-//     oan người bình chọn thật.
+//     oan người tương tác thật.
 //  3) Xác minh reCAPTCHA v3 (điểm hành vi người/bot).
 //  4) Xác minh token đăng nhập Google thật (không phải tự khai SĐT) — đây là
-//     lý do mở ẩn danh (incognito) không giúp bình chọn thêm lần nữa: vẫn phải
-//     đăng nhập lại bằng 1 tài khoản Google thật, không thể chỉ gõ số khác.
-//  5) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
+//     lý do mở ẩn danh (incognito) không giúp dùng thêm lượt: vẫn phải đăng
+//     nhập lại bằng 1 tài khoản Google thật, không thể chỉ gõ số khác.
+//  5) Bài dự thi CỦA CHÍNH MÌNH chỉ được nhận 1 trong 2 (React HOẶC bình luận,
+//     không phải cả hai) — so email Google đã xác minh với email đã dùng để
+//     nộp (các) bài đó, cộng cụm email liên kết (dùng cho trường hợp 1 người
+//     nộp nhiều bài bằng nhiều email khác nhau).
+//  6) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
 //     (double-click, mạng chậm gửi lại...) không thể cùng lọt qua bước kiểm tra
-//     "đã bình chọn chưa" (tránh race condition khiến 1 người bình chọn được 2 lần).
-//  6) Không cho tự bình chọn cho bài dự thi CỦA CHÍNH MÌNH — so email Google
-//     đã xác minh với email đã dùng để nộp bài đó, CỘNG THÊM cụm email liên kết
-//     (nếu quản trị viên đã khai báo — dùng cho trường hợp 1 người nộp nhiều
-//     bài bằng nhiều email khác nhau). Chỉ chặn đúng (các) bài của người đó,
-//     vẫn được chọn bài khác để bình chọn (không tính là đã dùng hết lượt).
+//     "đã dùng lượt chưa" (tránh race condition khiến 1 người dùng được 2 lần).
 //  7) Danh tính chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
-//     "Người bình chọn"; lựa chọn bài dự thi lưu ở sheet riêng "Kết quả bình chọn"
-//     không kèm danh tính → không sheet nào nối được "ai" với "chọn bài nào".
-function handleVote(data) {
+//     "Người bình chọn"; React lưu ở sheet "Kết quả bình chọn", bình luận lưu ở
+//     sheet "Bình luận" — cả hai không kèm danh tính → không sheet nào nối
+//     được "ai" với "đã tương tác bài nào".
+function handleEngage(data) {
   if (String(data.hp || '').trim()) return json({ ok: true }); // bot dính honeypot
 
   if (Number(data.elapsedMs || 0) < 1500) {
     return json({ ok: false, error: 'Vui lòng thử lại sau ít giây.' });
   }
 
-  var entryId = String(data.entryId || '').trim();
-  if (!entryId) return json({ ok: false, error: 'Vui lòng chọn 1 bài dự thi để bình chọn.' });
+  var reactEntryId = String(data.reactEntryId || '').trim();
+  var commentEntryId = String(data.commentEntryId || '').trim();
+  var commentText = String(data.commentText || '').trim();
+
+  if (!reactEntryId && !commentEntryId) {
+    return json({ ok: false, error: 'Vui lòng chọn ít nhất 1 bài để React hoặc để lại bình luận.' });
+  }
+  if (commentEntryId && !commentText) {
+    return json({ ok: false, error: 'Vui lòng nhập nội dung bình luận.' });
+  }
+  if (commentText.length > COMMENT_MAX_LEN) {
+    return json({ ok: false, error: 'Bình luận quá dài (tối đa ' + COMMENT_MAX_LEN + ' ký tự).' });
+  }
 
   var recaptchaCheck = verifyRecaptcha(data.recaptchaToken);
   if (!recaptchaCheck.ok) return json({ ok: false, error: recaptchaCheck.error });
@@ -477,26 +554,24 @@ function handleVote(data) {
   var googleCheck = verifyGoogleIdToken(data.googleIdToken);
   if (!googleCheck.ok) return json({ ok: false, error: googleCheck.error });
 
-  // Tìm bài dự thi theo entryId + lấy email đã dùng để nộp bài đó (đọc cùng
-  // lúc để chặn tự bình chọn — không cần đọc lại Sheet lần 2).
-  var mainSheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
-  var lastRow = mainSheet.getLastRow();
-  var entryEmail = null; // null = không tìm thấy bài dự thi
-  if (lastRow > 1) {
-    var idAndEmail = mainSheet.getRange(2, 1, lastRow - 1, 3).getValues(); // Thời gian, Họ tên, Email
-    for (var i = 0; i < idAndEmail.length; i++) {
-      if (entryIdOf(idAndEmail[i][0]) === entryId) {
-        entryEmail = String(idAndEmail[i][2] || '');
-        break;
-      }
-    }
-  }
-  if (entryEmail === null) return json({ ok: false, error: 'Bài dự thi không hợp lệ — hãy tải lại trang.' });
-
   var voterEmailNorm = String(googleCheck.email || '').trim().toLowerCase();
-  var sameContestantEmails = [entryEmail.trim().toLowerCase()].concat(findLinkedEmailCluster(entryEmail));
-  if (voterEmailNorm && sameContestantEmails.indexOf(voterEmailNorm) !== -1) {
-    return json({ ok: false, error: 'Đây là bài dự thi của bạn — hãy chọn 1 bài dự thi khác để bình chọn.' });
+
+  var reactEmail = reactEntryId ? findEntryEmail(reactEntryId) : undefined;
+  if (reactEntryId && reactEmail === null) {
+    return json({ ok: false, error: 'Bài để React không hợp lệ — hãy tải lại trang.' });
+  }
+  var commentEmail = commentEntryId ? findEntryEmail(commentEntryId) : undefined;
+  if (commentEntryId && commentEmail === null) {
+    return json({ ok: false, error: 'Bài để bình luận không hợp lệ — hãy tải lại trang.' });
+  }
+
+  var reactIsSelf = reactEntryId ? isSameContestant(reactEmail, voterEmailNorm) : false;
+  var commentIsSelf = commentEntryId ? isSameContestant(commentEmail, voterEmailNorm) : false;
+  if (reactIsSelf && commentIsSelf) {
+    return json({
+      ok: false,
+      error: 'Bài dự thi của bạn chỉ được nhận 1 trong 2: React hoặc bình luận, không phải cả hai.',
+    });
   }
 
   var voterHash = Utilities.base64EncodeWebSafe(
@@ -514,7 +589,7 @@ function handleVote(data) {
 
     var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME) || ss.insertSheet(VOTERS_SHEET_NAME);
     if (votersSheet.getLastRow() === 0) {
-      votersSheet.appendRow(['Mã định danh (băm tài khoản Google)', 'Thời gian bình chọn']);
+      votersSheet.appendRow(['Mã định danh (băm tài khoản Google)', 'Thời gian dùng lượt']);
       votersSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
       votersSheet.setFrozenRows(1);
     }
@@ -523,19 +598,34 @@ function handleVote(data) {
       var existingHashes = votersSheet.getRange(2, 1, votersLastRow - 1, 1).getValues();
       for (var h = 0; h < existingHashes.length; h++) {
         if (String(existingHashes[h][0]) === voterHash) {
-          return json({ ok: false, error: 'Tài khoản Google này đã bình chọn rồi — mỗi người chỉ được bình chọn 1 lần.' });
+          return json({
+            ok: false,
+            error: 'Tài khoản Google này đã dùng hết lượt React + bình luận rồi.',
+          });
         }
       }
     }
     votersSheet.appendRow([voterHash, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
 
-    var votesSheet = ss.getSheetByName(VOTES_SHEET_NAME) || ss.insertSheet(VOTES_SHEET_NAME);
-    if (votesSheet.getLastRow() === 0) {
-      votesSheet.appendRow(['Mã bài dự thi', 'Thời gian']);
-      votesSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
-      votesSheet.setFrozenRows(1);
+    if (reactEntryId) {
+      var votesSheet = ss.getSheetByName(VOTES_SHEET_NAME) || ss.insertSheet(VOTES_SHEET_NAME);
+      if (votesSheet.getLastRow() === 0) {
+        votesSheet.appendRow(['Mã bài dự thi', 'Thời gian']);
+        votesSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+        votesSheet.setFrozenRows(1);
+      }
+      votesSheet.appendRow([reactEntryId, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
     }
-    votesSheet.appendRow([entryId, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
+
+    if (commentEntryId) {
+      var commentsSheet = ss.getSheetByName(COMMENTS_SHEET_NAME) || ss.insertSheet(COMMENTS_SHEET_NAME);
+      if (commentsSheet.getLastRow() === 0) {
+        commentsSheet.appendRow(['Mã bài dự thi', 'Nội dung bình luận', 'Thời gian']);
+        commentsSheet.getRange(1, 1, 1, 3).setFontWeight('bold');
+        commentsSheet.setFrozenRows(1);
+      }
+      commentsSheet.appendRow([commentEntryId, commentText, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
+    }
 
     return json({ ok: true });
   } finally {

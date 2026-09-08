@@ -61,11 +61,17 @@ export type VoteEntryListResponse = {
   entries?: VoteEntry[];
 };
 
-export type VotePayload = {
-  entryId: string;
-  // Danh tính thật của người bình chọn: JWT ID token từ Google Sign-In —
-  // server xác minh chữ ký/aud rồi mới tính là 1 phiếu (xem Code.gs
-  // verifyGoogleIdToken). Đây là chốt chặn chính chống mở ẩn danh bình chọn
+// Mỗi người (tài khoản Google) có đúng 1 lượt React (2 điểm) + 1 lượt bình
+// luận (1 điểm), dùng 1 lần duy nhất cho cả 2 lựa chọn cùng lúc — có thể bỏ
+// trống 1 trong 2 (hoặc cả 2 id để trống nếu chỉ dùng 1 lượt). entryId để
+// trống ('') nghĩa là không dùng lượt đó.
+export type EngagePayload = {
+  reactEntryId: string;
+  commentEntryId: string;
+  commentText: string;
+  // Danh tính thật của người tương tác: JWT ID token từ Google Sign-In —
+  // server xác minh chữ ký/aud rồi mới tính điểm (xem Code.gs
+  // verifyGoogleIdToken). Đây là chốt chặn chính chống mở ẩn danh tương tác
   // nhiều lần, thay cho việc tự khai SĐT trước đây (dễ bịa số khác).
   googleIdToken: string;
   // Token reCAPTCHA v3 — thêm 1 lớp chấm điểm hành vi người/bot.
@@ -76,9 +82,19 @@ export type VotePayload = {
   elapsedMs: number;
 };
 
-export type VoteResponse = {
+export type EngageResponse = {
   ok: boolean;
   error?: string;
+};
+
+// Bình luận công khai theo từng bài dự thi (ẩn danh — không kèm tên người
+// bình luận), dùng để hiển thị lời khích lệ ngay trên trang bình chọn.
+export type EntryCommentsMap = Record<string, string[]>;
+
+export type CommentsResponse = {
+  ok: boolean;
+  error?: string;
+  comments?: EntryCommentsMap;
 };
 
 export type VoteResult = {
@@ -86,12 +102,14 @@ export type VoteResult = {
   name: string;
   group: string;
   title: string;
-  votes: number;
+  points: number;
+  reactCount: number;
+  commentCount: number;
 };
 
 export type VoteResultsResponse = {
   ok: boolean;
   error?: string;
-  totalVotes?: number;
+  totalPoints?: number;
   results?: VoteResult[];
 };

@@ -1,11 +1,12 @@
 import { ENDPOINT } from "../config";
 import type {
+  CommentsResponse,
+  EngagePayload,
+  EngageResponse,
   EntryListResponse,
   SubmitPayload,
   SubmitResponse,
   VoteEntryListResponse,
-  VotePayload,
-  VoteResponse,
   VoteResultsResponse,
 } from "../types";
 
@@ -28,13 +29,20 @@ const voteImageUrl = (fileId: string, width = 800): string => {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${width}`;
 };
 
-const submitVote = async (payload: VotePayload): Promise<VoteResponse> => {
+const submitEngagement = async (payload: EngagePayload): Promise<EngageResponse> => {
   const response = await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: "vote", ...payload }),
+    body: JSON.stringify({ action: "engage", ...payload }),
   });
-  return (await response.json()) as VoteResponse;
+  return (await response.json()) as EngageResponse;
+};
+
+// Bình luận công khai của TẤT CẢ bài dự thi, gộp theo entryId — tải 1 lần
+// cho cả trang thay vì gọi riêng từng bài.
+const getComments = async (): Promise<CommentsResponse> => {
+  const response = await fetch(`${ENDPOINT}?action=comments`);
+  return (await response.json()) as CommentsResponse;
 };
 
 const getVoteResults = async (adminKey: string): Promise<VoteResultsResponse> => {
@@ -109,6 +117,7 @@ export const submissionApi = {
   deleteEntry,
   getVoteEntries,
   voteImageUrl,
-  submitVote,
+  submitEngagement,
+  getComments,
   getVoteResults,
 };

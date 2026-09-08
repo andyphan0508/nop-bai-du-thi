@@ -661,11 +661,6 @@ a.btn { text-decoration: none; }
   backdrop-filter: blur(2px); transition: background 0.2s;
 }
 .vote-zoom:hover { background: rgba(34, 26, 21, 0.8); }
-.vote-check {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  background: rgba(154, 69, 34, 0.28); color: #fff;
-  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
 .vote-card-info { padding: 12px 14px 14px; }
 .vote-card-title {
   font-family: var(--title-font); font-weight: 700; font-size: 0.96rem; color: var(--md-on-surface);
@@ -677,6 +672,39 @@ a.btn { text-decoration: none; }
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 0.76rem; color: var(--md-on-surface-variant); opacity: 0.85;
 }
+
+/* ===== Nút React / Bình luận trên mỗi thẻ ===== */
+.vote-card-actions { display: flex; gap: 8px; margin-top: 12px; }
+.vote-react-btn, .vote-comment-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1.5px solid var(--md-outline-variant); background: var(--md-surface-container-lowest);
+  color: var(--md-on-surface-variant); border-radius: var(--md-shape-full);
+  padding: 8px 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.vote-react-btn:hover, .vote-comment-btn:hover { border-color: var(--md-primary); transform: translateY(-1px); }
+.vote-react-btn.active {
+  background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary);
+}
+.vote-comment-btn.active {
+  background: var(--md-secondary-container); border-color: var(--md-secondary); color: var(--md-on-secondary-container);
+}
+.vote-comment-input {
+  width: 100%; margin-top: 10px; padding: 10px 12px; min-height: 64px; resize: vertical;
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-shape-md);
+  background: var(--md-surface-container-high); color: var(--md-on-surface);
+  font-family: inherit; font-size: 0.86rem;
+}
+.vote-comment-input:focus { outline: none; border-color: var(--md-primary); background: var(--md-surface-container-lowest); }
+
+/* ===== Bình luận công khai hiển thị trên thẻ ===== */
+.vote-comments { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.vote-comment-item {
+  background: var(--md-surface-container-low); border-radius: var(--md-shape-sm);
+  padding: 7px 10px; font-size: 0.78rem; color: var(--md-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.vote-comments-more { font-size: 0.72rem; color: var(--md-on-surface-variant); opacity: 0.8; padding-left: 2px; }
 
 /* ===== Thanh hành động dính đáy khi đã chọn 1 bài ===== */
 .vote-actionbar {
@@ -691,6 +719,7 @@ a.btn { text-decoration: none; }
   font-size: 0.88rem; color: var(--md-on-surface-variant); animation: toastIn 0.3s ease both;
 }
 .vote-actionbar-inner b { color: var(--md-on-surface); }
+.vote-actionbar-summary { display: flex; flex-direction: column; gap: 2px; }
 
 /* ===== Modal dùng chung (phiếu bầu + xem ảnh lớn) ===== */
 .modal-overlay {
@@ -710,6 +739,9 @@ a.btn { text-decoration: none; }
   cursor: pointer; display: grid; place-items: center;
 }
 .ballot-pick { color: var(--md-on-surface-variant); font-size: 0.9rem; margin: 0 0 18px; }
+.ballot-pick-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+.ballot-pick-row svg { flex: none; margin-top: 3px; color: var(--md-primary); }
+.ballot-pick-row:last-child { margin-bottom: 0; }
 .ballot-note-plain { color: var(--md-on-surface-variant); font-size: 0.86rem; margin: 0 0 14px; }
 .google-signin-btn { display: flex; justify-content: center; margin: 4px 0 16px; }
 .google-profile {
