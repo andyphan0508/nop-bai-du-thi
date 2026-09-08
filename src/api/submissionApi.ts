@@ -3,11 +3,42 @@ import type {
   EntryListResponse,
   SubmitPayload,
   SubmitResponse,
+  VoteEntryListResponse,
+  VotePayload,
+  VoteResponse,
+  VoteResultsResponse,
 } from "../types";
 
 const getEntryList = async (): Promise<EntryListResponse> => {
   const response = await fetch(`${ENDPOINT}?action=list`);
   return (await response.json()) as EntryListResponse;
+};
+
+const getVoteEntries = async (): Promise<VoteEntryListResponse> => {
+  const response = await fetch(`${ENDPOINT}?action=voteEntries`);
+  return (await response.json()) as VoteEntryListResponse;
+};
+
+// URL ảnh bìa 1 bài dự thi — script trả trực tiếp bytes ảnh (không cần đổi
+// quyền chia sẻ Drive), nên dùng thẳng làm src cho <img>.
+const voteImageUrl = (fileId: string): string => {
+  return `${ENDPOINT}?action=image&id=${encodeURIComponent(fileId)}`;
+};
+
+const submitVote = async (payload: VotePayload): Promise<VoteResponse> => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "vote", ...payload }),
+  });
+  return (await response.json()) as VoteResponse;
+};
+
+const getVoteResults = async (adminKey: string): Promise<VoteResultsResponse> => {
+  const response = await fetch(
+    `${ENDPOINT}?action=voteResults&key=${encodeURIComponent(adminKey)}`,
+  );
+  return (await response.json()) as VoteResultsResponse;
 };
 
 // POST bằng XHR, Content-Type text/plain để giữ dạng "simple request".
@@ -69,4 +100,12 @@ const deleteEntry = async (
   return (await response.json()) as SubmitResponse;
 };
 
-export const submissionApi = { getEntryList, postSubmission, deleteEntry };
+export const submissionApi = {
+  getEntryList,
+  postSubmission,
+  deleteEntry,
+  getVoteEntries,
+  voteImageUrl,
+  submitVote,
+  getVoteResults,
+};

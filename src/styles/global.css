@@ -630,6 +630,119 @@ a.btn { text-decoration: none; }
   to { opacity: 1; transform: none; }
 }
 
+/* ===== Điều hướng trong header (link giữa trang Nộp bài ↔ Bình chọn) ===== */
+.head-nav { margin-top: 14px; }
+.nav-link {
+  color: var(--md-primary); font-weight: 700; font-size: 0.88rem; text-decoration: none;
+  border-bottom: 1px solid transparent; transition: border-color 0.2s;
+}
+.nav-link:hover { border-bottom-color: var(--md-primary); }
+
+/* ===== Trang bình chọn — lưới bài dự thi ===== */
+.vote-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px;
+  margin-top: 8px; padding-bottom: 90px; /* chừa chỗ cho thanh hành động dính đáy */
+}
+.vote-card {
+  background: var(--md-surface-container-lowest); border-radius: var(--md-shape-lg);
+  box-shadow: var(--md-elev-1); overflow: hidden; cursor: pointer;
+  border: 2.5px solid transparent; transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  animation: fadeUp 0.5s ease both;
+}
+.vote-card:hover { box-shadow: var(--md-elev-2); transform: translateY(-2px); }
+.vote-card.selected { border-color: var(--md-primary); box-shadow: var(--md-elev-3); }
+.vote-card.disabled { cursor: default; opacity: 0.7; }
+.vote-card-img { position: relative; aspect-ratio: 4 / 5; background: var(--md-surface-container-high); }
+.vote-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vote-zoom {
+  position: absolute; top: 8px; right: 8px; border: none; cursor: pointer;
+  width: 32px; height: 32px; border-radius: var(--md-shape-full);
+  background: rgba(34, 26, 21, 0.55); color: #fff; display: grid; place-items: center;
+  backdrop-filter: blur(2px); transition: background 0.2s;
+}
+.vote-zoom:hover { background: rgba(34, 26, 21, 0.8); }
+.vote-check {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(154, 69, 34, 0.28); color: #fff;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.vote-card-info { padding: 12px 14px 14px; }
+.vote-card-title {
+  font-family: var(--title-font); font-weight: 700; font-size: 0.96rem; color: var(--md-on-surface);
+  margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.vote-card-sub { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--md-on-surface-variant); }
+.vote-card-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vote-card-group { margin-top: 4px; font-size: 0.74rem; color: var(--md-on-surface-variant); opacity: 0.85; }
+
+/* ===== Thanh hành động dính đáy khi đã chọn 1 bài ===== */
+.vote-actionbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: flex; justify-content: center; padding: 14px 18px;
+  background: linear-gradient(0deg, var(--md-surface) 60%, transparent);
+}
+.vote-actionbar-inner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between;
+  width: 100%; max-width: 640px; background: var(--md-surface-container-lowest);
+  border-radius: var(--md-shape-full); padding: 10px 10px 10px 22px; box-shadow: var(--md-elev-3);
+  font-size: 0.88rem; color: var(--md-on-surface-variant); animation: toastIn 0.3s ease both;
+}
+.vote-actionbar-inner b { color: var(--md-on-surface); }
+
+/* ===== Modal dùng chung (phiếu bầu + xem ảnh lớn) ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 80; background: rgba(34, 26, 21, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: popIn 0.2s ease both;
+}
+.modal {
+  position: relative; background: var(--md-surface-container-lowest); border-radius: var(--md-shape-xl);
+  box-shadow: var(--md-elev-3); padding: 28px 26px; width: 100%; max-width: 420px;
+  max-height: 88vh; overflow-y: auto; animation: fadeUp 0.3s ease both;
+}
+.modal h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--md-primary); font-family: var(--title-font); }
+.modal-close {
+  position: absolute; top: 14px; right: 14px; border: none; background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant); width: 32px; height: 32px; border-radius: var(--md-shape-full);
+  cursor: pointer; display: grid; place-items: center;
+}
+.ballot-pick { color: var(--md-on-surface-variant); font-size: 0.9rem; margin: 0 0 18px; }
+.ballot-note {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 0.78rem; color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-low); border-radius: var(--md-shape-md); padding: 10px 12px; margin: 4px 0 16px;
+}
+.ballot-note svg { flex: none; margin-top: 2px; }
+
+/* Honeypot — ẩn kiểu "visually hidden" (thu về 1x1px + clip), KHÔNG display:none/
+   visibility:hidden (để không "dạy" bot cách phát hiện field ẩn qua computed style),
+   và KHÔNG đẩy ra ngoài khung nhìn bằng toạ độ âm lớn (sẽ làm modal bị tràn ngang). */
+.hp-field {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* ===== Xem ảnh lớn (lightbox) ===== */
+.lightbox { max-width: min(92vw, 640px); padding: 16px; text-align: center; }
+.lightbox-img { max-width: 100%; max-height: 72vh; border-radius: var(--md-shape-md); display: block; margin: 0 auto; }
+.lightbox-caption { margin-top: 12px; font-size: 0.86rem; color: var(--md-on-surface-variant); }
+.lightbox-caption b { color: var(--md-on-surface); }
+
+/* ===== Bảng kết quả bình chọn (quản trị viên) ===== */
+.result-list { list-style: none; margin: 0; padding: 0; }
+.result-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.result-row + .result-row { border-top: 1px solid rgba(215, 194, 184, 0.45); }
+.result-rank {
+  flex: none; width: 26px; height: 26px; border-radius: var(--md-shape-full); display: grid; place-items: center;
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container); font-size: 0.76rem; font-weight: 700;
+}
+.result-info { flex: 1; min-width: 0; }
+.result-title { font-weight: 600; font-size: 0.88rem; color: var(--md-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-sub { font-size: 0.74rem; color: var(--md-on-surface-variant); margin-bottom: 4px; }
+.result-bar-track { height: 5px; background: var(--md-surface-container-high); border-radius: var(--md-shape-full); overflow: hidden; }
+.result-bar { height: 100%; background: linear-gradient(90deg, #b5561f, var(--md-primary)); border-radius: var(--md-shape-full); }
+.result-votes { flex: none; font-weight: 800; font-size: 1rem; color: var(--md-primary); font-variant-numeric: tabular-nums; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

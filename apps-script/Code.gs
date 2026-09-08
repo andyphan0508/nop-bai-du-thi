@@ -15,12 +15,24 @@ var FOLDER_ID = 'PASTE_FOLDER_ID';
 // ID Google Sheet dùng để ghi record (lấy từ URL của Sheet)
 var SHEET_ID = 'PASTE_SHEET_ID';
 
-// Mã quản trị: cần để xoá bài trên web (mở web với ?admin=1).
-// Để trống '' nếu muốn TẮT hẳn tính năng xoá.
+// Mã quản trị: cần để xoá bài trên web (mở web với ?admin=1),
+// và để xem kết quả bình chọn (?action=voteResults&key=...).
+// Để trống '' nếu muốn TẮT hẳn tính năng xoá / xem kết quả.
 var ADMIN_KEY = '';
+
+// Chuỗi bí mật để "băm" SĐT người bình chọn — đổi thành chuỗi ngẫu nhiên của
+// riêng bạn (không cần nhớ, chỉ cần giữ cố định trong suốt đợt bình chọn).
+var VOTE_SALT = 'doi-chuoi-nay-truoc-khi-deploy-binh-chon';
 
 // Tên sheet lưu các bài đã xoá (xoá mềm — không mất dữ liệu)
 var TRASH_SHEET_NAME = 'Đã xoá';
+
+// Tên 2 sheet phục vụ bình chọn — TÁCH RIÊNG có chủ đích:
+// "Người bình chọn" chỉ lưu mã băm SĐT (ai đã bình chọn — chặn bình chọn 2 lần),
+// "Kết quả bình chọn" chỉ lưu bài được chọn (không kèm danh tính) → phiếu kín,
+// không ai (kể cả quản trị viên) tra ngược được ai đã chọn bài nào.
+var VOTERS_SHEET_NAME = 'Người bình chọn';
+var VOTES_SHEET_NAME = 'Kết quả bình chọn';
 
 // Giới hạn dung lượng mỗi file upload trực tiếp (MB). File nặng hơn → dùng link.
 var MAX_FILE_MB = 45;
@@ -42,12 +54,126 @@ function json(obj) {
 }
 
 // GET:
-//   .../exec              → kiểm tra sức khỏe (mở URL bằng trình duyệt để test)
-//   .../exec?action=list  → danh sách công khai các bài đã nộp (tên, nhóm, tác phẩm, giờ nộp)
+//   .../exec                      → kiểm tra sức khỏe (mở URL bằng trình duyệt để test)
+//   .../exec?action=list          → danh sách công khai các bài đã nộp (tên, nhóm, tác phẩm, giờ nộp)
+//   .../exec?action=voteEntries   → danh sách bài dự thi để bình chọn (kèm ảnh bìa)
+//   .../exec?action=image&id=...  → ảnh bìa 1 bài dự thi (proxy qua Drive, không cần đổi quyền chia sẻ)
+//   .../exec?action=voteResults&key=ADMIN_KEY → kết quả bình chọn (chỉ quản trị viên)
 function doGet(e) {
   var action = e && e.parameter && e.parameter.action;
   if (action === 'list') return handleList();
+  if (action === 'voteEntries') return handleVoteEntries();
+  if (action === 'image') return handleImage(e);
+  if (action === 'voteResults') return handleVoteResults(e);
   return json({ ok: true, service: 'nop-bai-du-thi', time: new Date() });
+}
+
+// Mã định danh ổn định cho 1 bài dự thi dùng khi bình chọn: chính là "Thời gian nộp"
+// (đã có sẵn cho mọi dòng, đủ duy nhất ở độ chính xác từng giây cho quy mô cuộc thi này)
+function entryIdOf(timeValue) {
+  return timeValue instanceof Date
+    ? Utilities.formatDate(timeValue, TZ, 'yyyy-MM-dd HH:mm:ss')
+    : String(timeValue || '');
+}
+
+// Danh sách bài dự thi để hiển thị trang bình chọn: tên, nhóm, tác phẩm + ảnh bìa.
+// Ảnh bìa luôn là file được upload ĐẦU TIÊN của mỗi bài (form bắt buộc chọn ảnh
+// trước, xem SubmitForm/handleSubmit ở phía web) nên lấy link đầu tiên trong cột
+// "File đã upload" là an toàn.
+function handleVoteEntries() {
+  try {
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return json({ ok: true, count: 0, entries: [] });
+
+    var values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    var entries = values
+      .map(function (r) {
+        var members = String(r[7] || '').split(',').map(function (m) { return m.trim(); }).filter(String);
+        var firstLink = String(r[10] || '').split('\n')[0] || '';
+        var match = firstLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        return {
+          id: entryIdOf(r[0]),
+          name: String(r[1] || ''),
+          group: String(r[4] || ''),
+          title: String(r[5] || ''),
+          entryType: String(r[6] || ''),
+          members: members,
+          imageFileId: match ? match[1] : '',
+        };
+      })
+      .filter(function (entry) { return entry.imageFileId; }); // ẩn bài không có ảnh hợp lệ
+
+    return json({ ok: true, count: entries.length, entries: entries });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
+  }
+}
+
+// Trả ảnh trực tiếp (blob) thay vì link Drive: script chạy dưới quyền chủ sở hữu
+// nên đọc được file dù chưa bật chia sẻ công khai. QUAN TRỌNG: chỉ phục vụ file
+// ID đã thực sự xuất hiện trong cột "File đã upload" của Sheet — tránh biến
+// endpoint này thành cổng đọc trộm file bất kỳ trong Drive của chủ tài khoản.
+function handleImage(e) {
+  var fileId = e && e.parameter && e.parameter.id;
+  if (!fileId || !/^[a-zA-Z0-9_-]{10,80}$/.test(fileId)) {
+    return json({ ok: false, error: 'ID file không hợp lệ.' });
+  }
+  try {
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    var isKnownContestImage = false;
+    if (lastRow > 1) {
+      var uploads = sheet.getRange(2, 11, lastRow - 1, 1).getValues(); // cột "File đã upload"
+      for (var i = 0; i < uploads.length; i++) {
+        if (String(uploads[i][0] || '').indexOf(fileId) !== -1) { isKnownContestImage = true; break; }
+      }
+    }
+    if (!isKnownContestImage) return json({ ok: false, error: 'Không tìm thấy ảnh.' });
+    return DriveApp.getFileById(fileId).getBlob();
+  } catch (err) {
+    return json({ ok: false, error: 'Không tải được ảnh: ' + String(err && err.message ? err.message : err) });
+  }
+}
+
+// Kết quả bình chọn (chỉ quản trị viên, cần đúng ADMIN_KEY) — dùng để công bố
+// người thắng cuộc sau khi đóng bình chọn. Không hiển thị công khai trong lúc
+// đang bình chọn để tránh hiệu ứng "chạy theo số đông" / spam vào bài đang dẫn đầu.
+function handleVoteResults(e) {
+  var key = e && e.parameter && e.parameter.key;
+  if (!ADMIN_KEY || String(key || '') !== ADMIN_KEY) {
+    return json({ ok: false, error: 'Không có quyền xem kết quả.' });
+  }
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var votesSheet = ss.getSheetByName(VOTES_SHEET_NAME);
+    var tally = {};
+    if (votesSheet && votesSheet.getLastRow() > 1) {
+      var rows = votesSheet.getRange(2, 1, votesSheet.getLastRow() - 1, 1).getValues();
+      rows.forEach(function (r) {
+        var id = String(r[0] || '');
+        if (id) tally[id] = (tally[id] || 0) + 1;
+      });
+    }
+    var mainSheet = ss.getSheets()[0];
+    var lastRow = mainSheet.getLastRow();
+    var results = [];
+    if (lastRow > 1) {
+      var values = mainSheet.getRange(2, 1, lastRow - 1, 6).getValues();
+      values.forEach(function (r) {
+        var id = entryIdOf(r[0]);
+        results.push({
+          id: id, name: String(r[1] || ''), group: String(r[4] || ''), title: String(r[5] || ''),
+          votes: tally[id] || 0,
+        });
+      });
+    }
+    results.sort(function (a, b) { return b.votes - a.votes; });
+    var totalVotes = Object.keys(tally).reduce(function (sum, k) { return sum + tally[k]; }, 0);
+    return json({ ok: true, totalVotes: totalVotes, results: results });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
+  }
 }
 
 // Trả về danh sách bài nộp (chỉ các cột công khai — KHÔNG gồm email/SĐT), mới nhất trước
@@ -86,6 +212,9 @@ function doPost(e) {
 
     // Yêu cầu xoá bài (chỉ quản trị viên có ADMIN_KEY)
     if (data.action === 'delete') return handleDelete(data);
+
+    // Gửi phiếu bầu
+    if (data.action === 'vote') return handleVote(data);
 
     // 1) Kiểm tra thông tin bắt buộc
     var required = [
@@ -182,6 +311,91 @@ function normalizePhone(phone) {
   var digits = String(phone || '').replace(/\D/g, '');
   if (digits.indexOf('84') === 0) digits = '0' + digits.slice(2);
   return digits;
+}
+
+// Ghi nhận 1 phiếu bầu — "phiếu kín, chống spam":
+//  1) Honeypot 'hp' (field ẩn, chỉ bot điền vào) → coi như đã xử lý, không lộ lý do.
+//  2) Chặn gửi quá nhanh sau khi tải trang (bot gửi ngay lập tức) — đo bằng số ms
+//     đã trôi qua do CHÍNH TRÌNH DUYỆT tính (elapsedMs), không so trực tiếp với
+//     Date.now() của server, để tránh đồng hồ máy người dùng lệch giờ làm từ chối
+//     oan người bình chọn thật.
+//  3) Xác thực bài dự thi tồn tại + họ tên/SĐT hợp lệ.
+//  4) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
+//     (double-click, mạng chậm gửi lại...) không thể cùng lọt qua bước kiểm tra
+//     "đã bình chọn chưa" (tránh race condition khiến 1 người bình chọn được 2 lần).
+//  5) SĐT chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
+//     "Người bình chọn"; lựa chọn bài dự thi lưu ở sheet riêng "Kết quả bình chọn"
+//     không kèm danh tính → không sheet nào nối được "ai" với "chọn bài nào".
+function handleVote(data) {
+  if (String(data.hp || '').trim()) return json({ ok: true }); // bot dính honeypot
+
+  if (Number(data.elapsedMs || 0) < 1500) {
+    return json({ ok: false, error: 'Vui lòng thử lại sau ít giây.' });
+  }
+
+  var entryId = String(data.entryId || '').trim();
+  var voterName = String(data.voterName || '').trim();
+  var voterPhone = String(data.voterPhone || '').trim();
+
+  if (!entryId) return json({ ok: false, error: 'Vui lòng chọn 1 bài dự thi để bình chọn.' });
+  if (voterName.length < 2) return json({ ok: false, error: 'Vui lòng nhập họ tên.' });
+  if (!/^(0|\+84)(\d[\s.-]?){8,10}$/.test(voterPhone)) {
+    return json({ ok: false, error: 'Số điện thoại không hợp lệ.' });
+  }
+
+  var mainSheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+  var lastRow = mainSheet.getLastRow();
+  var validEntry = false;
+  if (lastRow > 1) {
+    var timeCol = mainSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < timeCol.length; i++) {
+      if (entryIdOf(timeCol[i][0]) === entryId) { validEntry = true; break; }
+    }
+  }
+  if (!validEntry) return json({ ok: false, error: 'Bài dự thi không hợp lệ — hãy tải lại trang.' });
+
+  var voterHash = Utilities.base64EncodeWebSafe(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, normalizePhone(voterPhone) + VOTE_SALT),
+  );
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (lockErr) {
+    return json({ ok: false, error: 'Hệ thống đang bận, vui lòng thử lại.' });
+  }
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+
+    var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME) || ss.insertSheet(VOTERS_SHEET_NAME);
+    if (votersSheet.getLastRow() === 0) {
+      votersSheet.appendRow(['Mã định danh (băm SĐT)', 'Thời gian bình chọn']);
+      votersSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+      votersSheet.setFrozenRows(1);
+    }
+    var votersLastRow = votersSheet.getLastRow();
+    if (votersLastRow > 1) {
+      var existingHashes = votersSheet.getRange(2, 1, votersLastRow - 1, 1).getValues();
+      for (var h = 0; h < existingHashes.length; h++) {
+        if (String(existingHashes[h][0]) === voterHash) {
+          return json({ ok: false, error: 'Số điện thoại này đã bình chọn rồi — mỗi người chỉ được bình chọn 1 lần.' });
+        }
+      }
+    }
+    votersSheet.appendRow([voterHash, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
+
+    var votesSheet = ss.getSheetByName(VOTES_SHEET_NAME) || ss.insertSheet(VOTES_SHEET_NAME);
+    if (votesSheet.getLastRow() === 0) {
+      votesSheet.appendRow(['Mã bài dự thi', 'Thời gian']);
+      votesSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+      votesSheet.setFrozenRows(1);
+    }
+    votesSheet.appendRow([entryId, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
+
+    return json({ ok: true });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // Xoá mềm 1 bài: chuyển dòng sang sheet "Đã xoá" rồi xoá khỏi sheet chính.

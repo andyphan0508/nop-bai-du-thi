@@ -324,6 +324,13 @@ const SubmitScreen = () => {
               ? 'Cuộc thi đã kết thúc nhận bài. Cảm ơn các bạn đã tham gia!'
               : 'Điền thông tin và tải lên bài dự thi của bạn (file ảnh + file nguồn .ai / .psd).'
           }
+          nav={
+            isContestClosed && (
+              <a className="nav-link" href="/binh-chon">
+                Xem &amp; bình chọn bài dự thi yêu thích →
+              </a>
+            )
+          }
         />
 
         <div className="layout">
