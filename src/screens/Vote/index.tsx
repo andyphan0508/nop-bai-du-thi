@@ -9,10 +9,14 @@ import VoteDoneCard from "./components/VoteDoneCard";
 import AdminResultsPanel from "./components/AdminResultsPanel";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
+import { getRecaptchaToken } from "../../utils/recaptcha";
 import type { VoteEntry } from "../../types";
 
 // Mỗi máy chỉ bình chọn 1 lần — dấu vết phía trình duyệt (chặn thật sự nằm ở
-// server: mỗi SĐT chỉ được ghi 1 phiếu, xem apps-script/Code.gs → handleVote)
+// server: mỗi tài khoản Google đăng nhập chỉ được ghi 1 phiếu, xem
+// apps-script/Code.gs → handleVote/verifyGoogleIdToken. Mở ẩn danh chỉ xoá
+// được dấu vết này, KHÔNG giúp bình chọn thêm lần nữa vì vẫn phải đăng nhập
+// lại bằng 1 tài khoản Google thật.)
 const VOTED_STORAGE_KEY = "nbdt-da-binh-chon";
 
 type VotedRecord = { title: string; at: string };
@@ -75,15 +79,16 @@ const VoteScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [votedRecord]);
 
-  const handleConfirmVote = async (voterName: string, voterPhone: string, honeypot: string) => {
+  const handleConfirmVote = async (googleIdToken: string, honeypot: string) => {
     if (!selectedEntry) return;
     setIsSubmittingVote(true);
     setVoteError(null);
     try {
+      const recaptchaToken = await getRecaptchaToken("vote");
       const response = await submissionApi.submitVote({
         entryId: selectedEntry.id,
-        voterName,
-        voterPhone,
+        googleIdToken,
+        recaptchaToken,
         hp: honeypot,
         elapsedMs: Date.now() - pageLoadedAtRef.current,
       });

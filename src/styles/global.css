@@ -708,6 +708,13 @@ a.btn { text-decoration: none; }
   cursor: pointer; display: grid; place-items: center;
 }
 .ballot-pick { color: var(--md-on-surface-variant); font-size: 0.9rem; margin: 0 0 18px; }
+.ballot-note-plain { color: var(--md-on-surface-variant); font-size: 0.86rem; margin: 0 0 14px; }
+.google-signin-btn { display: flex; justify-content: center; margin: 4px 0 16px; }
+.google-profile {
+  background: var(--md-success-container); color: var(--md-on-success-container);
+  border-radius: var(--md-shape-md); padding: 12px 14px; font-size: 0.86rem; margin: 4px 0 16px;
+}
+.google-profile b { display: block; font-size: 0.94rem; }
 .ballot-note {
   display: flex; align-items: flex-start; gap: 8px; font-size: 0.78rem; color: var(--md-on-surface-variant);
   background: var(--md-surface-container-low); border-radius: var(--md-shape-md); padding: 10px 12px; margin: 4px 0 16px;

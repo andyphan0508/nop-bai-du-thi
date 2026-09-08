@@ -63,11 +63,15 @@ export type VoteEntryListResponse = {
 
 export type VotePayload = {
   entryId: string;
-  voterName: string;
-  voterPhone: string;
-  // Chống spam: field ẩn (honeypot) + số ms đã trôi qua kể từ khi tải trang.
-  // Đo hoàn toàn ở phía trình duyệt (không gửi mốc thời gian thô) để tránh lệch
-  // đồng hồ giữa máy người dùng và server làm từ chối oan người bình chọn thật.
+  // Danh tính thật của người bình chọn: JWT ID token từ Google Sign-In —
+  // server xác minh chữ ký/aud rồi mới tính là 1 phiếu (xem Code.gs
+  // verifyGoogleIdToken). Đây là chốt chặn chính chống mở ẩn danh bình chọn
+  // nhiều lần, thay cho việc tự khai SĐT trước đây (dễ bịa số khác).
+  googleIdToken: string;
+  // Token reCAPTCHA v3 — thêm 1 lớp chấm điểm hành vi người/bot.
+  recaptchaToken: string;
+  // Chống spam bổ sung: field ẩn (honeypot) + số ms đã trôi qua kể từ khi tải
+  // trang, đo hoàn toàn ở phía trình duyệt để tránh lệch đồng hồ với server.
   hp: string;
   elapsedMs: number;
 };

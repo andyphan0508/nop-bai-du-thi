@@ -20,17 +20,29 @@ var SHEET_ID = 'PASTE_SHEET_ID';
 // Để trống '' nếu muốn TẮT hẳn tính năng xoá / xem kết quả.
 var ADMIN_KEY = '';
 
-// Chuỗi bí mật để "băm" SĐT người bình chọn — đổi thành chuỗi ngẫu nhiên của
-// riêng bạn (không cần nhớ, chỉ cần giữ cố định trong suốt đợt bình chọn).
+// Chuỗi bí mật để "băm" danh tính người bình chọn — đổi thành chuỗi ngẫu nhiên
+// của riêng bạn (không cần nhớ, chỉ cần giữ cố định trong suốt đợt bình chọn).
 var VOTE_SALT = 'doi-chuoi-nay-truoc-khi-deploy-binh-chon';
+
+// Google Sign-In — PHẢI khớp với GOOGLE_CLIENT_ID bên src/config.ts (frontend).
+// Dùng để xác minh token đăng nhập Google là thật + đúng đúng app này (chặn
+// giả mạo token). Để trống '' thì server sẽ KHÔNG bắt buộc đăng nhập Google
+// (không khuyến khích — dễ bị mở ẩn danh bình chọn nhiều lần).
+var GOOGLE_CLIENT_ID = 'PASTE_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+
+// reCAPTCHA v3 — Secret Key (KHÔNG dán vào frontend, chỉ dùng ở đây).
+// Tạo tại https://www.google.com/recaptcha/admin — để trống '' để tắt kiểm tra.
+var RECAPTCHA_SECRET_KEY = 'PASTE_RECAPTCHA_SECRET_KEY';
+var RECAPTCHA_MIN_SCORE = 0.5; // 0 (giống bot) → 1 (giống người thật)
 
 // Tên sheet lưu các bài đã xoá (xoá mềm — không mất dữ liệu)
 var TRASH_SHEET_NAME = 'Đã xoá';
 
 // Tên 2 sheet phục vụ bình chọn — TÁCH RIÊNG có chủ đích:
-// "Người bình chọn" chỉ lưu mã băm SĐT (ai đã bình chọn — chặn bình chọn 2 lần),
-// "Kết quả bình chọn" chỉ lưu bài được chọn (không kèm danh tính) → phiếu kín,
-// không ai (kể cả quản trị viên) tra ngược được ai đã chọn bài nào.
+// "Người bình chọn" chỉ lưu mã băm tài khoản Google (ai đã bình chọn — chặn
+// bình chọn 2 lần), "Kết quả bình chọn" chỉ lưu bài được chọn (không kèm danh
+// tính) → phiếu kín, không ai (kể cả quản trị viên) tra ngược được ai đã chọn
+// bài nào.
 var VOTERS_SHEET_NAME = 'Người bình chọn';
 var VOTES_SHEET_NAME = 'Kết quả bình chọn';
 
@@ -334,17 +346,73 @@ function normalizePhone(phone) {
   return digits;
 }
 
+// Gọi Google để xác minh 1 token reCAPTCHA v3 — trả điểm 0 (giống bot) → 1
+// (giống người thật). Nếu chưa cấu hình RECAPTCHA_SECRET_KEY thì bỏ qua bước
+// này (cho phép chạy thử trước khi setup xong).
+function verifyRecaptcha(token) {
+  if (!RECAPTCHA_SECRET_KEY || RECAPTCHA_SECRET_KEY.indexOf('PASTE_') === 0) return { ok: true };
+  if (!token) return { ok: false, error: 'Thiếu xác minh reCAPTCHA — hãy tải lại trang.' };
+  try {
+    var response = UrlFetchApp.fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'post',
+      payload: { secret: RECAPTCHA_SECRET_KEY, response: token },
+      muteHttpExceptions: true,
+    });
+    var result = JSON.parse(response.getContentText());
+    if (!result.success || (typeof result.score === 'number' && result.score < RECAPTCHA_MIN_SCORE)) {
+      return { ok: false, error: 'Hệ thống nghi ngờ đây là bot — vui lòng thử lại.' };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: 'Không xác minh được reCAPTCHA, vui lòng thử lại.' };
+  }
+}
+
+// Gọi Google để xác minh 1 ID token (JWT) từ Google Sign-In: đúng chữ ký,
+// đúng ứng dụng (aud = GOOGLE_CLIENT_ID) và email đã xác minh. Đây là chốt
+// chặn chính chống mở ẩn danh + bịa thông tin bình chọn nhiều lần — muốn vượt
+// qua phải có nhiều tài khoản Google thật khác nhau, chứ không chỉ xoá
+// localStorage hay gõ SĐT khác.
+function verifyGoogleIdToken(token) {
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.indexOf('PASTE_') === 0) {
+    return { ok: false, error: 'Trang chưa cấu hình đăng nhập Google — liên hệ Ban tổ chức.' };
+  }
+  if (!token) return { ok: false, error: 'Vui lòng đăng nhập Google để bình chọn.' };
+  try {
+    var response = UrlFetchApp.fetch(
+      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
+      { muteHttpExceptions: true },
+    );
+    if (response.getResponseCode() !== 200) {
+      return { ok: false, error: 'Đăng nhập Google không hợp lệ hoặc đã hết hạn — hãy đăng nhập lại.' };
+    }
+    var payload = JSON.parse(response.getContentText());
+    if (payload.aud !== GOOGLE_CLIENT_ID) {
+      return { ok: false, error: 'Token đăng nhập không khớp ứng dụng — hãy tải lại trang.' };
+    }
+    if (payload.email_verified !== 'true' && payload.email_verified !== true) {
+      return { ok: false, error: 'Tài khoản Google chưa xác minh email.' };
+    }
+    return { ok: true, sub: String(payload.sub || ''), email: String(payload.email || '') };
+  } catch (err) {
+    return { ok: false, error: 'Không xác minh được đăng nhập Google, vui lòng thử lại.' };
+  }
+}
+
 // Ghi nhận 1 phiếu bầu — "phiếu kín, chống spam":
 //  1) Honeypot 'hp' (field ẩn, chỉ bot điền vào) → coi như đã xử lý, không lộ lý do.
 //  2) Chặn gửi quá nhanh sau khi tải trang (bot gửi ngay lập tức) — đo bằng số ms
 //     đã trôi qua do CHÍNH TRÌNH DUYỆT tính (elapsedMs), không so trực tiếp với
 //     Date.now() của server, để tránh đồng hồ máy người dùng lệch giờ làm từ chối
 //     oan người bình chọn thật.
-//  3) Xác thực bài dự thi tồn tại + họ tên/SĐT hợp lệ.
-//  4) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
+//  3) Xác minh reCAPTCHA v3 (điểm hành vi người/bot).
+//  4) Xác minh token đăng nhập Google thật (không phải tự khai SĐT) — đây là
+//     lý do mở ẩn danh (incognito) không giúp bình chọn thêm lần nữa: vẫn phải
+//     đăng nhập lại bằng 1 tài khoản Google thật, không thể chỉ gõ số khác.
+//  5) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
 //     (double-click, mạng chậm gửi lại...) không thể cùng lọt qua bước kiểm tra
 //     "đã bình chọn chưa" (tránh race condition khiến 1 người bình chọn được 2 lần).
-//  5) SĐT chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
+//  6) Danh tính chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
 //     "Người bình chọn"; lựa chọn bài dự thi lưu ở sheet riêng "Kết quả bình chọn"
 //     không kèm danh tính → không sheet nào nối được "ai" với "chọn bài nào".
 function handleVote(data) {
@@ -355,14 +423,13 @@ function handleVote(data) {
   }
 
   var entryId = String(data.entryId || '').trim();
-  var voterName = String(data.voterName || '').trim();
-  var voterPhone = String(data.voterPhone || '').trim();
-
   if (!entryId) return json({ ok: false, error: 'Vui lòng chọn 1 bài dự thi để bình chọn.' });
-  if (voterName.length < 2) return json({ ok: false, error: 'Vui lòng nhập họ tên.' });
-  if (!/^(0|\+84)(\d[\s.-]?){8,10}$/.test(voterPhone)) {
-    return json({ ok: false, error: 'Số điện thoại không hợp lệ.' });
-  }
+
+  var recaptchaCheck = verifyRecaptcha(data.recaptchaToken);
+  if (!recaptchaCheck.ok) return json({ ok: false, error: recaptchaCheck.error });
+
+  var googleCheck = verifyGoogleIdToken(data.googleIdToken);
+  if (!googleCheck.ok) return json({ ok: false, error: googleCheck.error });
 
   var mainSheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
   var lastRow = mainSheet.getLastRow();
@@ -376,7 +443,7 @@ function handleVote(data) {
   if (!validEntry) return json({ ok: false, error: 'Bài dự thi không hợp lệ — hãy tải lại trang.' });
 
   var voterHash = Utilities.base64EncodeWebSafe(
-    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, normalizePhone(voterPhone) + VOTE_SALT),
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, googleCheck.sub + VOTE_SALT),
   );
 
   var lock = LockService.getScriptLock();
@@ -390,7 +457,7 @@ function handleVote(data) {
 
     var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME) || ss.insertSheet(VOTERS_SHEET_NAME);
     if (votersSheet.getLastRow() === 0) {
-      votersSheet.appendRow(['Mã định danh (băm SĐT)', 'Thời gian bình chọn']);
+      votersSheet.appendRow(['Mã định danh (băm tài khoản Google)', 'Thời gian bình chọn']);
       votersSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
       votersSheet.setFrozenRows(1);
     }
@@ -399,7 +466,7 @@ function handleVote(data) {
       var existingHashes = votersSheet.getRange(2, 1, votersLastRow - 1, 1).getValues();
       for (var h = 0; h < existingHashes.length; h++) {
         if (String(existingHashes[h][0]) === voterHash) {
-          return json({ ok: false, error: 'Số điện thoại này đã bình chọn rồi — mỗi người chỉ được bình chọn 1 lần.' });
+          return json({ ok: false, error: 'Tài khoản Google này đã bình chọn rồi — mỗi người chỉ được bình chọn 1 lần.' });
         }
       }
     }

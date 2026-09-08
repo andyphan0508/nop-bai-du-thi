@@ -1,24 +1,52 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MdClose, MdHowToVote, MdLock } from "react-icons/md";
+import { IS_VOTE_AUTH_CONFIGURED } from "../../../config";
 import type { VoteEntry } from "../../../types";
+import GoogleSignIn from "./GoogleSignIn";
 
 type BallotModalProps = {
   entry: VoteEntry;
   isSubmitting: boolean;
   errorMessage: string | null;
   onCancel: () => void;
-  onConfirm: (voterName: string, voterPhone: string, honeypot: string) => void;
+  onConfirm: (googleIdToken: string, honeypot: string) => void;
+};
+
+type GoogleProfile = { name: string; email: string };
+
+// Chỉ để HIỂN THỊ tên/email cho người dùng thấy họ đang đăng nhập bằng tài
+// khoản nào — KHÔNG dùng để xác thực (việc xác thực thật sự nằm ở server,
+// server gọi Google để kiểm tra chữ ký token, xem Code.gs verifyGoogleIdToken).
+const decodeJwtPayloadForDisplay = (token: string): Record<string, unknown> | null => {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join(""),
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 };
 
 const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }: BallotModalProps) => {
-  const [voterName, setVoterName] = useState("");
-  const [voterPhone, setVoterPhone] = useState("");
-  // Honeypot: field ẩn khỏi mắt người dùng thật (CSS), chỉ bot điền tự động mới thấy & điền
+  const [idToken, setIdToken] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
+
+  const profile = useMemo<GoogleProfile | null>(() => {
+    if (!idToken) return null;
+    const payload = decodeJwtPayloadForDisplay(idToken);
+    if (!payload) return null;
+    return { name: String(payload.name || ""), email: String(payload.email || "") };
+  }, [idToken]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    onConfirm(voterName.trim(), voterPhone.trim(), honeypot);
+    if (!idToken) return;
+    onConfirm(idToken, honeypot);
   };
 
   return (
@@ -36,35 +64,28 @@ const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }:
           Bạn chọn: <b>{entry.title}</b> — {entry.name}
         </p>
 
-        <div className="field">
-          <label htmlFor="voterName">
-            Họ và tên <span className="req">*</span>
-          </label>
-          <input
-            id="voterName"
-            className="input"
-            value={voterName}
-            onChange={(event) => setVoterName(event.target.value)}
-            placeholder="Nguyễn Văn A"
-            autoComplete="name"
-            required
-          />
-        </div>
+        {!IS_VOTE_AUTH_CONFIGURED && (
+          <div className="msg err">
+            Trang chưa cấu hình đăng nhập Google / reCAPTCHA — xem HUONG-DAN.md mục "Bình chọn".
+          </div>
+        )}
 
-        <div className="field">
-          <label htmlFor="voterPhone">
-            Số điện thoại <span className="req">*</span>
-          </label>
-          <input
-            id="voterPhone"
-            className="input"
-            value={voterPhone}
-            onChange={(event) => setVoterPhone(event.target.value)}
-            placeholder="09xxxxxxxx"
-            autoComplete="tel"
-            required
-          />
-        </div>
+        {IS_VOTE_AUTH_CONFIGURED && !profile && (
+          <>
+            <p className="ballot-note-plain">
+              Đăng nhập bằng Google để xác nhận đây là bạn — mỗi tài khoản Google chỉ được bình chọn 1 lần.
+            </p>
+            <GoogleSignIn onCredential={setIdToken} />
+          </>
+        )}
+
+        {profile && (
+          <div className="google-profile">
+            Đã đăng nhập: <b>{profile.name}</b>
+            <br />
+            {profile.email}
+          </div>
+        )}
 
         {/* Honeypot chống bot — ẩn khỏi người dùng thật bằng CSS, không dùng display:none
             để tránh vài trình đọc màn hình/bot bỏ qua thuộc tính này */}
@@ -82,13 +103,13 @@ const BallotModal = ({ entry, isSubmitting, errorMessage, onCancel, onConfirm }:
 
         <div className="ballot-note">
           <MdLock size={14} />
-          Phiếu bầu được giữ kín — SĐT chỉ dùng để đảm bảo mỗi người chỉ bình chọn 1 lần,
+          Phiếu bầu được giữ kín — tài khoản Google chỉ dùng để đảm bảo mỗi người chỉ bình chọn 1 lần,
           không ai xem được bạn đã chọn bài nào.
         </div>
 
         {errorMessage && <div className="msg err">{errorMessage}</div>}
 
-        <button className="btn" type="submit" disabled={isSubmitting}>
+        <button className="btn" type="submit" disabled={isSubmitting || !profile}>
           {isSubmitting ? "Đang gửi phiếu…" : "Gửi phiếu bầu"}
         </button>
       </form>

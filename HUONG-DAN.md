@@ -102,20 +102,31 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 
 **Cơ chế chống spam / đảm bảo công bằng** (đã cài sẵn trong `Code.gs`):
 
-1. **Định danh người bình chọn bằng SĐT** — giống cách chặn nộp bài trùng ở form nộp bài. Mỗi người phải nhập họ tên + SĐT để gửi phiếu.
-2. **Phiếu kín thật sự** — SĐT được băm SHA-256 (kèm `VOTE_SALT`) và lưu ở sheet riêng **"Người bình chọn"** (chỉ để chặn bình chọn 2 lần); lựa chọn bài dự thi lưu ở sheet riêng **"Kết quả bình chọn"** (không kèm danh tính). Hai sheet không có cột chung để nối lại → không ai, kể cả bạn, tra ngược được "ai chọn bài nào".
-3. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã bình chọn chưa" + ghi phiếu, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và bình chọn được 2 lần.
-4. **Chống bot** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi phiếu nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
-5. **Ẩn kết quả khi đang bình chọn** — số phiếu từng bài KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
+1. **Định danh người bình chọn bằng đăng nhập Google thật** (Google Sign-In) — KHÔNG dùng tự khai SĐT nữa, vì tự khai thì ai cũng bịa số khác được. Bắt buộc đăng nhập Google mới gửi được phiếu → mở ẩn danh (incognito) không giúp ích gì vì vẫn phải đăng nhập lại bằng 1 tài khoản Google thật; muốn bình chọn nhiều lần phải có nhiều tài khoản Google khác nhau (khó hơn nhiều so với gõ SĐT khác).
+2. **reCAPTCHA v3** (vô hình, không cần người dùng làm gì) — Google chấm điểm hành vi giống người/bot, phiếu bị nghi là bot sẽ bị từ chối.
+3. **Phiếu kín thật sự** — mã định danh Google (`sub`) được băm SHA-256 (kèm `VOTE_SALT`) và lưu ở sheet riêng **"Người bình chọn"** (chỉ để chặn bình chọn 2 lần, không lưu email/tên); lựa chọn bài dự thi lưu ở sheet riêng **"Kết quả bình chọn"** (không kèm danh tính). Hai sheet không có cột chung để nối lại → không ai, kể cả bạn, tra ngược được "ai chọn bài nào".
+4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã bình chọn chưa" + ghi phiếu, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và bình chọn được 2 lần.
+5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi phiếu nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
+6. **Ẩn kết quả khi đang bình chọn** — số phiếu từng bài KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
 
 **Việc bạn cần làm:**
 
-- Đổi `VOTE_SALT` trong `Code.gs` thành 1 chuỗi ngẫu nhiên của riêng bạn trước khi deploy.
-- Đặt `ADMIN_KEY` (nếu chưa đặt) để xem kết quả sau khi đóng bình chọn.
-- Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
-- Mở `<domain>/binh-chon` để bình chọn, `<domain>/binh-chon?admin=1` để xem bảng kết quả (nhập `ADMIN_KEY` vào ô "Mã quản trị").
+1. **Tạo Google OAuth Client ID** (miễn phí, dùng chung tài khoản Google đang chạy Apps Script):
+   - Vào https://console.cloud.google.com/apis/credentials (tạo project mới nếu chưa có).
+   - Nếu chưa cấu hình **OAuth consent screen**: chọn **External** → điền tên app + email → Save (không cần submit verify, dùng nội bộ vẫn chạy được, chỉ hiện cảnh báo "chưa xác minh" — bình thường).
+   - **Create Credentials → OAuth client ID → Application type: Web application**.
+   - **Authorized JavaScript origins**: thêm domain thật (VD `https://nop-bai-du-thi.vercel.app`) và `http://localhost:5173` (để chạy thử `npm run dev`).
+   - Copy **Client ID** (dạng `xxxx.apps.googleusercontent.com`).
+2. **Tạo reCAPTCHA v3** (miễn phí): vào https://www.google.com/recaptcha/admin → Register a new site → chọn **v3** → điền domain thật + `localhost` → copy **Site Key** và **Secret Key**.
+3. Dán **Client ID** + **Site Key** vào `src/config.ts` (`GOOGLE_CLIENT_ID`, `RECAPTCHA_SITE_KEY`) → commit/push để Vercel build lại.
+4. Dán **Client ID** (phải khớp) + **Secret Key** vào `apps-script/Code.gs` (`GOOGLE_CLIENT_ID`, `RECAPTCHA_SECRET_KEY`); đổi `VOTE_SALT` thành 1 chuỗi ngẫu nhiên của riêng bạn.
+5. Đặt `ADMIN_KEY` (nếu chưa đặt) để xem kết quả sau khi đóng bình chọn.
+6. Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
+7. Mở `<domain>/binh-chon` để bình chọn, `<domain>/binh-chon?admin=1` để xem bảng kết quả (nhập `ADMIN_KEY` vào ô "Mã quản trị").
 
-> **Giới hạn cần biết:** đây là "phiếu kín ở mức hợp lý" cho quy mô nội bộ nhóm/hội thánh, không phải hệ thống bầu cử chống gian lận tuyệt đối — người cố tình dùng nhiều SĐT khác nhau vẫn bình chọn được nhiều lần (giống hạn chế của chặn nộp bài trùng). Muốn chặt hơn (VD: yêu cầu OTP xác thực SĐT) cần thêm dịch vụ gửi OTP bên ngoài, ngoài phạm vi bản miễn phí này.
+> **Chưa kịp setup Google Sign-In / reCAPTCHA?** Trang vẫn chạy được (xem được ảnh, chọn bài) nhưng nút "Gửi phiếu bầu" sẽ báo lỗi/không hiện nút đăng nhập cho tới khi bạn dán đủ 4 giá trị ở bước 3–4. Đây là chủ đích — tránh mở bình chọn "chay" (ai cũng gửi được, không xác thực).
+
+> **Giới hạn cần biết:** đăng nhập Google chặn được kiểu spam phổ biến nhất (mở ẩn danh/đổi SĐT), nhưng không phải tuyệt đối — người thật sự muốn gian lận vẫn có thể tạo nhiều tài khoản Google khác nhau để bình chọn nhiều lần. Muốn chặt hơn nữa (VD: chỉ cho phép domain email nội bộ, hoặc yêu cầu OTP SĐT qua dịch vụ SMS trả phí) cần thêm cấu hình ngoài phạm vi bản miễn phí này.
 
 > **Về ảnh bìa hiển thị:** trang dùng thẳng link thumbnail công khai của Google Drive (`https://drive.google.com/thumbnail?id=...`) — **không** proxy qua Apps Script (đã thử cách `doGet` trả blob ảnh trực tiếp nhưng Apps Script Web App không hỗ trợ kiểu trả về này, chỉ nhận `HtmlOutput`/`TextOutput`). Vì vậy ảnh bìa cần được bật chia sẻ "Anyone with the link — Viewer":
 > - **Bài nộp mới** (sau khi cập nhật `Code.gs` này): tự động bật chia sẻ ngay lúc nộp, không cần làm gì thêm.
