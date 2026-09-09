@@ -7,6 +7,7 @@ import {
   MdExpandMore,
   MdExpandLess,
   MdDescription,
+  MdClose,
 } from "react-icons/md";
 import type { VoteEntry } from "../../../types";
 
@@ -20,10 +21,15 @@ type VoteCardProps = {
   imgSrc: string;
   isReactSelected: boolean;
   isCommentSelected: boolean;
+  isReactDisabled?: boolean;
+  isCommentDisabled?: boolean;
+  hideReactButton?: boolean;
+  hideCommentButton?: boolean;
   commentText: string;
   comments: string[];
   onToggleReact: () => void;
   onToggleComment: () => void;
+  onDeselect?: () => void;
   onCommentTextChange: (text: string) => void;
   onZoom: () => void;
 };
@@ -34,10 +40,15 @@ const VoteCard = ({
   imgSrc,
   isReactSelected,
   isCommentSelected,
+  isReactDisabled = false,
+  isCommentDisabled = false,
+  hideReactButton = false,
+  hideCommentButton = false,
   commentText,
   comments,
   onToggleReact,
   onToggleComment,
+  onDeselect,
   onCommentTextChange,
   onZoom,
 }: VoteCardProps) => {
@@ -97,24 +108,57 @@ const VoteCard = ({
         )}
 
         <div className="vote-card-actions">
-          <button
-            type="button"
-            className={`vote-react-btn${isReactSelected ? " active" : ""}`}
-            onClick={onToggleReact}
-            title={isReactSelected ? "Bỏ chọn React" : "Chọn React cho bài này (+2 điểm)"}
-          >
-            {isReactSelected ? <MdFavorite size={18} /> : <MdFavoriteBorder size={18} />}
-            {isReactSelected ? "Đã React (2đ)" : "React"}
-          </button>
-          <button
-            type="button"
-            className={`vote-comment-btn${isCommentSelected ? " active" : ""}`}
-            onClick={onToggleComment}
-            title={isCommentSelected ? "Đóng ô bình luận" : "Viết lời bình luận (+1 điểm)"}
-          >
-            <MdModeComment size={17} />
-            {isCommentSelected ? "Đang viết" : "Bình luận"}
-          </button>
+          {!hideReactButton && (
+            <button
+              type="button"
+              disabled={isReactDisabled}
+              className={`vote-react-btn${isReactSelected ? " active" : ""}`}
+              onClick={onToggleReact}
+              title={
+                isReactSelected
+                  ? "Bài này đã được chọn React (+2đ)"
+                  : isReactDisabled
+                    ? "Đã chọn React ở bài khác hoặc bài này đã được vote"
+                    : "Chọn React cho bài này (+2 điểm)"
+              }
+            >
+              {isReactSelected ? <MdFavorite size={18} /> : <MdFavoriteBorder size={18} />}
+              {isReactSelected ? "Đã React (2đ)" : "React (+2đ)"}
+            </button>
+          )}
+
+          {!hideCommentButton && (
+            <button
+              type="button"
+              disabled={isCommentDisabled}
+              className={`vote-comment-btn${isCommentSelected ? " active" : ""}`}
+              onClick={onToggleComment}
+              title={
+                isCommentSelected
+                  ? "Đang viết bình luận cho bài này"
+                  : isCommentDisabled
+                    ? isReactSelected
+                      ? "Bài này đã nhận React, không thể bình luận thêm"
+                      : "Đã chọn bình luận ở bài khác hoặc bài này đã được vote"
+                    : "Viết lời bình luận cho bài này (+1 điểm)"
+              }
+            >
+              <MdModeComment size={17} />
+              {isCommentSelected ? "Đang viết (+1đ)" : "Bình luận (+1đ)"}
+            </button>
+          )}
+
+          {onDeselect && (
+            <button
+              type="button"
+              className="vote-card-deselect-btn"
+              onClick={onDeselect}
+              title="Hủy lựa chọn bài này"
+            >
+              <MdClose size={15} />
+              <span>Hủy</span>
+            </button>
+          )}
         </div>
 
         {isCommentSelected && (

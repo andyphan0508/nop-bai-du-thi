@@ -76,15 +76,16 @@ const EngageModal = ({
           {reactTarget && (
             <div className="ballot-pick-row">
               <img
-                src={submissionApi.voteImageUrl(reactTarget.imageFileId, 160)}
+                src={submissionApi.voteImageUrl(reactTarget.imageFileId, 200)}
                 alt=""
                 style={{
-                  width: 38,
-                  aspectRatio: "1 / 1.4142",
+                  width: 52,
+                  aspectRatio: "1.4142 / 1",
                   objectFit: "cover",
-                  borderRadius: 4,
+                  borderRadius: 6,
                   flex: "none",
                   border: "1px solid var(--md-outline-variant)",
+                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.1)",
                 }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -102,15 +103,16 @@ const EngageModal = ({
           {commentTarget && (
             <div className="ballot-pick-row">
               <img
-                src={submissionApi.voteImageUrl(commentTarget.imageFileId, 160)}
+                src={submissionApi.voteImageUrl(commentTarget.imageFileId, 200)}
                 alt=""
                 style={{
-                  width: 38,
-                  aspectRatio: "1 / 1.4142",
+                  width: 52,
+                  aspectRatio: "1.4142 / 1",
                   objectFit: "cover",
-                  borderRadius: 4,
+                  borderRadius: 6,
                   flex: "none",
                   border: "1px solid var(--md-outline-variant)",
+                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.1)",
                 }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>

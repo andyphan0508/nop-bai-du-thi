@@ -441,28 +441,66 @@ const VoteScreen = () => {
                   </div>
                 ) : (
                   <div className="vote-grid">
-                    {filteredEntries.map(({ entry, originalIndex }, index) => (
-                      <VoteCard
-                        key={entry.id}
-                        entry={entry}
-                        order={originalIndex}
-                        imgSrc={submissionApi.voteImageUrl(entry.imageFileId, 800)}
-                        isReactSelected={
-                          reactTarget?.id === entry.id ||
-                          (Boolean(engagedRecord) && engagedRecord?.reactedTitle === entry.title)
-                        }
-                        isCommentSelected={
-                          commentTarget?.id === entry.id ||
-                          (Boolean(engagedRecord) && engagedRecord?.commentedTitle === entry.title)
-                        }
-                        commentText={commentTarget?.id === entry.id ? commentText : ""}
-                        comments={comments[entry.id] || []}
-                        onToggleReact={() => handleToggleReact(entry)}
-                        onToggleComment={() => handleToggleComment(entry)}
-                        onCommentTextChange={setCommentText}
-                        onZoom={() => setZoomIndex(index)}
-                      />
-                    ))}
+                    {filteredEntries.map(({ entry, originalIndex }, index) => {
+                      const isReactChosenForThis =
+                        reactTarget?.id === entry.id ||
+                        (Boolean(engagedRecord) && engagedRecord?.reactedTitle === entry.title);
+                      const isCommentChosenForThis =
+                        commentTarget?.id === entry.id ||
+                        (Boolean(engagedRecord) && engagedRecord?.commentedTitle === entry.title);
+                      const isThisEntryVoted = isReactChosenForThis || isCommentChosenForThis;
+                      const hasReactSelection = Boolean(reactTarget);
+                      const hasCommentSelection = Boolean(commentTarget);
+                      const isAlreadyEngaged = Boolean(engagedRecord);
+
+                      // 1. Khi người dùng select lượt react: các bài còn lại disable nút react và chỉ hiển thị comment
+                      // 2. Ngược lại, khi select lượt comment: các bài còn lại disable nút comment và chỉ hiển thị react
+                      const hideReact =
+                        !isAlreadyEngaged && !isThisEntryVoted && hasReactSelection && !hasCommentSelection;
+                      const hideComment =
+                        !isAlreadyEngaged && !isThisEntryVoted && hasCommentSelection && !hasReactSelection;
+
+                      // 3. Bài nào đã vote 1 trong 2 thì disable cả 2 của bài đó luôn
+                      // Ngoài ra, nếu lượt đó đã được dùng ở bài khác hoặc đã nộp thì cũng disable
+                      const disableReact = isAlreadyEngaged || isThisEntryVoted || hasReactSelection;
+                      const disableComment = isAlreadyEngaged || isThisEntryVoted || hasCommentSelection;
+
+                      // Cho phép hủy chọn trực tiếp trên thẻ đối với bài đang được chọn trong phiên hiện tại
+                      const canDeselectThis =
+                        !isAlreadyEngaged &&
+                        (reactTarget?.id === entry.id || commentTarget?.id === entry.id);
+                      const handleDeselectThis = canDeselectThis
+                        ? () => {
+                            if (reactTarget?.id === entry.id) setReactTarget(null);
+                            if (commentTarget?.id === entry.id) {
+                              setCommentTarget(null);
+                              setCommentText("");
+                            }
+                          }
+                        : undefined;
+
+                      return (
+                        <VoteCard
+                          key={entry.id}
+                          entry={entry}
+                          order={originalIndex}
+                          imgSrc={submissionApi.voteImageUrl(entry.imageFileId, 800)}
+                          isReactSelected={isReactChosenForThis}
+                          isCommentSelected={isCommentChosenForThis}
+                          isReactDisabled={disableReact}
+                          isCommentDisabled={disableComment}
+                          hideReactButton={hideReact}
+                          hideCommentButton={hideComment}
+                          onDeselect={handleDeselectThis}
+                          commentText={commentTarget?.id === entry.id ? commentText : ""}
+                          comments={comments[entry.id] || []}
+                          onToggleReact={() => handleToggleReact(entry)}
+                          onToggleComment={() => handleToggleComment(entry)}
+                          onCommentTextChange={setCommentText}
+                          onZoom={() => setZoomIndex(index)}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </>
@@ -483,63 +521,90 @@ const VoteScreen = () => {
       {(reactTarget || commentTarget) && !engagedRecord && (
         <div className="vote-actionbar">
           <div className="vote-actionbar-inner">
-            <div className="vote-dock-items">
+            <div className="vote-dock-slots">
               {reactTarget && (
-                <div className="vote-dock-slot">
+                <div className="vote-dock-card" title={`React (+2đ): ${reactTarget.title}`}>
                   <img
                     className="vote-dock-thumb"
-                    src={submissionApi.voteImageUrl(reactTarget.imageFileId, 160)}
-                    alt=""
+                    src={submissionApi.voteImageUrl(reactTarget.imageFileId, 180)}
+                    alt={reactTarget.title}
                   />
-                  <div className="vote-dock-text">
+                  <div className="vote-dock-meta">
                     <span className="vote-dock-badge react">
-                      <MdFavorite size={11} /> +2đ
+                      <MdFavorite size={11} /> +2đ React
                     </span>
-                    <b>{reactTarget.title}</b>
+                    <span className="vote-dock-title">{reactTarget.title}</span>
                   </div>
+                  <button
+                    type="button"
+                    className="vote-dock-remove"
+                    title="Bỏ chọn React"
+                    aria-label="Bỏ chọn React"
+                    onClick={() => setReactTarget(null)}
+                  >
+                    <MdClose size={13} />
+                  </button>
                 </div>
               )}
 
               {commentTarget && (
-                <div className="vote-dock-slot">
+                <div className="vote-dock-card" title={`Bình luận (+1đ): ${commentTarget.title}`}>
                   <img
                     className="vote-dock-thumb"
-                    src={submissionApi.voteImageUrl(commentTarget.imageFileId, 160)}
-                    alt=""
+                    src={submissionApi.voteImageUrl(commentTarget.imageFileId, 180)}
+                    alt={commentTarget.title}
                   />
-                  <div className="vote-dock-text">
+                  <div className="vote-dock-meta">
                     <span className="vote-dock-badge comment">
-                      <MdModeComment size={11} /> +1đ
+                      <MdModeComment size={11} /> +1đ Bình luận
                     </span>
-                    <b>{commentTarget.title}</b>
+                    <span className="vote-dock-title">{commentTarget.title}</span>
                   </div>
+                  <button
+                    type="button"
+                    className="vote-dock-remove"
+                    title="Bỏ chọn Bình luận"
+                    aria-label="Bỏ chọn Bình luận"
+                    onClick={() => {
+                      setCommentTarget(null);
+                      setCommentText("");
+                    }}
+                  >
+                    <MdClose size={13} />
+                  </button>
                 </div>
               )}
 
               {/* Gợi ý nếu mới chọn 1 trong 2 */}
               {reactTarget && !commentTarget && (
-                <span className="vote-dock-hint">
-                  <MdInfoOutline size={12} style={{ verticalAlign: -1, marginRight: 3 }} />
-                  Còn 1 lượt bình luận (1đ) chưa dùng!
-                </span>
+                <div className="vote-dock-hint" title="Bạn có thể chọn thêm 1 bài để bình luận nhận thêm 1 điểm">
+                  <MdInfoOutline size={13} />
+                  <span>Còn 1đ Bình luận</span>
+                </div>
               )}
               {!reactTarget && commentTarget && (
-                <span className="vote-dock-hint">
-                  <MdInfoOutline size={12} style={{ verticalAlign: -1, marginRight: 3 }} />
-                  Còn 1 lượt React (2đ) chưa dùng!
-                </span>
+                <div className="vote-dock-hint" title="Bạn có thể chọn thêm 1 bài để thả tim nhận thêm 2 điểm">
+                  <MdInfoOutline size={13} />
+                  <span>Còn 2đ React</span>
+                </div>
               )}
             </div>
 
-            <button
-              className="btn"
-              type="button"
-              style={{ width: "auto", padding: "10px 20px", display: "inline-flex", alignItems: "center", gap: 6 }}
-              onClick={() => setIsEngageModalOpen(true)}
-            >
-              <MdHowToVote size={18} />
-              Xác nhận ({totalPointsSelected}đ)
-            </button>
+            <div className="vote-dock-actions">
+              <div className="vote-dock-points" title="Tổng điểm bình chọn đã chọn">
+                <span className="vote-dock-points-num">{totalPointsSelected}</span>
+                <span className="vote-dock-points-max">/3đ</span>
+              </div>
+
+              <button
+                className="vote-dock-submit"
+                type="button"
+                onClick={() => setIsEngageModalOpen(true)}
+              >
+                <MdHowToVote size={18} />
+                <span>Xác nhận ({totalPointsSelected}đ)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
