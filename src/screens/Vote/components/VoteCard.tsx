@@ -7,6 +7,7 @@ const COMMENTS_PREVIEW_COUNT = 3;
 
 type VoteCardProps = {
   entry: VoteEntry;
+  order: number;
   imgSrc: string;
   isReactSelected: boolean;
   isCommentSelected: boolean;
@@ -20,6 +21,7 @@ type VoteCardProps = {
 
 const VoteCard = ({
   entry,
+  order,
   imgSrc,
   isReactSelected,
   isCommentSelected,
@@ -43,11 +45,14 @@ const VoteCard = ({
       </div>
 
       <div className="vote-card-info">
-        <div className="vote-card-title">{entry.title}</div>
+        <div className="vote-card-title">
+          Bài {order} — {entry.title}
+        </div>
         <div className="vote-card-sub">
           <span className={`type-pill ${isTeam ? "team" : "solo"}`}>{isTeam ? "Nhóm" : "Cá nhân"}</span>
           {entry.group && <span className="vote-card-group">{entry.group}</span>}
         </div>
+        {entry.description && <p className="vote-card-desc">{entry.description}</p>}
 
         <div className="vote-card-actions">
           <button

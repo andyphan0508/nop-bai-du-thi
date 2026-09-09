@@ -170,10 +170,11 @@ const VoteScreen = () => {
 
             {!isLoading && !loadError && entries.length > 0 && (
               <div className="vote-grid">
-                {entries.map((entry) => (
+                {entries.map((entry, index) => (
                   <VoteCard
                     key={entry.id}
                     entry={entry}
+                    order={index + 1}
                     imgSrc={submissionApi.voteImageUrl(entry.imageFileId)}
                     isReactSelected={reactTarget?.id === entry.id}
                     isCommentSelected={commentTarget?.id === entry.id}

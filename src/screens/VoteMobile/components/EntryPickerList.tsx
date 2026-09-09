@@ -13,7 +13,11 @@ type EntryPickerListProps = {
 };
 
 const EntryPickerList = ({ title, entries, excludeEntryId, imageUrlFor, onSelect, onBack }: EntryPickerListProps) => {
-  const visibleEntries = entries.filter((entry) => entry.id !== excludeEntryId);
+  // Đánh số theo vị trí trong TOÀN BỘ danh sách (trước khi lọc bài loại trừ)
+  // để "Bài N" không đổi số khi 1 bài bị ẩn đi ở lượt còn lại.
+  const visibleEntries = entries
+    .map((entry, index) => ({ entry, order: index + 1 }))
+    .filter(({ entry }) => entry.id !== excludeEntryId);
 
   return (
     <div className="card mobile-list">
@@ -29,18 +33,21 @@ const EntryPickerList = ({ title, entries, excludeEntryId, imageUrlFor, onSelect
       )}
 
       <ul className="mobile-entry-list">
-        {visibleEntries.map((entry) => {
+        {visibleEntries.map(({ entry, order }) => {
           const isTeam = entry.entryType === ENTRY_TYPE_TEAM;
           return (
             <li key={entry.id}>
               <button className="mobile-entry-row" type="button" onClick={() => onSelect(entry)}>
                 <img src={imageUrlFor(entry.imageFileId)} alt="" loading="lazy" />
                 <span className="mobile-entry-row-info">
-                  <span className="mobile-entry-row-title">{entry.title}</span>
+                  <span className="mobile-entry-row-title">
+                    Bài {order} — {entry.title}
+                  </span>
                   <span className="vote-card-sub">
                     <span className={`type-pill ${isTeam ? "team" : "solo"}`}>{isTeam ? "Nhóm" : "Cá nhân"}</span>
                     {entry.group && <span className="vote-card-group">{entry.group}</span>}
                   </span>
+                  {entry.description && <span className="mobile-entry-row-desc">{entry.description}</span>}
                 </span>
                 <MdChevronRight size={22} />
               </button>

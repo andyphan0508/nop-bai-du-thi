@@ -8,6 +8,7 @@ export type TurnAction = "react" | "comment";
 
 type EntryActionDetailProps = {
   entry: VoteEntry;
+  order: number;
   imgSrc: string;
   comments: string[];
   availableActions: TurnAction[];
@@ -18,6 +19,7 @@ type EntryActionDetailProps = {
 
 const EntryActionDetail = ({
   entry,
+  order,
   imgSrc,
   comments,
   availableActions,
@@ -45,7 +47,7 @@ const EntryActionDetail = ({
       <img className="mobile-detail-img" src={imgSrc} alt={`Bìa dự thi: ${entry.title}`} />
 
       <div className="vote-card-title" style={{ fontSize: "1.1rem", marginTop: 14 }}>
-        {entry.title}
+        Bài {order} — {entry.title}
       </div>
       <div className="vote-card-sub" style={{ marginBottom: 10 }}>
         <span className={`type-pill ${isTeam ? "team" : "solo"}`}>{isTeam ? "Nhóm" : "Cá nhân"}</span>

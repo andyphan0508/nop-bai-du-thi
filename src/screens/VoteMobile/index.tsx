@@ -195,6 +195,7 @@ const VoteMobileScreen = () => {
       return (
         <EntryActionDetail
           entry={screen.entry}
+          order={entries.findIndex((entry) => entry.id === screen.entry.id) + 1}
           imgSrc={submissionApi.voteImageUrl(screen.entry.imageFileId, 1200)}
           comments={comments[screen.entry.id] || []}
           availableActions={availableActions}

@@ -672,6 +672,10 @@ a.btn { text-decoration: none; }
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 0.76rem; color: var(--md-on-surface-variant); opacity: 0.85;
 }
+.vote-card-desc {
+  margin: 6px 0 0; font-size: 0.78rem; color: var(--md-on-surface-variant);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* ===== Nút React / Bình luận trên mỗi thẻ ===== */
 .vote-card-actions { display: flex; gap: 8px; margin-top: 12px; }
@@ -808,6 +812,10 @@ a.btn { text-decoration: none; }
 .mobile-entry-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .mobile-entry-row-title {
   font-family: var(--title-font); font-weight: 700; font-size: 0.92rem; color: var(--md-on-surface);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mobile-entry-row-desc {
+  font-size: 0.76rem; color: var(--md-on-surface-variant); opacity: 0.85;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .mobile-entry-row svg:last-child { flex: none; color: var(--md-outline); }
