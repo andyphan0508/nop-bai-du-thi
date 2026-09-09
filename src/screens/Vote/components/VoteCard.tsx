@@ -107,7 +107,13 @@ const VoteCard = ({
           </p>
         )}
 
-        <div className="vote-card-actions">
+        <div
+          className={`vote-card-actions${
+            (!hideReactButton ? 1 : 0) + (!hideCommentButton ? 1 : 0) + (onDeselect ? 1 : 0) > 1
+              ? " has-multiple"
+              : ""
+          }${onDeselect ? " has-deselect" : ""}`}
+        >
           {!hideReactButton && (
             <button
               type="button"
@@ -122,8 +128,14 @@ const VoteCard = ({
                     : "Chọn React cho bài này (+2 điểm)"
               }
             >
-              {isReactSelected ? <MdFavorite size={18} /> : <MdFavoriteBorder size={18} />}
-              {isReactSelected ? "Đã React (2đ)" : "React (+2đ)"}
+              {isReactSelected ? (
+                <MdFavorite size={18} className="vote-btn-icon" />
+              ) : (
+                <MdFavoriteBorder size={18} className="vote-btn-icon" />
+              )}
+              <span className="vote-btn-label">
+                {isReactSelected ? "Đã React (2đ)" : "React (+2đ)"}
+              </span>
             </button>
           )}
 
@@ -143,8 +155,10 @@ const VoteCard = ({
                     : "Viết lời bình luận cho bài này (+1 điểm)"
               }
             >
-              <MdModeComment size={17} />
-              {isCommentSelected ? "Đang viết (+1đ)" : "Bình luận (+1đ)"}
+              <MdModeComment size={17} className="vote-btn-icon" />
+              <span className="vote-btn-label">
+                {isCommentSelected ? "Đang viết (+1đ)" : "Bình luận (+1đ)"}
+              </span>
             </button>
           )}
 
@@ -155,8 +169,8 @@ const VoteCard = ({
               onClick={onDeselect}
               title="Hủy lựa chọn bài này"
             >
-              <MdClose size={15} />
-              <span>Hủy</span>
+              <MdClose size={16} className="vote-btn-icon" />
+              <span className="vote-btn-label">Hủy</span>
             </button>
           )}
         </div>

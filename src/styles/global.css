@@ -656,6 +656,8 @@ a.btn { text-decoration: none; }
 }
 
 .vote-card {
+  container-type: inline-size;
+  container-name: votecard;
   background: var(--md-surface-container-lowest);
   border-radius: var(--md-shape-lg);
   box-shadow: 0 4px 16px rgba(154, 69, 34, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -812,31 +814,54 @@ a.btn { text-decoration: none; }
 /* ===== Nút React / Bình luận trên mỗi thẻ ===== */
 .vote-card-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   margin-top: auto;
   padding-top: 10px;
+  width: 100%;
 }
+
 .vote-react-btn, .vote-comment-btn {
   flex: 1;
-  display: flex;
+  min-width: 0;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  box-sizing: border-box;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   border: 1.5px solid var(--md-outline-variant);
   background: var(--md-surface-container-lowest);
   color: var(--md-on-surface-variant);
   border-radius: var(--md-shape-full);
-  padding: 9px 12px;
+  padding: 0 12px;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.vote-btn-icon {
+  flex: none;
+  font-size: 1.1rem;
+}
+
+.vote-btn-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .vote-react-btn:hover, .vote-comment-btn:hover {
   border-color: var(--md-primary);
   background: var(--md-surface-container-low);
   transform: translateY(-1px);
 }
+
 .vote-react-btn.active {
   background: #e11d48;
   border-color: #e11d48;
@@ -844,6 +869,7 @@ a.btn { text-decoration: none; }
   box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
   animation: heartPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
 .vote-comment-btn.active {
   background: var(--md-primary);
   border-color: var(--md-primary);
@@ -880,17 +906,24 @@ a.btn { text-decoration: none; }
 }
 
 .vote-card-deselect-btn {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background: rgba(239, 68, 68, 0.08);
   color: #dc2626;
   border: 1.5px solid rgba(239, 68, 68, 0.3);
   border-radius: var(--md-shape-full);
-  padding: 7px 12px;
+  padding: 0 10px;
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
   transition: all 0.15s ease;
   flex: none;
 }
@@ -899,6 +932,62 @@ a.btn { text-decoration: none; }
   border-color: #ef4444;
   color: #b91c1c;
   transform: translateY(-1px);
+}
+
+/* Khi có nút Hủy (thẻ đã chọn 1 trong 2):
+   Nút bị disable tự động co lại thành icon tròn 38px để nhường chỗ cho nút chính và nút hủy */
+.vote-card-actions.has-deselect .vote-react-btn:disabled,
+.vote-card-actions.has-deselect .vote-comment-btn:disabled {
+  flex: none;
+  width: 38px;
+  padding: 0;
+  border-radius: var(--md-shape-full);
+}
+.vote-card-actions.has-deselect .vote-react-btn:disabled .vote-btn-label,
+.vote-card-actions.has-deselect .vote-comment-btn:disabled .vote-btn-label {
+  display: none;
+}
+
+/* Khi thẻ bị scale nhỏ: ẩn text label, chỉ hiển thị icon */
+@container votecard (max-width: 320px) {
+  .vote-card-actions.has-deselect .vote-card-deselect-btn {
+    width: 38px;
+    padding: 0;
+  }
+  .vote-card-actions.has-deselect .vote-card-deselect-btn .vote-btn-label {
+    display: none;
+  }
+  .vote-card-actions.has-multiple .vote-btn-label {
+    display: none;
+  }
+  .vote-card-actions.has-multiple .vote-react-btn,
+  .vote-card-actions.has-multiple .vote-comment-btn {
+    padding: 0 8px;
+  }
+}
+
+@container votecard (max-width: 250px) {
+  .vote-btn-label {
+    display: none !important;
+  }
+  .vote-react-btn,
+  .vote-comment-btn,
+  .vote-card-deselect-btn {
+    width: 38px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+}
+
+/* Mobile media query fallback */
+@media (max-width: 480px) {
+  .vote-card-actions.has-deselect .vote-card-deselect-btn .vote-btn-label {
+    display: none;
+  }
+  .vote-card-actions.has-deselect .vote-card-deselect-btn {
+    width: 38px;
+    padding: 0;
+  }
 }
 
 @keyframes heartPop {
