@@ -145,10 +145,17 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 
 > **Giới hạn cần biết:** đăng nhập Google chặn được kiểu spam phổ biến nhất (mở ẩn danh/đổi SĐT), nhưng không phải tuyệt đối — người thật sự muốn gian lận vẫn có thể tạo nhiều tài khoản Google khác nhau để dùng thêm lượt. Muốn chặt hơn nữa (VD: chỉ cho phép domain email nội bộ, hoặc yêu cầu OTP SĐT qua dịch vụ SMS trả phí) cần thêm cấu hình ngoài phạm vi bản miễn phí này.
 
-> **Về ảnh bìa hiển thị:** trang dùng thẳng link thumbnail công khai của Google Drive (`https://drive.google.com/thumbnail?id=...`) — **không** proxy qua Apps Script (đã thử cách `doGet` trả blob ảnh trực tiếp nhưng Apps Script Web App không hỗ trợ kiểu trả về này, chỉ nhận `HtmlOutput`/`TextOutput`). Vì vậy ảnh bìa cần được bật chia sẻ "Anyone with the link — Viewer":
-> - **Bài nộp mới** (sau khi cập nhật `Code.gs` này): tự động bật chia sẻ ngay lúc nộp, không cần làm gì thêm.
-> - **Bài đã nộp trước đó**: mở 1 lần trên trình duyệt `<ENDPOINT>/exec?action=fixImageSharing&key=<ADMIN_KEY>` để bật chia sẻ hàng loạt cho ảnh của các bài cũ (trả về `{ ok, fixed, failed }`).
-> File nguồn (.ai/.psd/...) đính kèm KHÔNG bị đổi quyền — vẫn riêng tư, chỉ ảnh bìa mới công khai xem-qua-link.
+> **Về khổ bài dự thi:** Cuộc thi sử dụng chuẩn **Khổ A3 Ngang (420 × 297mm, tỉ lệ 1.414 : 1)** cho thiết kế bìa sách trải rộng toàn bộ (bìa trước, gáy, bìa sau). Giao diện web và xem ảnh được căn vừa khít 100% không bị viền trống hay méo hình.
+>
+> **Về xem Thống kê sau khi vote:**
+> - Sau khi gửi bình chọn, người dùng có nút **"Xem Thống Kê & Bảng Xếp Hạng"** mở ngay bảng phân tích trực quan.
+> - Backend Apps Script hỗ trợ endpoint công khai `.../exec?action=voteStats` trả về: tổng số bài thi, tổng người bình chọn, tổng lượt React (+2đ), tổng lời bình luận (+1đ), tổng điểm, phân bổ tương tác theo nhóm/ban ngành và bảng xếp hạng tác phẩm (ẩn danh thông tin cá nhân).
+>
+> **Về ảnh bìa hiển thị & đồng bộ Drive:**
+> - Bài nộp mới qua web tự động bật quyền xem công khai ("Anyone with the link — Viewer") cho ảnh bìa.
+> - Để đồng bộ / sửa quyền chia sẻ cho toàn bộ các bài đã nộp trước đó (hoặc bài nộp qua dán link Google Drive), bạn chỉ cần mở 1 lần link sau trên trình duyệt:
+>   `<ENDPOINT>/exec?action=syncImages` (hoặc `?action=syncImages&key=<ADMIN_KEY>`).
+>   Hệ thống sẽ tự động quét cả cột upload lẫn cột link nguồn để bật quyền xem, trả về `{ ok: true, fixed, failed, total }`.
 
 ---
 

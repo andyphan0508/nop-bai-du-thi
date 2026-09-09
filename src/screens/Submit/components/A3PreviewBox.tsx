@@ -57,9 +57,18 @@ const A3PreviewBox = ({ file, onClear }: A3PreviewBoxProps) => {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span className="a3-preview-tag">
               <MdDescription size={13} />
-              Khổ A3 {isLandscape ? "Ngang (420 × 297mm)" : "Đứng (297 × 420mm)"}
+              Khổ A3 Ngang (420 × 297mm)
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--md-success)", fontSize: "0.76rem", fontWeight: 700 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                color: "var(--md-success)",
+                fontSize: "0.76rem",
+                fontWeight: 700,
+              }}
+            >
               <MdCheckCircle size={14} /> Sẵn sàng nộp
             </span>
           </div>
@@ -72,8 +81,13 @@ const A3PreviewBox = ({ file, onClear }: A3PreviewBoxProps) => {
                 Độ phân giải: <b>{meta.width} × {meta.height} px</b> · Dung lượng: <b>{formatMb(file.size)}</b>
                 <br />
                 <span style={{ opacity: 0.85 }}>
-                  Tỉ lệ: <b>{isLandscape ? "1.414 : 1" : "1 : 1.414"}</b> (Chuẩn ISO 216 cho thiết kế bìa)
+                  Tỉ lệ: <b>{(meta.width / meta.height).toFixed(3)} : 1</b> (Chuẩn A3 Ngang ISO 216: 1.414 : 1)
                 </span>
+                {!isLandscape && (
+                  <div style={{ marginTop: 4, color: "#d97706", fontWeight: 600, fontSize: "0.76rem" }}>
+                    ⚠️ Lưu ý: Tác phẩm bìa trải rộng nên thiết kế theo Khổ A3 Ngang (420 × 297mm).
+                  </div>
+                )}
               </>
             ) : (
               <span>Đang kiểm tra độ phân giải ảnh…</span>

@@ -4,6 +4,7 @@ import SubmitHeader from "../Submit/components/SubmitHeader";
 import ToastStack, { type ToastItem } from "../Submit/components/Toast";
 import EngageModal from "../Vote/components/EngageModal";
 import VoteDoneCard from "../Vote/components/VoteDoneCard";
+import VoteStatsModal from "../Vote/components/VoteStatsModal";
 import TurnHome from "./components/TurnHome";
 import EntryPickerList from "./components/EntryPickerList";
 import EntryActionDetail from "./components/EntryActionDetail";
@@ -45,6 +46,7 @@ const VoteMobileScreen = () => {
   const [engageError, setEngageError] = useState<string | null>(null);
 
   const [engagedRecord, setEngagedRecord] = useState<EngagedRecord | null>(readEngagedRecord);
+  const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
 
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef<number>(0);
@@ -60,7 +62,6 @@ const VoteMobileScreen = () => {
   const dismissToast = (id: number) => setToasts((prev) => prev.filter((toast) => toast.id !== id));
 
   useEffect(() => {
-    if (engagedRecord) return;
     if (!IS_CONFIGURED) {
       setIsLoading(false);
       return;
@@ -82,8 +83,7 @@ const VoteMobileScreen = () => {
         setIsLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engagedRecord]);
+  }, []);
 
   // Lượt còn lại (không phải turnNumber) quyết định: bài nào bị loại khỏi danh
   // sách, và hành động nào không còn được chọn nữa (đã dùng ở lượt kia).
@@ -232,7 +232,11 @@ const VoteMobileScreen = () => {
 
         {IS_CONFIGURED && engagedRecord && (
           <div className="card">
-            <VoteDoneCard reactedTitle={engagedRecord.reactedTitle} commentedTitle={engagedRecord.commentedTitle} />
+            <VoteDoneCard
+              reactedTitle={engagedRecord.reactedTitle}
+              commentedTitle={engagedRecord.commentedTitle}
+              onViewStats={() => setIsStatsOpen(true)}
+            />
           </div>
         )}
 
@@ -256,6 +260,13 @@ const VoteMobileScreen = () => {
           onConfirm={handleConfirmEngage}
         />
       )}
+
+      <VoteStatsModal
+        isOpen={isStatsOpen}
+        onClose={() => setIsStatsOpen(false)}
+        entries={entries}
+        comments={comments}
+      />
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>

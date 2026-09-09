@@ -639,16 +639,16 @@ a.btn { text-decoration: none; }
 }
 .nav-link:hover { border-bottom-color: var(--md-primary); }
 
-/* ===== Trang bình chọn — lưới bài dự thi tỉ lệ A3 ===== */
+/* ===== Trang bình chọn — lưới bài dự thi chuẩn A3 Ngang (420 x 297mm) ===== */
 .vote-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
   margin-top: 14px;
   padding-bottom: 110px; /* Chừa chỗ cho thanh dock dính đáy */
 }
 
-@media (max-width: 600px) {
+@media (max-width: 680px) {
   .vote-grid {
     grid-template-columns: 1fr;
     gap: 18px;
@@ -683,11 +683,11 @@ a.btn { text-decoration: none; }
   opacity: 0.7;
 }
 
-/* Khung ảnh chuẩn khổ giấy A3 (297 x 420mm -> 1:1.4142) */
+/* Khung ảnh chuẩn khổ giấy A3 Ngang (420 x 297mm -> 1.4142 : 1) fit tràn viền */
 .vote-card-img {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1.4142;
+  aspect-ratio: 1.4142 / 1;
   background: #fbf9f6;
   overflow: hidden;
   display: flex;
@@ -696,29 +696,16 @@ a.btn { text-decoration: none; }
   border-bottom: 1px solid rgba(215, 194, 184, 0.25);
 }
 
-/* Lớp ambient làm mờ nhẹ từ chính ảnh tạo nền cho tranh ngang/dọc */
-.vote-card-img-blur {
-  position: absolute;
-  inset: -12px;
-  background-size: cover;
-  background-position: center;
-  filter: blur(24px) opacity(0.3) saturate(1.2);
-  transform: scale(1.15);
-  pointer-events: none;
-}
-
-/* Tác phẩm chuẩn A3: contain trọn vẹn, không cắt xén góc/chữ */
+/* Tác phẩm chuẩn A3 Ngang: fit vừa khít toàn bộ viền, không có khoảng trống thừa */
 .vote-card-img img {
   position: relative;
   z-index: 1;
-  max-width: 100%;
-  max-height: 100%;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .vote-card:hover .vote-card-img img {
@@ -1288,23 +1275,28 @@ a.btn { text-decoration: none; }
 }
 .lightbox-a3-canvas {
   position: relative;
-  background: #f8f6f2;
+  background: #1f1915;
   border-radius: var(--md-shape-md);
-  padding: 12px;
+  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  max-height: 70vh;
-  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  aspect-ratio: 1.4142 / 1;
+  max-height: 72vh;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 .lightbox-img {
   max-width: 100%;
-  max-height: 66vh;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: 4px;
   display: block;
   margin: 0 auto;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 .lightbox-nav-btn {
   position: absolute;
@@ -1407,7 +1399,7 @@ a.btn { text-decoration: none; }
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== Khung Live Preview A3 trang Nộp bài ===== */
+/* ===== Khung Live Preview A3 trang Nộp bài (A3 Ngang 420x297mm) ===== */
 .a3-preview-box {
   margin-top: 12px;
   background: #fdfbf8;
@@ -1427,8 +1419,8 @@ a.btn { text-decoration: none; }
 }
 .a3-preview-sheet {
   position: relative;
-  width: 130px;
-  aspect-ratio: 1 / 1.4142;
+  width: 170px;
+  aspect-ratio: 1.4142 / 1;
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.12);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
@@ -1439,14 +1431,10 @@ a.btn { text-decoration: none; }
   align-items: center;
   justify-content: center;
 }
-.a3-preview-sheet.landscape {
-  width: 170px;
-  aspect-ratio: 1.4142 / 1;
-}
 .a3-preview-sheet img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
 }
 .a3-preview-meta {
@@ -1496,7 +1484,7 @@ a.btn { text-decoration: none; }
 
 /* ===== Luồng bình chọn trên mobile (/binh-chon/mobile) ===== */
 .wrap-mobile {
-  max-width: 480px;
+  max-width: 520px;
 }
 
 .mobile-topbar {
@@ -1522,7 +1510,7 @@ a.btn { text-decoration: none; }
   cursor: pointer;
 }
 
-/* Danh sách chọn bài (dạng dòng, dễ bấm bằng ngón tay) */
+/* Danh sách chọn bài (A3 Ngang thumbnail) */
 .mobile-entry-list {
   list-style: none;
   margin: 0;
@@ -1549,8 +1537,8 @@ a.btn { text-decoration: none; }
   background: var(--md-surface-container-low);
 }
 .mobile-entry-row img {
-  width: 52px;
-  aspect-ratio: 1 / 1.4142;
+  width: 76px;
+  aspect-ratio: 1.4142 / 1;
   object-fit: cover;
   border-radius: var(--md-shape-md);
   flex: none;
@@ -1585,10 +1573,10 @@ a.btn { text-decoration: none; }
   color: var(--md-outline);
 }
 
-/* Màn hình chi tiết 1 bài + chọn React/Bình luận */
+/* Màn hình chi tiết 1 bài chuẩn A3 Ngang */
 .mobile-detail-img-wrap {
   width: 100%;
-  aspect-ratio: 1 / 1.4142;
+  aspect-ratio: 1.4142 / 1;
   background: #fbf9f6;
   border-radius: var(--md-shape-lg);
   overflow: hidden;
@@ -1598,9 +1586,9 @@ a.btn { text-decoration: none; }
   position: relative;
 }
 .mobile-detail-img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 .mobile-detail-desc {
@@ -1675,6 +1663,136 @@ a.btn { text-decoration: none; }
   font-weight: 700;
   cursor: pointer;
   padding: 0;
+}
+
+/* ===== Modal Thống Kê Bình Chọn (Statistics Modal) ===== */
+.stats-modal {
+  max-width: 640px;
+  width: 100%;
+}
+.stats-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 16px 0 22px;
+}
+.stat-box {
+  background: var(--md-surface-container-low);
+  border: 1px solid rgba(215, 194, 184, 0.45);
+  border-radius: var(--md-shape-lg);
+  padding: 14px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(154, 69, 34, 0.08);
+}
+.stat-box-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--md-primary);
+  line-height: 1.2;
+}
+.stat-box-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--md-on-surface-variant);
+}
+.stats-section-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--md-on-surface);
+  margin: 18px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stat-rank-table {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.stat-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--md-surface-container-lowest);
+  border: 1px solid rgba(215, 194, 184, 0.35);
+  border-radius: var(--md-shape-md);
+  padding: 8px 12px;
+  transition: background 0.15s;
+}
+.stat-rank-item:hover {
+  background: var(--md-surface-container-low);
+}
+.stat-rank-num {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  font-size: 0.74rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.stat-rank-item:nth-child(1) .stat-rank-num {
+  background: #fef08a;
+  color: #854d0e;
+}
+.stat-rank-item:nth-child(2) .stat-rank-num {
+  background: #e2e8f0;
+  color: #475569;
+}
+.stat-rank-item:nth-child(3) .stat-rank-num {
+  background: #fed7aa;
+  color: #9a3412;
+}
+.stat-rank-thumb {
+  width: 44px;
+  aspect-ratio: 1.4142 / 1;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--md-outline-variant);
+  flex: none;
+}
+.stat-rank-info {
+  flex: 1;
+  min-width: 0;
+}
+.stat-rank-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--md-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat-rank-sub {
+  font-size: 0.74rem;
+  color: var(--md-on-surface-variant);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.stat-rank-points {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--md-primary);
+  flex: none;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

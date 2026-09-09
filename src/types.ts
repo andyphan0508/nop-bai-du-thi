@@ -114,3 +114,29 @@ export type VoteResultsResponse = {
   totalPoints?: number;
   results?: VoteResult[];
 };
+
+export type VoteRankedEntry = {
+  id: string;
+  title: string;
+  group: string;
+  points: number;
+  reactCount: number;
+  commentCount: number;
+  imageFileId?: string;
+};
+
+export type VoteStats = {
+  totalEntries: number;
+  totalVoters: number;
+  totalReacts: number;
+  totalComments: number;
+  totalPoints: number;
+  groupBreakdown: Record<string, { entries: number; points: number }>;
+  rankedEntries: VoteRankedEntry[];
+};
+
+export type VoteStatsResponse = {
+  ok: boolean;
+  error?: string;
+  stats?: VoteStats;
+};

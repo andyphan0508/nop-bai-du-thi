@@ -7,6 +7,7 @@ import {
   MdDescription,
   MdHowToVote,
   MdInfoOutline,
+  MdBarChart,
 } from "react-icons/md";
 import BackgroundDecor from "../Submit/components/BackgroundDecor";
 import SubmitHeader from "../Submit/components/SubmitHeader";
@@ -15,6 +16,7 @@ import VoteCard from "./components/VoteCard";
 import VoteLightbox from "./components/VoteLightbox";
 import EngageModal from "./components/EngageModal";
 import VoteDoneCard from "./components/VoteDoneCard";
+import VoteStatsModal from "./components/VoteStatsModal";
 import AdminResultsPanel from "./components/AdminResultsPanel";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
@@ -57,6 +59,7 @@ const VoteScreen = () => {
   const [engageError, setEngageError] = useState<string | null>(null);
 
   const [engagedRecord, setEngagedRecord] = useState<EngagedRecord | null>(readEngagedRecord);
+  const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
 
   const [isAdmin] = useState<boolean>(() => new URLSearchParams(window.location.search).has("admin"));
 
@@ -275,7 +278,7 @@ const VoteScreen = () => {
               fontWeight: 600,
             }}
           >
-            <MdDescription size={15} /> Chuẩn bản in khổ A3 (297 × 420mm)
+            <MdDescription size={15} /> Khổ A3 Ngang (420 × 297mm)
           </span>
         </div>
 
@@ -287,7 +290,11 @@ const VoteScreen = () => {
 
         {IS_CONFIGURED && engagedRecord && (
           <div className="card" style={{ marginBottom: 24 }}>
-            <VoteDoneCard reactedTitle={engagedRecord.reactedTitle} commentedTitle={engagedRecord.commentedTitle} />
+            <VoteDoneCard
+              reactedTitle={engagedRecord.reactedTitle}
+              commentedTitle={engagedRecord.commentedTitle}
+              onViewStats={() => setIsStatsOpen(true)}
+            />
           </div>
         )}
 
@@ -296,11 +303,11 @@ const VoteScreen = () => {
             {engagedRecord && (
               <div className="section-head" style={{ marginTop: 20, marginBottom: 12 }}>
                 <MdDescription size={18} />
-                Triển lãm các tác phẩm dự thi (Khổ A3)
+                Triển lãm các tác phẩm dự thi (Khổ A3 Ngang)
               </div>
             )}
 
-            {isLoading && <div className="list-note">Đang tải danh sách tác phẩm khổ A3…</div>}
+            {isLoading && <div className="list-note">Đang tải danh sách tác phẩm khổ A3 Ngang…</div>}
 
             {!isLoading && loadError && (
               <div className="card">
@@ -359,20 +366,40 @@ const VoteScreen = () => {
                       <span className="vote-count-badge">
                         {filteredEntries.length} / {entries.length}
                       </span>{" "}
-                      tác phẩm khổ A3
+                      tác phẩm khổ A3 Ngang
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>Sắp xếp:</span>
-                      <select
-                        className="vote-sort-select"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as "order" | "title" | "comments")}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button
+                        className="btn btn-tonal"
+                        type="button"
+                        style={{
+                          width: "auto",
+                          padding: "6px 12px",
+                          fontSize: "0.82rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                        onClick={() => setIsStatsOpen(true)}
+                        title="Xem thống kê tổng quan và xếp hạng bình chọn"
                       >
-                        <option value="order">Thứ tự nộp bài</option>
-                        <option value="title">Tên tác phẩm (A-Z)</option>
-                        <option value="comments">Nhiều bình luận nhất</option>
-                      </select>
+                        <MdBarChart size={16} />
+                        Thống kê
+                      </button>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>Sắp xếp:</span>
+                        <select
+                          className="vote-sort-select"
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as "order" | "title" | "comments")}
+                        >
+                          <option value="order">Thứ tự nộp bài</option>
+                          <option value="title">Tên tác phẩm (A-Z)</option>
+                          <option value="comments">Nhiều bình luận nhất</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -528,6 +555,13 @@ const VoteScreen = () => {
           onConfirm={handleConfirmEngage}
         />
       )}
+
+      <VoteStatsModal
+        isOpen={isStatsOpen}
+        onClose={() => setIsStatsOpen(false)}
+        entries={entries}
+        comments={comments}
+      />
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>

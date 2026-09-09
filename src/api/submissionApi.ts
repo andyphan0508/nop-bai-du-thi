@@ -8,6 +8,7 @@ import type {
   SubmitResponse,
   VoteEntryListResponse,
   VoteResultsResponse,
+  VoteStatsResponse,
 } from "../types";
 
 const getEntryList = async (): Promise<EntryListResponse> => {
@@ -50,6 +51,19 @@ const getVoteResults = async (adminKey: string): Promise<VoteResultsResponse> =>
     `${ENDPOINT}?action=voteResults&key=${encodeURIComponent(adminKey)}`,
   );
   return (await response.json()) as VoteResultsResponse;
+};
+
+// Thống kê bình chọn công khai: tổng số lượt vote, bình luận, người tham gia, phân bổ theo nhóm
+const getVoteStats = async (): Promise<VoteStatsResponse> => {
+  const response = await fetch(`${ENDPOINT}?action=voteStats`);
+  return (await response.json()) as VoteStatsResponse;
+};
+
+// Đồng bộ quyền xem công khai cho tất cả ảnh dự thi trong Google Drive
+const syncDriveImages = async (adminKey?: string): Promise<{ ok: boolean; fixed?: number; failed?: number; error?: string }> => {
+  const keyParam = adminKey ? `&key=${encodeURIComponent(adminKey)}` : "";
+  const response = await fetch(`${ENDPOINT}?action=syncImages${keyParam}`);
+  return await response.json();
 };
 
 // POST bằng XHR, Content-Type text/plain để giữ dạng "simple request".
@@ -120,4 +134,6 @@ export const submissionApi = {
   submitEngagement,
   getComments,
   getVoteResults,
+  getVoteStats,
+  syncDriveImages,
 };
