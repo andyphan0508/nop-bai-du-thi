@@ -1,34 +1,75 @@
+import { MdFavorite, MdModeComment, MdOutlineVisibility } from "react-icons/md";
+
 type VoteDoneCardProps = {
   reactedTitle?: string | null;
   commentedTitle?: string | null;
+  onBrowseAll?: () => void;
 };
 
-const VoteDoneCard = ({ reactedTitle, commentedTitle }: VoteDoneCardProps) => {
+const VoteDoneCard = ({ reactedTitle, commentedTitle, onBrowseAll }: VoteDoneCardProps) => {
   return (
-    <div className="success">
+    <div className="success" style={{ padding: "36px 24px" }}>
       <svg className="checkmark" viewBox="0 0 56 56">
         <circle cx="28" cy="28" r="26" />
         <path d="M16 29.5 24.5 38 40 20" />
       </svg>
 
-      <h2>Đã ghi nhận tương tác!</h2>
+      <h2 style={{ margin: "14px 0 10px", color: "var(--md-primary)" }}>
+        Đã ghi nhận bình chọn thành công!
+      </h2>
 
-      {reactedTitle && (
-        <div className="order">
-          Bạn đã React cho <b>{reactedTitle}</b>
-        </div>
-      )}
-      {commentedTitle && (
-        <div className="order">
-          Bạn đã bình luận cho <b>{commentedTitle}</b>
-        </div>
-      )}
-
-      <p>Cảm ơn bạn đã dành thời gian ủng hộ các bài dự thi.</p>
-      <p className="success-note">
-        Mỗi người chỉ có 1 lượt React + 1 lượt bình luận, đã dùng hết. Kết quả sẽ được Ban tổ chức công bố sau khi
-        kết thúc bình chọn.
+      <p style={{ margin: "0 0 16px", color: "var(--md-on-surface-variant)" }}>
+        Cảm ơn bạn đã đồng hành và dành những tình cảm, lời khích lệ quý báu cho các tác phẩm dự thi.
       </p>
+
+      <div
+        style={{
+          background: "var(--md-surface-container-low)",
+          borderRadius: "var(--md-shape-lg)",
+          padding: "16px 18px",
+          margin: "16px 0 20px",
+          border: "1px solid rgba(215, 194, 184, 0.4)",
+          textAlign: "left",
+        }}
+      >
+        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--md-primary)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10 }}>
+          Biên nhận bình chọn
+        </div>
+
+        {reactedTitle && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: "0.9rem" }}>
+            <span className="vote-dock-badge react">
+              <MdFavorite size={12} /> React (2đ)
+            </span>
+            <span>Tác phẩm: <b>{reactedTitle}</b></span>
+          </div>
+        )}
+
+        {commentedTitle && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.9rem" }}>
+            <span className="vote-dock-badge comment">
+              <MdModeComment size={12} /> Bình luận (1đ)
+            </span>
+            <span>Tác phẩm: <b>{commentedTitle}</b></span>
+          </div>
+        )}
+      </div>
+
+      <p className="success-note" style={{ maxWidth: 440, margin: "0 auto 20px" }}>
+        Mỗi người chỉ có 1 lượt React + 1 lượt bình luận và đã được ghi nhận vào hệ thống. Kết quả xếp hạng điểm sẽ được Ban tổ chức công bố khi kết thúc thời hạn bình chọn.
+      </p>
+
+      {onBrowseAll && (
+        <button
+          className="btn btn-tonal"
+          type="button"
+          style={{ width: "auto", margin: "0 auto", display: "inline-flex", alignItems: "center", gap: 6 }}
+          onClick={onBrowseAll}
+        >
+          <MdOutlineVisibility size={18} />
+          Xem lại tất cả bài dự thi
+        </button>
+      )}
     </div>
   );
 };

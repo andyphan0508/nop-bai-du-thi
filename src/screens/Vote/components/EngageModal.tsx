@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { MdClose, MdFavorite, MdHowToVote, MdLock, MdModeComment } from "react-icons/md";
 import { IS_VOTE_AUTH_CONFIGURED } from "../../../config";
 import type { VoteEntry } from "../../../types";
+import { submissionApi } from "../../../api/submissionApi";
 import GoogleSignIn from "./GoogleSignIn";
 
 type EngageModalProps = {
@@ -68,18 +69,72 @@ const EngageModal = ({
 
         <h3>
           <MdHowToVote size={22} />
-          Xác nhận tương tác
+          Phiếu bình chọn tác phẩm
         </h3>
 
         <div className="ballot-pick">
           {reactTarget && (
             <div className="ballot-pick-row">
-              <MdFavorite size={16} /> React cho <b>{reactTarget.title}</b>
+              <img
+                src={submissionApi.voteImageUrl(reactTarget.imageFileId, 160)}
+                alt=""
+                style={{
+                  width: 38,
+                  aspectRatio: "1 / 1.4142",
+                  objectFit: "cover",
+                  borderRadius: 4,
+                  flex: "none",
+                  border: "1px solid var(--md-outline-variant)",
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span className="vote-dock-badge react">
+                    <MdFavorite size={11} /> +2 điểm
+                  </span>
+                  <span style={{ fontSize: "0.76rem", color: "var(--md-on-surface-variant)" }}>Lượt React</span>
+                </div>
+                <b style={{ fontSize: "0.92rem", color: "var(--md-on-surface)" }}>{reactTarget.title}</b>
+              </div>
             </div>
           )}
+
           {commentTarget && (
             <div className="ballot-pick-row">
-              <MdModeComment size={16} /> Bình luận cho <b>{commentTarget.title}</b>: "{commentText}"
+              <img
+                src={submissionApi.voteImageUrl(commentTarget.imageFileId, 160)}
+                alt=""
+                style={{
+                  width: 38,
+                  aspectRatio: "1 / 1.4142",
+                  objectFit: "cover",
+                  borderRadius: 4,
+                  flex: "none",
+                  border: "1px solid var(--md-outline-variant)",
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span className="vote-dock-badge comment">
+                    <MdModeComment size={11} /> +1 điểm
+                  </span>
+                  <span style={{ fontSize: "0.76rem", color: "var(--md-on-surface-variant)" }}>Lượt Bình luận</span>
+                </div>
+                <b style={{ fontSize: "0.92rem", color: "var(--md-on-surface)" }}>{commentTarget.title}</b>
+                <div
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "var(--md-on-surface-variant)",
+                    fontStyle: "italic",
+                    marginTop: 2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  "{commentText}"
+                </div>
+              </div>
             </div>
           )}
         </div>

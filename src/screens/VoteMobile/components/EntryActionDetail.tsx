@@ -44,7 +44,15 @@ const EntryActionDetail = ({
         <span>Chọn tương tác</span>
       </div>
 
-      <img className="mobile-detail-img" src={imgSrc} alt={`Bìa dự thi: ${entry.title}`} />
+      <div className="mobile-detail-img-wrap">
+        <div
+          className="vote-card-img-blur"
+          style={{ backgroundImage: `url("${imgSrc}")` }}
+          aria-hidden="true"
+        />
+        <img className="mobile-detail-img" src={imgSrc} alt={`Bìa dự thi: ${entry.title}`} />
+        <span className="a3-badge">Khổ A3</span>
+      </div>
 
       <div className="vote-card-title" style={{ fontSize: "1.1rem", marginTop: 14 }}>
         Bài {order} — {entry.title}
@@ -75,7 +83,7 @@ const EntryActionDetail = ({
           onClick={() => setSelectedAction("react")}
         >
           {selectedAction === "react" ? <MdFavorite size={18} /> : <MdFavoriteBorder size={18} />}
-          {canReact ? "React" : "Đã dùng"}
+          {canReact ? (selectedAction === "react" ? "Đã chọn React (2đ)" : "React (2đ)") : "Đã dùng"}
         </button>
         <button
           type="button"
@@ -85,18 +93,24 @@ const EntryActionDetail = ({
           onClick={() => setSelectedAction("comment")}
         >
           <MdModeComment size={17} />
-          {canComment ? "Bình luận" : "Đã dùng"}
+          {canComment ? (selectedAction === "comment" ? "Đang viết" : "Bình luận (1đ)") : "Đã dùng"}
         </button>
       </div>
 
       {selectedAction === "comment" && (
-        <textarea
-          className="vote-comment-input"
-          value={commentText}
-          maxLength={COMMENT_MAX_LEN}
-          placeholder="Viết 1 lời khích lệ cho bài dự thi này…"
-          onChange={(event) => setCommentText(event.target.value)}
-        />
+        <div className="vote-comment-box">
+          <textarea
+            className="vote-comment-input"
+            value={commentText}
+            maxLength={COMMENT_MAX_LEN}
+            autoFocus
+            placeholder="Viết 1 lời khích lệ cho bài dự thi này…"
+            onChange={(event) => setCommentText(event.target.value)}
+          />
+          <div className="vote-comment-counter">
+            {commentText.length} / {COMMENT_MAX_LEN}
+          </div>
+        </div>
       )}
 
       <div className="mobile-detail-actions">

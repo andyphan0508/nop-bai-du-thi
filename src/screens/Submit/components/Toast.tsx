@@ -1,9 +1,9 @@
-import { MdCheckCircle, MdClose, MdErrorOutline } from 'react-icons/md';
+import { MdCheckCircle, MdClose, MdErrorOutline, MdInfoOutline } from 'react-icons/md';
 
 export type ToastItem = {
   id: number;
   message: string;
-  type: 'error' | 'success';
+  type: 'error' | 'success' | 'info';
 };
 
 type ToastStackProps = {
@@ -18,7 +18,9 @@ const ToastStack = ({ toasts, onDismiss }: ToastStackProps) => {
     <div className="toast-stack" role="status" aria-live="polite">
       {toasts.map((toast) => (
         <div key={toast.id} className={`toast ${toast.type}`}>
-          {toast.type === 'error' ? <MdErrorOutline size={18} /> : <MdCheckCircle size={18} />}
+          {toast.type === 'error' && <MdErrorOutline size={18} />}
+          {toast.type === 'success' && <MdCheckCircle size={18} />}
+          {toast.type === 'info' && <MdInfoOutline size={18} />}
           <span>{toast.message}</span>
           <button
             className="toast-x"

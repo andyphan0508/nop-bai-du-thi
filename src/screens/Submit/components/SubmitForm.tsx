@@ -14,6 +14,7 @@ import {
   MdSettingsSuggest,
 } from "react-icons/md";
 import FileDropBox from "./FileDropBox";
+import A3PreviewBox from "./A3PreviewBox";
 import UploadProgress from "./UploadProgress";
 import { formatMb } from "../../../utils/format";
 
@@ -251,11 +252,17 @@ const SubmitForm = ({
           inputId="imageInput"
           icon={<MdImage size={24} />}
           emptyText="Chọn / kéo thả file ảnh vào đây"
-          subText="Chỉ nhận ảnh .jpg, .png, .webp"
+          subText="Chỉ nhận ảnh .jpg, .png, .webp (Khổ giấy A3)"
           accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
           file={selectedImageFile}
           onSelectFile={onSelectImageFile}
         />
+        {selectedImageFile && (
+          <A3PreviewBox
+            file={selectedImageFile}
+            onClear={() => onSelectImageFile(null)}
+          />
+        )}
       </div>
 
       <div className="field">
