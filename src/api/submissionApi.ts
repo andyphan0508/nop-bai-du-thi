@@ -12,12 +12,16 @@ import type {
 } from "../types";
 
 const getEntryList = async (): Promise<EntryListResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=list`);
+  const response = await fetch(`${ENDPOINT}?action=list&_t=${Date.now()}`, {
+    cache: "no-store",
+  });
   return (await response.json()) as EntryListResponse;
 };
 
 const getVoteEntries = async (): Promise<VoteEntryListResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=voteEntries`);
+  const response = await fetch(`${ENDPOINT}?action=voteEntries&_t=${Date.now()}`, {
+    cache: "no-store",
+  });
   return (await response.json()) as VoteEntryListResponse;
 };
 
@@ -25,7 +29,7 @@ const getVoteEntries = async (): Promise<VoteEntryListResponse> => {
 // Drive (Apps Script Web App không hỗ trợ trả blob ảnh trực tiếp từ doGet).
 // Ảnh chỉ hiển thị được nếu file đã bật chia sẻ "Anyone with link" — bài nộp
 // mới tự bật khi nộp (xem Code.gs doPost); bài nộp cũ cần chạy 1 lần
-// ?action=fixImageSharing&key=ADMIN_KEY (xem HUONG-DAN.md).
+// ?action=syncImages (xem HUONG-DAN.md).
 const voteImageUrl = (fileId: string, width = 800): string => {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${width}`;
 };
@@ -42,27 +46,36 @@ const submitEngagement = async (payload: EngagePayload): Promise<EngageResponse>
 // Bình luận công khai của TẤT CẢ bài dự thi, gộp theo entryId — tải 1 lần
 // cho cả trang thay vì gọi riêng từng bài.
 const getComments = async (): Promise<CommentsResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=comments`);
+  const response = await fetch(`${ENDPOINT}?action=comments&_t=${Date.now()}`, {
+    cache: "no-store",
+  });
   return (await response.json()) as CommentsResponse;
 };
 
 const getVoteResults = async (adminKey: string): Promise<VoteResultsResponse> => {
   const response = await fetch(
-    `${ENDPOINT}?action=voteResults&key=${encodeURIComponent(adminKey)}`,
+    `${ENDPOINT}?action=voteResults&key=${encodeURIComponent(adminKey)}&_t=${Date.now()}`,
+    { cache: "no-store" },
   );
   return (await response.json()) as VoteResultsResponse;
 };
 
 // Thống kê bình chọn công khai: tổng số lượt vote, bình luận, người tham gia, phân bổ theo nhóm
 const getVoteStats = async (): Promise<VoteStatsResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=voteStats`);
+  const response = await fetch(`${ENDPOINT}?action=voteStats&_t=${Date.now()}`, {
+    cache: "no-store",
+  });
   return (await response.json()) as VoteStatsResponse;
 };
 
 // Đồng bộ quyền xem công khai cho tất cả ảnh dự thi trong Google Drive
-const syncDriveImages = async (adminKey?: string): Promise<{ ok: boolean; fixed?: number; failed?: number; error?: string }> => {
+const syncDriveImages = async (
+  adminKey?: string,
+): Promise<{ ok: boolean; fixed?: number; failed?: number; error?: string }> => {
   const keyParam = adminKey ? `&key=${encodeURIComponent(adminKey)}` : "";
-  const response = await fetch(`${ENDPOINT}?action=syncImages${keyParam}`);
+  const response = await fetch(`${ENDPOINT}?action=syncImages${keyParam}&_t=${Date.now()}`, {
+    cache: "no-store",
+  });
   return await response.json();
 };
 

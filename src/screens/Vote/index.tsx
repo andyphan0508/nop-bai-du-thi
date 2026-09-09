@@ -8,6 +8,7 @@ import {
   MdHowToVote,
   MdInfoOutline,
   MdBarChart,
+  MdRefresh,
 } from "react-icons/md";
 import BackgroundDecor from "../Submit/components/BackgroundDecor";
 import SubmitHeader from "../Submit/components/SubmitHeader";
@@ -76,28 +77,30 @@ const VoteScreen = () => {
   };
   const dismissToast = (id: number) => setToasts((prev) => prev.filter((toast) => toast.id !== id));
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!IS_CONFIGURED) {
       setIsLoading(false);
       return;
     }
-    (async () => {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const [entriesResponse, commentsResponse] = await Promise.all([
-          submissionApi.getVoteEntries(),
-          submissionApi.getComments(),
-        ]);
-        if (!entriesResponse.ok) throw new Error(entriesResponse.error || "Không tải được danh sách bài dự thi.");
-        setEntries(entriesResponse.entries || []);
-        setComments(commentsResponse.ok ? commentsResponse.comments || {} : {});
-      } catch (err) {
-        setLoadError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [entriesResponse, commentsResponse] = await Promise.all([
+        submissionApi.getVoteEntries(),
+        submissionApi.getComments(),
+      ]);
+      if (!entriesResponse.ok) throw new Error(entriesResponse.error || "Không tải được danh sách bài dự thi.");
+      setEntries(entriesResponse.entries || []);
+      setComments(commentsResponse.ok ? commentsResponse.comments || {} : {});
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const handleToggleReact = (entry: VoteEntry) => {
@@ -370,6 +373,20 @@ const VoteScreen = () => {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button
+                        className={isLoading ? "refresh spin" : "refresh"}
+                        type="button"
+                        onClick={fetchData}
+                        title="Tải lại danh sách bài dự thi (xoá cache)"
+                        style={{
+                          border: "1px solid rgba(215, 194, 184, 0.45)",
+                          width: 32,
+                          height: 32,
+                        }}
+                      >
+                        <MdRefresh size={18} />
+                      </button>
+
                       <button
                         className="btn btn-tonal"
                         type="button"

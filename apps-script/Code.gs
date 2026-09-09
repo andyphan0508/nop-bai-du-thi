@@ -99,6 +99,7 @@ function doGet(e) {
   if (action === 'voteStats') return handleVoteStats(e);
   if (action === 'voteResults') return handleVoteResults(e);
   if (action === 'syncImages' || action === 'fixImageSharing') return handleSyncImages(e);
+  if (action === 'debugEntry') return handleDebugEntry(e);
   return json({ ok: true, service: 'nop-bai-du-thi', time: new Date() });
 }
 
@@ -113,6 +114,119 @@ function extractDriveFileId(str) {
   if (match && match[1]) return match[1];
   var rawMatch = s.match(/^[a-zA-Z0-9_-]{25,}$/);
   return rawMatch ? rawMatch[0] : '';
+}
+
+// Trích xuất Google Drive Folder ID từ link thư mục
+function extractDriveFolderId(str) {
+  if (!str) return '';
+  var s = String(str).trim();
+  var match = s.match(/\/folders\/([a-zA-Z0-9_-]+)/) ||
+              s.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : '';
+}
+
+// Tìm ID ảnh bìa tốt nhất của 1 bài dự thi:
+// 1. ƯU TIÊN SỐ 1: Quét trực tiếp thư mục Google Drive của bài nộp (cột 12).
+//    Google Drive là nơi phản ánh chính xác nhất khi thí sinh/quản trị viên thêm hoặc sửa file bìa.
+//    - Tìm file có chữ "bia" hoặc "cover" VÀ là file ảnh (.png, .jpg, .jpeg, .webp, .gif)
+//    - Nếu không có chữ "bia", lấy file ảnh web có thời gian cập nhật mới nhất (getLastUpdated)
+// 2. ƯU TIÊN SỐ 2 (FALLBACK): Quét các dòng trong cột "File đã upload" (cột 11)
+// 3. ƯU TIÊN SỐ 3: Cột link nguồn (cột 10)
+function findBestCoverImageId(uploadCellStr, sourceLinkStr, folderUrlStr) {
+  // 1. Quét thư mục bài nộp trên Google Drive (cột 12)
+  if (folderUrlStr) {
+    var folderId = extractDriveFolderId(folderUrlStr);
+    if (folderId) {
+      try {
+        var folder = DriveApp.getFolderById(folderId);
+        var files = folder.getFiles();
+        var candidates = [];
+
+        while (files.hasNext()) {
+          var f = files.next();
+          var fn = f.getName().toLowerCase();
+          var mime = f.getMimeType();
+          var isImg = mime.indexOf('image/') === 0 || /\.(png|jpe?g|webp|gif)$/i.test(fn);
+
+          if (isImg) {
+            var score = 0;
+            // File có chữ "bia" hoặc "cover" trong tên
+            if (fn.indexOf('bia') !== -1 || fn.indexOf('cover') !== -1) score += 100;
+            // File định dạng ảnh web thông dụng
+            if (/\.(png|jpe?g|webp)$/i.test(fn)) score += 20;
+
+            var updatedTime = 0;
+            try { updatedTime = f.getLastUpdated().getTime(); } catch (uErr) {}
+
+            candidates.push({
+              id: f.getId(),
+              name: f.getName(),
+              score: score,
+              updatedTime: updatedTime,
+              fileObj: f,
+            });
+          }
+        }
+
+        if (candidates.length > 0) {
+          // Sắp xếp: điểm cao hơn trước (ưu tiên chữ "bia"), nếu bằng điểm thì file cập nhật mới hơn trước
+          candidates.sort(function (a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            return b.updatedTime - a.updatedTime;
+          });
+
+          var chosen = candidates[0];
+          try {
+            chosen.fileObj.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          } catch (shareErr) {}
+
+          return chosen.id;
+        }
+      } catch (fErr) {}
+    }
+  }
+
+  // 2. Fallback: Đọc từ cột "File đã upload" (cột 11)
+  var rawUpload = String(uploadCellStr || '').trim();
+  var lines = rawUpload ? rawUpload.split('\n').map(function (l) { return l.trim(); }).filter(String) : [];
+
+  // Duyệt từ dưới lên trên (dòng sau thường là file mới hơn)
+  for (var i = lines.length - 1; i >= 0; i--) {
+    var line = lines[i];
+    if (/bia|cover/i.test(line) && /\.(png|jpe?g|webp|gif)($|:|\?|\s)/i.test(line)) {
+      var id = extractDriveFileId(line);
+      if (id) return id;
+    }
+  }
+
+  for (var j = lines.length - 1; j >= 0; j--) {
+    if (/\.(png|jpe?g|webp|gif)($|:|\?|\s)/i.test(lines[j])) {
+      var id2 = extractDriveFileId(lines[j]);
+      if (id2) return id2;
+    }
+  }
+
+  for (var k = lines.length - 1; k >= 0; k--) {
+    if (/bia|cover/i.test(lines[k])) {
+      var id3 = extractDriveFileId(lines[k]);
+      if (id3) return id3;
+    }
+  }
+
+  for (var m = lines.length - 1; m >= 0; m--) {
+    if (!/\.(ai|psd|eps|zip|rar|7z|indd)($|:|\?|\s)/i.test(lines[m])) {
+      var id4 = extractDriveFileId(lines[m]);
+      if (id4) return id4;
+    }
+  }
+
+  if (lines.length > 0) {
+    var id5 = extractDriveFileId(lines[lines.length - 1]);
+    if (id5) return id5;
+  }
+
+  // 3. Fallback: Cột link nguồn (sourceLink)
+  return extractDriveFileId(sourceLinkStr);
 }
 
 // Mã định danh ổn định cho 1 bài dự thi dùng khi bình chọn: chính là "Thời gian nộp"
@@ -136,9 +250,10 @@ function handleVoteEntries() {
     var values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
     var entries = values
       .map(function (r) {
-        var firstUploadLink = String(r[10] || '').split('\n')[0] || '';
+        var uploadCell = String(r[10] || '');
         var sourceLink = String(r[9] || '');
-        var fileId = extractDriveFileId(firstUploadLink) || extractDriveFileId(sourceLink);
+        var folderUrl = String(r[11] || '');
+        var fileId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
 
         return {
           id: entryIdOf(r[0]),
@@ -182,8 +297,8 @@ function handleComments() {
   }
 }
 
-// Đồng bộ / Bật chia sẻ "Anyone with link — Viewer" cho toàn bộ ảnh bìa bài thi trên Drive:
-// Quét cả cột "File đã upload" và cột "Link file nguồn (dán)".
+// Đồng bộ / Bật chia sẻ "Anyone with link — Viewer" cho toàn bộ ảnh bài thi trên Drive:
+// Quét toàn bộ dòng trong Sheet (cả cột upload, link nguồn, và thư mục Drive của từng bài).
 // Chạy qua: .../exec?action=syncImages (hoặc .../exec?action=fixImageSharing)
 function handleSyncImages(e) {
   var key = e && e.parameter && e.parameter.key;
@@ -196,21 +311,74 @@ function handleSyncImages(e) {
     var fixed = 0;
     var failed = 0;
     var checked = 0;
+    var updatedRows = 0;
+
     if (lastRow > 1) {
-      var rows = sheet.getRange(2, 10, lastRow - 1, 2).getValues(); // Cột 10 (Link nguồn), Cột 11 (Uploads)
-      rows.forEach(function (r) {
-        var fileId = extractDriveFileId(String(r[1] || '')) || extractDriveFileId(String(r[0] || ''));
-        if (!fileId) return;
-        checked++;
-        try {
-          DriveApp.getFileById(fileId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          fixed++;
-        } catch (fileErr) {
-          failed++;
+      var range = sheet.getRange(2, 10, lastRow - 1, 3); // Cột 10 (Link nguồn), Cột 11 (Uploads), Cột 12 (Thư mục)
+      var rows = range.getValues();
+
+      rows.forEach(function (r, rowIndex) {
+        var sourceLinkStr = String(r[0] || '');
+        var uploadCellStr = String(r[1] || '');
+        var folderUrlStr = String(r[2] || '');
+
+        var lines = uploadCellStr ? uploadCellStr.split('\n').filter(String) : [];
+        var allIds = [];
+
+        // 1. Quét tất cả ID có trong uploadCellStr (từng dòng)
+        lines.forEach(function (line) {
+          var id = extractDriveFileId(line);
+          if (id && allIds.indexOf(id) === -1) allIds.push(id);
+        });
+
+        // 2. Quét ID trong sourceLink
+        var sId = extractDriveFileId(sourceLinkStr);
+        if (sId && allIds.indexOf(sId) === -1) allIds.push(sId);
+
+        // 3. Quét thư mục bài nộp trên Drive để tìm file ảnh mới nhất
+        var folderId = extractDriveFolderId(folderUrlStr);
+        var folderFileLinks = [];
+        if (folderId) {
+          try {
+            var folder = DriveApp.getFolderById(folderId);
+            var fIter = folder.getFiles();
+            while (fIter.hasNext()) {
+              var file = fIter.next();
+              var fId = file.getId();
+              if (allIds.indexOf(fId) === -1) allIds.push(fId);
+              folderFileLinks.push(file.getName() + ': ' + file.getUrl());
+            }
+          } catch (fErr) {}
+        }
+
+        // Bật quyền xem Anyone with link cho tất cả file tìm được
+        allIds.forEach(function (id) {
+          checked++;
+          try {
+            DriveApp.getFileById(id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            fixed++;
+          } catch (shareErr) {
+            failed++;
+          }
+        });
+
+        // Nếu trong thư mục có file mới mà cột upload chưa ghi nhận đầy đủ, bổ sung vào Sheet
+        if (folderFileLinks.length > lines.length) {
+          try {
+            sheet.getRange(rowIndex + 2, 11).setValue(folderFileLinks.join('\n'));
+            updatedRows++;
+          } catch (wErr) {}
         }
       });
     }
-    return json({ ok: true, fixed: fixed, failed: failed, total: checked });
+
+    return json({
+      ok: true,
+      synced: fixed,
+      failed: failed,
+      totalFiles: checked,
+      updatedRows: updatedRows,
+    });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
@@ -256,9 +424,10 @@ function handleVoteStats(e) {
     if (lastRow > 1) {
       var values = mainSheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
       values.forEach(function (r) {
-        var firstUploadLink = String(r[10] || '').split('\n')[0] || '';
+        var uploadCell = String(r[10] || '');
         var sourceLink = String(r[9] || '');
-        var imgId = extractDriveFileId(firstUploadLink) || extractDriveFileId(sourceLink);
+        var folderUrl = String(r[11] || '');
+        var imgId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
         if (!imgId) return;
 
         var id = entryIdOf(r[0]);
@@ -770,5 +939,49 @@ function ensureHeader(sheet) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
+  }
+}
+
+// Endpoint kiểm tra gỡ lỗi file của 1 dòng: ?action=debugEntry&row=2
+function handleDebugEntry(e) {
+  try {
+    var rowNum = Number(e && e.parameter && e.parameter.row ? e.parameter.row : 2);
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+    var rowValues = sheet.getRange(rowNum, 1, 1, HEADERS.length).getValues()[0];
+    var folderUrl = String(rowValues[11] || '');
+    var folderId = extractDriveFolderId(folderUrl);
+    var filesInFolder = [];
+    if (folderId) {
+      try {
+        var fIter = DriveApp.getFolderById(folderId).getFiles();
+        while (fIter.hasNext()) {
+          var f = fIter.next();
+          filesInFolder.push({
+            name: f.getName(),
+            id: f.getId(),
+            sizeMb: (f.getSize() / (1024 * 1024)).toFixed(2) + ' MB',
+            mime: f.getMimeType(),
+            updated: Utilities.formatDate(f.getLastUpdated(), TZ, 'yyyy-MM-dd HH:mm:ss'),
+          });
+        }
+      } catch (dErr) {}
+    }
+    var uploadCell = String(rowValues[10] || '');
+    var sourceLink = String(rowValues[9] || '');
+    var bestId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
+
+    return json({
+      ok: true,
+      row: rowNum,
+      title: String(rowValues[5] || ''),
+      author: String(rowValues[1] || ''),
+      uploadCell: uploadCell,
+      folderUrl: folderUrl,
+      filesInFolder: filesInFolder,
+      chosenImageId: bestId,
+      chosenImageUrl: bestId ? ('https://drive.google.com/thumbnail?id=' + bestId + '&sz=w800') : '',
+    });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
 }
