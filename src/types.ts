@@ -131,8 +131,10 @@ export type VoteStats = {
   totalReacts: number;
   totalComments: number;
   totalPoints: number;
-  groupBreakdown: Record<string, { entries: number; points: number }>;
   rankedEntries: VoteRankedEntry[];
+  // Giải khuyến khích (nội dung): tác phẩm có số bình luận cao nhất trong các
+  // bài KHÔNG nằm trong top 3 hạng — null nếu chưa có bình luận nào đủ điều kiện.
+  encouragementEntry: VoteRankedEntry | null;
 };
 
 export type VoteStatsResponse = {

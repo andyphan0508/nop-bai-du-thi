@@ -10,6 +10,7 @@ import {
   MdClose,
 } from "react-icons/md";
 import type { VoteEntry } from "../../../types";
+import { COMMENT_MIN_WORDS, countWords } from "../../../utils/wordCount";
 
 const ENTRY_TYPE_TEAM = "Làm nhóm";
 const COMMENT_MAX_LEN = 500;
@@ -99,7 +100,6 @@ const VoteCard = ({
           <span className={`type-pill ${isTeam ? "team" : "solo"}`}>
             {isTeam ? "Nhóm" : "Cá nhân"}
           </span>
-          {entry.group && <span className="vote-card-group">{entry.group}</span>}
         </div>
         {entry.description && (
           <p className="vote-card-desc" title={entry.description}>
@@ -182,11 +182,11 @@ const VoteCard = ({
               value={commentText}
               maxLength={COMMENT_MAX_LEN}
               autoFocus
-              placeholder="Viết 1 lời khích lệ / nhận xét cho tác phẩm này…"
+              placeholder="Viết cảm nhận thật về tác phẩm này (tối thiểu 20 từ)…"
               onChange={(event) => onCommentTextChange(event.target.value)}
             />
-            <div className="vote-comment-counter">
-              {commentText.length} / {COMMENT_MAX_LEN}
+            <div className={`vote-comment-counter${countWords(commentText) < COMMENT_MIN_WORDS ? " too-short" : " ok"}`}>
+              {countWords(commentText)} / {COMMENT_MIN_WORDS} từ tối thiểu
             </div>
           </div>
         )}

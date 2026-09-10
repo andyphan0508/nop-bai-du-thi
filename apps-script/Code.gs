@@ -48,6 +48,7 @@ var VOTERS_SHEET_NAME = 'Người bình chọn';
 var VOTES_SHEET_NAME = 'Kết quả bình chọn'; // mỗi dòng = 1 lượt React (2 điểm)
 var COMMENTS_SHEET_NAME = 'Bình luận'; // mỗi dòng = 1 lượt bình luận (1 điểm), nội dung hiển thị công khai
 var COMMENT_MAX_LEN = 500;
+var COMMENT_MIN_WORDS = 20; // chặn bình luận spam kiểu "hay quá", "đẹp" — bắt buộc viết nội dung thật
 
 // Sheet TUỲ CHỌN, tạo thủ công khi cần: dùng cho trường hợp 1 người nộp nhiều
 // bài dự thi bằng NHIỀU EMAIL KHÁC NHAU (nên hệ thống không tự phát hiện được
@@ -81,6 +82,46 @@ function json(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Bọc cache cho các endpoint CHỈ ĐỌC, gọi nhiều lần liên tục khi có đông người
+// truy cập cùng lúc (VD 50 người mở /binh-chon gần như đồng thời). Không cache
+// riêng qua CacheService (bộ nhớ dùng chung giữa mọi lượt gọi script, tối đa
+// 6 giờ) để giảm số lần đọc Sheet/Drive — đây là phần tốn thời gian nhất,
+// đặc biệt handleVoteEntries/handleVoteStats phải quét cả thư mục Drive của
+// từng bài để tìm ảnh bìa (findBestCoverImageId). Chỉ cache kết quả THÀNH
+// CÔNG (ok:true) — lỗi tạm thời không bị cache lại.
+function cachedJson(cacheKey, ttlSeconds, computeFn) {
+  var cache = CacheService.getScriptCache();
+  try {
+    var cached = cache.get(cacheKey);
+    if (cached) {
+      return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+    }
+  } catch (readErr) {
+    // Cache lỗi (hiếm) → tính lại bình thường, không chặn chức năng
+  }
+
+  var result = computeFn();
+  if (result && result.ok) {
+    try {
+      cache.put(cacheKey, JSON.stringify(result), ttlSeconds);
+    } catch (writeErr) {
+      // Kết quả quá lớn để cache (>100KB) hoặc lỗi tạm thời — bỏ qua, vẫn trả kết quả bình thường
+    }
+  }
+  return json(result);
+}
+
+// Xoá cache của các endpoint hiển thị công khai sau khi có React/bình luận
+// mới, để người vừa tương tác xong thấy ngay kết quả cập nhật thay vì phải
+// đợi hết TTL cache.
+function invalidatePublicCache(keys) {
+  try {
+    CacheService.getScriptCache().removeAll(keys);
+  } catch (err) {
+    // Không ảnh hưởng chức năng nếu xoá cache lỗi — TTL sẽ tự hết hạn sau đó
+  }
 }
 
 // GET:
@@ -242,59 +283,63 @@ function entryIdOf(timeValue) {
 // CỐ Ý KHÔNG trả về Họ tên/Thành viên nhóm — để người bình chọn không biết
 // bài nào của ai, tránh thiên vị theo quen biết thay vì đánh giá tác phẩm.
 function handleVoteEntries() {
-  try {
-    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return json({ ok: true, count: 0, entries: [] });
+  return cachedJson('voteEntries', 30, function () {
+    try {
+      var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+      var lastRow = sheet.getLastRow();
+      if (lastRow <= 1) return { ok: true, count: 0, entries: [] };
 
-    var values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
-    var entries = values
-      .map(function (r) {
-        var uploadCell = String(r[10] || '');
-        var sourceLink = String(r[9] || '');
-        var folderUrl = String(r[11] || '');
-        var fileId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
+      var values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+      var entries = values
+        .map(function (r) {
+          var uploadCell = String(r[10] || '');
+          var sourceLink = String(r[9] || '');
+          var folderUrl = String(r[11] || '');
+          var fileId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
 
-        return {
-          id: entryIdOf(r[0]),
-          group: String(r[4] || ''),
-          title: String(r[5] || ''),
-          entryType: String(r[6] || ''),
-          description: String(r[8] || ''), // "Ghi chú" (mô tả ý tưởng) — an toàn để công khai
-          imageFileId: fileId,
-          thumbUrl: fileId ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w800') : '',
-          fullUrl: fileId ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1600') : '',
-        };
-      })
-      .filter(function (entry) { return entry.imageFileId; }); // ẩn bài không có ảnh hợp lệ
+          return {
+            id: entryIdOf(r[0]),
+            group: String(r[4] || ''),
+            title: String(r[5] || ''),
+            entryType: String(r[6] || ''),
+            description: String(r[8] || ''), // "Ghi chú" (mô tả ý tưởng) — an toàn để công khai
+            imageFileId: fileId,
+            thumbUrl: fileId ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w800') : '',
+            fullUrl: fileId ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1600') : '',
+          };
+        })
+        .filter(function (entry) { return entry.imageFileId; }); // ẩn bài không có ảnh hợp lệ
 
-    return json({ ok: true, count: entries.length, entries: entries });
-  } catch (err) {
-    return json({ ok: false, error: String(err && err.message ? err.message : err) });
-  }
+      return { ok: true, count: entries.length, entries: entries };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message ? err.message : err) };
+    }
+  });
 }
 
 // Bình luận công khai (ẩn danh — không kèm tên người bình luận) của mọi bài
 // dự thi, gộp theo entryId — dùng để hiển thị lời khích lệ ngay trên trang
 // bình chọn. Trả về dạng { entryId: [nội dung, nội dung, ...] }.
 function handleComments() {
-  try {
-    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(COMMENTS_SHEET_NAME);
-    var byEntry = {};
-    if (sheet && sheet.getLastRow() > 1) {
-      var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues(); // Mã bài dự thi, Nội dung
-      rows.forEach(function (r) {
-        var entryId = String(r[0] || '');
-        var text = String(r[1] || '');
-        if (!entryId || !text) return;
-        if (!byEntry[entryId]) byEntry[entryId] = [];
-        byEntry[entryId].push(text);
-      });
+  return cachedJson('comments', 15, function () {
+    try {
+      var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(COMMENTS_SHEET_NAME);
+      var byEntry = {};
+      if (sheet && sheet.getLastRow() > 1) {
+        var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues(); // Mã bài dự thi, Nội dung
+        rows.forEach(function (r) {
+          var entryId = String(r[0] || '');
+          var text = String(r[1] || '');
+          if (!entryId || !text) return;
+          if (!byEntry[entryId]) byEntry[entryId] = [];
+          byEntry[entryId].push(text);
+        });
+      }
+      return { ok: true, comments: byEntry };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message ? err.message : err) };
     }
-    return json({ ok: true, comments: byEntry });
-  } catch (err) {
-    return json({ ok: false, error: String(err && err.message ? err.message : err) });
-  }
+  });
 }
 
 // Đồng bộ / Bật chia sẻ "Anyone with link — Viewer" cho toàn bộ ảnh bài thi trên Drive:
@@ -398,83 +443,99 @@ function countByEntryId(sheet, columnCount) {
 }
 
 // Thống kê công khai sau khi bình chọn (không lộ thông tin cá nhân của thí sinh):
-// Trả về tổng người tham gia, tổng reacts, tổng bình luận, tổng điểm, phân bổ nhóm,
-// và bảng xếp hạng tác phẩm công khai.
+// Trả về tổng người tham gia, tổng reacts, tổng bình luận, tổng điểm, bảng xếp
+// hạng tác phẩm (hạng 1-2-3 theo tổng điểm, hoà điểm thì xét số React cao hơn),
+// và 1 "giải khuyến khích" — tác phẩm có SỐ BÌNH LUẬN cao nhất trong số các bài
+// KHÔNG nằm trong top 3, để giải nội dung không trùng với giải hạng 1-2-3.
 function handleVoteStats(e) {
-  try {
-    var ss = SpreadsheetApp.openById(SHEET_ID);
-    var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME);
-    var totalVoters = (votersSheet && votersSheet.getLastRow() > 1) ? (votersSheet.getLastRow() - 1) : 0;
+  return cachedJson('voteStats', 15, function () {
+    try {
+      var ss = SpreadsheetApp.openById(SHEET_ID);
+      var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME);
+      var totalVoters = (votersSheet && votersSheet.getLastRow() > 1) ? (votersSheet.getLastRow() - 1) : 0;
 
-    var reactCounts = countByEntryId(ss.getSheetByName(VOTES_SHEET_NAME), 1);
-    var commentCounts = countByEntryId(ss.getSheetByName(COMMENTS_SHEET_NAME), 1);
+      var reactCounts = countByEntryId(ss.getSheetByName(VOTES_SHEET_NAME), 1);
+      var commentCounts = countByEntryId(ss.getSheetByName(COMMENTS_SHEET_NAME), 1);
 
-    var totalReacts = 0;
-    for (var k in reactCounts) totalReacts += reactCounts[k];
+      var totalReacts = 0;
+      for (var k in reactCounts) totalReacts += reactCounts[k];
 
-    var totalComments = 0;
-    for (var k2 in commentCounts) totalComments += commentCounts[k2];
+      var totalComments = 0;
+      for (var k2 in commentCounts) totalComments += commentCounts[k2];
 
-    var mainSheet = ss.getSheets()[0];
-    var lastRow = mainSheet.getLastRow();
-    var rankedEntries = [];
-    var groupBreakdown = {};
-    var totalPoints = 0;
+      var mainSheet = ss.getSheets()[0];
+      var lastRow = mainSheet.getLastRow();
+      var rankedEntries = [];
+      var totalPoints = 0;
 
-    if (lastRow > 1) {
-      var values = mainSheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
-      values.forEach(function (r) {
-        var uploadCell = String(r[10] || '');
-        var sourceLink = String(r[9] || '');
-        var folderUrl = String(r[11] || '');
-        var imgId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
-        if (!imgId) return;
+      if (lastRow > 1) {
+        var values = mainSheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+        values.forEach(function (r) {
+          var uploadCell = String(r[10] || '');
+          var sourceLink = String(r[9] || '');
+          var folderUrl = String(r[11] || '');
+          var imgId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
+          if (!imgId) return;
 
-        var id = entryIdOf(r[0]);
-        var group = String(r[4] || 'Khác');
-        var title = String(r[5] || 'Chưa đặt tên');
-        var reacts = reactCounts[id] || 0;
-        var comms = commentCounts[id] || 0;
-        var points = reacts * 2 + comms * 1;
-        totalPoints += points;
+          var id = entryIdOf(r[0]);
+          var group = String(r[4] || 'Khác');
+          var title = String(r[5] || 'Chưa đặt tên');
+          var reacts = reactCounts[id] || 0;
+          var comms = commentCounts[id] || 0;
+          var points = reacts * 2 + comms * 1;
+          totalPoints += points;
 
-        if (!groupBreakdown[group]) groupBreakdown[group] = { entries: 0, points: 0 };
-        groupBreakdown[group].entries += 1;
-        groupBreakdown[group].points += points;
-
-        rankedEntries.push({
-          id: id,
-          title: title,
-          group: group,
-          points: points,
-          reactCount: reacts,
-          commentCount: comms,
-          imageFileId: imgId,
+          rankedEntries.push({
+            id: id,
+            title: title,
+            group: group,
+            points: points,
+            reactCount: reacts,
+            commentCount: comms,
+            imageFileId: imgId,
+          });
         });
+      }
+
+      // Hạng 1-2-3: tổng điểm cao nhất, hoà điểm thì xét số React cao hơn (đúng
+      // yêu cầu "điểm tương ứng với lượt React cao"), rồi mới đến số bình luận.
+      rankedEntries.sort(function (a, b) {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.reactCount !== a.reactCount) return b.reactCount - a.reactCount;
+        return b.commentCount - a.commentCount;
       });
+
+      var top3Ids = {};
+      rankedEntries.slice(0, 3).forEach(function (item) { top3Ids[item.id] = true; });
+
+      // Giải khuyến khích (nội dung): số bình luận cao nhất trong các bài CÒN LẠI
+      // (không trùng bài đã có giải 1-2-3) — chỉ trao nếu thật sự có bình luận.
+      var encouragementCandidates = rankedEntries.filter(function (item) { return !top3Ids[item.id]; });
+      encouragementCandidates.sort(function (a, b) {
+        if (b.commentCount !== a.commentCount) return b.commentCount - a.commentCount;
+        if (b.points !== a.points) return b.points - a.points;
+        return b.reactCount - a.reactCount;
+      });
+      var encouragementEntry = (encouragementCandidates.length > 0 && encouragementCandidates[0].commentCount > 0)
+        ? encouragementCandidates[0]
+        : null;
+
+      return {
+        ok: true,
+        stats: {
+          totalEntries: rankedEntries.length,
+          totalVoters: totalVoters,
+          totalReacts: totalReacts,
+          totalComments: totalComments,
+          totalPoints: totalPoints,
+          rankedEntries: rankedEntries,
+          encouragementEntry: encouragementEntry,
+        },
+      };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message ? err.message : err) };
     }
-
-    rankedEntries.sort(function (a, b) {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.reactCount !== a.reactCount) return b.reactCount - a.reactCount;
-      return b.commentCount - a.commentCount;
-    });
-
-    return json({
-      ok: true,
-      stats: {
-        totalEntries: rankedEntries.length,
-        totalVoters: totalVoters,
-        totalReacts: totalReacts,
-        totalComments: totalComments,
-        totalPoints: totalPoints,
-        groupBreakdown: groupBreakdown,
-        rankedEntries: rankedEntries,
-      },
-    });
-  } catch (err) {
-    return json({ ok: false, error: String(err && err.message ? err.message : err) });
-  }
+  });
 }
 
 // Bảng xếp hạng điểm chi tiết (chỉ quản trị viên có ADMIN_KEY) — bao gồm Họ tên tác giả
@@ -806,6 +867,15 @@ function handleEngage(data) {
   if (commentEntryId && !commentText) {
     return json({ ok: false, error: 'Vui lòng nhập nội dung bình luận.' });
   }
+  if (commentEntryId) {
+    var commentWordCount = commentText.split(/\s+/).filter(function (w) { return w.length > 0; }).length;
+    if (commentWordCount < COMMENT_MIN_WORDS) {
+      return json({
+        ok: false,
+        error: 'Bình luận cần tối thiểu ' + COMMENT_MIN_WORDS + ' từ (đang có ' + commentWordCount + ' từ) — viết cảm nhận thật để tránh spam.',
+      });
+    }
+  }
   if (commentText.length > COMMENT_MAX_LEN) {
     return json({ ok: false, error: 'Bình luận quá dài (tối đa ' + COMMENT_MAX_LEN + ' ký tự).' });
   }
@@ -888,6 +958,10 @@ function handleEngage(data) {
       }
       commentsSheet.appendRow([commentEntryId, commentText, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
     }
+
+    // Xoá cache "comments"/"voteStats" để người vừa tương tác thấy ngay kết quả
+    // mới thay vì đợi hết TTL — "voteEntries" không đổi nên không cần xoá.
+    invalidatePublicCache(['comments', 'voteStats']);
 
     return json({ ok: true });
   } finally {

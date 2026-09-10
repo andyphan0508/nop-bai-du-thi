@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MdArrowBack, MdFavorite, MdFavoriteBorder, MdModeComment } from "react-icons/md";
 import type { VoteEntry } from "../../../types";
+import { COMMENT_MIN_WORDS, countWords } from "../../../utils/wordCount";
 
 const ENTRY_TYPE_TEAM = "Làm nhóm";
 const COMMENT_MAX_LEN = 500;
@@ -33,7 +34,8 @@ const EntryActionDetail = ({
   const isTeam = entry.entryType === ENTRY_TYPE_TEAM;
   const canReact = availableActions.includes("react");
   const canComment = availableActions.includes("comment");
-  const canConfirm = selectedAction === "react" || (selectedAction === "comment" && commentText.trim().length > 0);
+  const canConfirm =
+    selectedAction === "react" || (selectedAction === "comment" && countWords(commentText) >= COMMENT_MIN_WORDS);
 
   return (
     <div className="card mobile-detail">
@@ -59,7 +61,6 @@ const EntryActionDetail = ({
       </div>
       <div className="vote-card-sub" style={{ marginBottom: 10 }}>
         <span className={`type-pill ${isTeam ? "team" : "solo"}`}>{isTeam ? "Nhóm" : "Cá nhân"}</span>
-        {entry.group && <span className="vote-card-group">{entry.group}</span>}
       </div>
 
       {entry.description && <p className="mobile-detail-desc">{entry.description}</p>}
@@ -104,11 +105,11 @@ const EntryActionDetail = ({
             value={commentText}
             maxLength={COMMENT_MAX_LEN}
             autoFocus
-            placeholder="Viết 1 lời khích lệ cho bài dự thi này…"
+            placeholder="Viết cảm nhận thật về tác phẩm này (tối thiểu 20 từ)…"
             onChange={(event) => setCommentText(event.target.value)}
           />
-          <div className="vote-comment-counter">
-            {commentText.length} / {COMMENT_MAX_LEN}
+          <div className={`vote-comment-counter${countWords(commentText) < COMMENT_MIN_WORDS ? " too-short" : " ok"}`}>
+            {countWords(commentText)} / {COMMENT_MIN_WORDS} từ tối thiểu
           </div>
         </div>
       )}

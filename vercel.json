@@ -1,3 +1,4 @@
 {
+  "redirects": [{ "source": "/", "destination": "/binh-chon", "permanent": false }],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

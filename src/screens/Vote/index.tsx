@@ -23,16 +23,8 @@ import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
 import { getRecaptchaToken } from "../../utils/recaptcha";
 import { readEngagedRecord, writeEngagedRecord, type EngagedRecord } from "../../utils/engagedRecord";
+import { COMMENT_MIN_WORDS, countWords } from "../../utils/wordCount";
 import type { EntryCommentsMap, VoteEntry } from "../../types";
-
-const GROUP_OPTIONS = [
-  "Tất cả",
-  "Áp-ra-ham",
-  "Ti-mô-thê",
-  "Phao-lô",
-  "Đa-ni-ên",
-  "Nhóm ban ngành",
-];
 
 const VoteScreen = () => {
   const [entries, setEntries] = useState<VoteEntry[]>([]);
@@ -42,7 +34,6 @@ const VoteScreen = () => {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedGroup, setSelectedGroup] = useState<string>("Tất cả");
   const [selectedType, setSelectedType] = useState<string>("Tất cả");
   const [sortBy, setSortBy] = useState<"order" | "title" | "comments">("order");
 
@@ -124,11 +115,6 @@ const VoteScreen = () => {
   const filteredEntries = useMemo(() => {
     let result = entries.map((entry, index) => ({ entry, originalIndex: index + 1 }));
 
-    // Group filter
-    if (selectedGroup !== "Tất cả") {
-      result = result.filter(({ entry }) => entry.group === selectedGroup);
-    }
-
     // Type filter
     if (selectedType !== "Tất cả") {
       result = result.filter(({ entry }) =>
@@ -142,8 +128,7 @@ const VoteScreen = () => {
       result = result.filter(
         ({ entry }) =>
           entry.title.toLowerCase().includes(q) ||
-          (entry.description && entry.description.toLowerCase().includes(q)) ||
-          (entry.group && entry.group.toLowerCase().includes(q)),
+          (entry.description && entry.description.toLowerCase().includes(q)),
       );
     }
 
@@ -159,12 +144,12 @@ const VoteScreen = () => {
     }
 
     return result;
-  }, [entries, comments, selectedGroup, selectedType, searchQuery, sortBy]);
+  }, [entries, comments, selectedType, searchQuery, sortBy]);
 
   const handleConfirmEngage = async (googleIdToken: string, honeypot: string) => {
     if (!reactTarget && !commentTarget) return;
-    if (commentTarget && !commentText.trim()) {
-      setEngageError("Vui lòng nhập nội dung bình luận.");
+    if (commentTarget && countWords(commentText) < COMMENT_MIN_WORDS) {
+      setEngageError(`Bình luận cần tối thiểu ${COMMENT_MIN_WORDS} từ (đang có ${countWords(commentText)} từ).`);
       return;
     }
     setIsSubmittingEngage(true);
@@ -214,15 +199,9 @@ const VoteScreen = () => {
           title="React & Bình chọn tác phẩm dự thi"
           subtitle="Mỗi tài khoản có 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm) dành tặng cho các bài thi bạn ấn tượng nhất."
           nav={
-            <>
-              <a className="nav-link" href="/">
-                ← Về trang nộp bài
-              </a>
-              {" · "}
-              <a className="nav-link" href="/binh-chon/mobile">
-                Đang dùng điện thoại? Thử bản mobile gọn nhẹ →
-              </a>
-            </>
+            <a className="nav-link" href="/binh-chon/mobile">
+              Đang dùng điện thoại? Thử bản mobile gọn nhẹ →
+            </a>
           }
         />
 
@@ -333,7 +312,7 @@ const VoteScreen = () => {
                       <MdSearch className="vote-search-icon" size={20} />
                       <input
                         className="vote-search-input"
-                        placeholder="Tìm theo tên tác phẩm, ý tưởng, nhóm…"
+                        placeholder="Tìm theo tên tác phẩm, ý tưởng…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
@@ -347,19 +326,6 @@ const VoteScreen = () => {
                           <MdClose size={18} />
                         </button>
                       )}
-                    </div>
-
-                    <div className="vote-filter-chips">
-                      {GROUP_OPTIONS.map((grp) => (
-                        <button
-                          key={grp}
-                          type="button"
-                          className={`vote-filter-chip${selectedGroup === grp ? " active" : ""}`}
-                          onClick={() => setSelectedGroup(grp)}
-                        >
-                          {grp}
-                        </button>
-                      ))}
                     </div>
                   </div>
 
@@ -432,7 +398,6 @@ const VoteScreen = () => {
                       style={{ width: "auto", margin: "14px auto 0" }}
                       onClick={() => {
                         setSearchQuery("");
-                        setSelectedGroup("Tất cả");
                         setSelectedType("Tất cả");
                       }}
                     >

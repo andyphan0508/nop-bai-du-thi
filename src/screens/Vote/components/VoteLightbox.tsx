@@ -97,7 +97,6 @@ const VoteLightbox = ({
               <span className={`type-pill ${isTeam ? "team" : "solo"}`}>
                 {isTeam ? "Nhóm" : "Cá nhân"}
               </span>
-              {entry.group && <span className="vote-card-group">{entry.group}</span>}
             </div>
           </div>
           {entry.description && (

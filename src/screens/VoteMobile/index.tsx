@@ -12,6 +12,7 @@ import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
 import { getRecaptchaToken } from "../../utils/recaptcha";
 import { readEngagedRecord, writeEngagedRecord, type EngagedRecord } from "../../utils/engagedRecord";
+import { COMMENT_MIN_WORDS, countWords } from "../../utils/wordCount";
 import { turnActionOf, turnEntryIdOf, type TurnAction, type TurnResult } from "./turnTypes";
 import type { EntryCommentsMap, VoteEntry } from "../../types";
 
@@ -124,6 +125,10 @@ const VoteMobileScreen = () => {
   const commentTurn = findTurnWithAction(turn1, turn2, "comment");
 
   const handleConfirmEngage = async (googleIdToken: string, honeypot: string) => {
+    if (commentTurn && countWords(commentTurn.commentText) < COMMENT_MIN_WORDS) {
+      setEngageError(`Bình luận cần tối thiểu ${COMMENT_MIN_WORDS} từ (đang có ${countWords(commentTurn.commentText)} từ).`);
+      return;
+    }
     setIsSubmittingEngage(true);
     setEngageError(null);
     try {

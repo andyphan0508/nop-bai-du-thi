@@ -102,8 +102,12 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 
 - **Mỗi người (1 tài khoản Google) có đúng 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm)**, dùng 1 lần duy nhất cho cả cuộc thi — có thể dùng cả 2, chỉ 1, hoặc bỏ qua.
 - Có thể React/bình luận cho **bất kỳ bài nào**, kể cả bài của chính mình — **riêng bài của chính mình chỉ được nhận 1 trong 2** (React HOẶC bình luận, không phải cả hai).
-- **Xếp hạng theo tổng điểm** = (số lượt React × 2) + (số lượt bình luận × 1). Ai tổng điểm cao nhất là hạng 1.
+- Bình luận **bắt buộc tối thiểu 20 từ** (kiểm tra cả 2 phía: hiện đếm số từ ngay khi gõ, và server từ chối nếu dưới 20 từ) — tránh kiểu bình luận spam "hay quá", "đẹp" chỉ để lấy điểm.
 - Bình luận **hiển thị công khai** ngay trên trang (dạng lời khích lệ) nhưng **ẩn danh** — không kèm tên người bình luận. Điểm/xếp hạng thì **ngược lại**, ẩn công khai, chỉ quản trị viên xem được.
+
+**Cách chấm giải:**
+- **Hạng 1 – 2 – 3**: xếp theo **tổng điểm** (React ×2 + Bình luận ×1) cao nhất; nếu 2 bài bằng điểm nhau thì xét **số lượt React cao hơn** để phân định trước (đúng yêu cầu "điểm tương ứng với lượt React cao"), sau đó mới đến số bình luận.
+- **1 Giải khuyến khích (nội dung)**: trao cho bài có **số bình luận cao nhất** trong số các bài **không nằm trong top 3** — để giải nội dung tôn vinh 1 tác phẩm khác, không trùng với hạng 1-2-3. Nếu không có bài nào ngoài top 3 nhận được bình luận thì không trao giải này.
 
 **Bản mobile — `/binh-chon/mobile`:** cùng backend, cùng luật, chỉ khác giao diện — hướng dẫn từng bước thay vì lưới ảnh:
 1. Màn hình chính hiện 2 thẻ **"Lượt 1"** / **"Lượt 2"** (Lượt 2 khoá tới khi xong Lượt 1).
@@ -119,7 +123,7 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã dùng lượt chưa" + ghi lượt, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và dùng được 2 lần.
 5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
 6. **Ẩn điểm/xếp hạng khi đang mở tương tác** — KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
-7. **Kín danh khi tương tác (blind)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + nhóm/ban ngành. `?action=voteEntries` cũng không trả các trường này về — tránh chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
+7. **Kín danh khi tương tác (blind)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm/Nhóm-ban ngành của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + mô tả ý tưởng. `?action=voteEntries` cũng không trả Họ tên/Thành viên nhóm về — tránh chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
 8. **Bài của chính mình chỉ nhận 1 trong 2** — nếu email tài khoản Google đăng nhập trùng với email đã dùng để nộp bài đó, và người này đồng thời chọn CẢ React lẫn bình luận cho (các) bài của chính họ, server sẽ từ chối yêu cầu và nhắc chỉ được chọn 1 trong 2 (chưa tính là đã dùng hết lượt, có thể thử lại).
 
 > **Trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau** (VD 5 bài của cùng 1 bạn nhưng mỗi bài dùng 1 email khác nhau): mục 8 ở trên chỉ so đúng 1 email/1 bài nên KHÔNG tự phát hiện được — hệ thống không thể tự biết 5 email đó là cùng 1 người thật. Cách xử lý: tạo thêm 1 sheet tên **đúng** `Email liên kết (cùng 1 người)` trong cùng Google Sheet, mỗi dòng (không có tiêu đề, bắt đầu từ dòng 1) là các email của 1 người, cách nhau bởi dấu phẩy — VD dòng: `email1@gmail.com, email2@gmail.com, email3@gmail.com, email4@gmail.com, email5@gmail.com`. Sau khi có sheet này, hễ ai đăng nhập bằng BẤT KỲ email nào trong nhóm đó và chọn CẢ React lẫn bình luận nhắm vào (các) bài trong nhóm đó (dù là 2 bài khác nhau) sẽ bị chặn — coi như "1 người, 1 hành động lên chính mình". Không tạo sheet này thì tính năng vẫn chạy bình thường theo mục 8, không bắt buộc phải dùng.
@@ -148,8 +152,12 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 > **Về khổ bài dự thi:** Cuộc thi sử dụng chuẩn **Khổ A3 Ngang (420 × 297mm, tỉ lệ 1.414 : 1)** cho thiết kế bìa sách trải rộng toàn bộ (bìa trước, gáy, bìa sau). Giao diện web và xem ảnh được căn vừa khít 100% không bị viền trống hay méo hình.
 >
 > **Về xem Thống kê sau khi vote:**
-> - Sau khi gửi bình chọn, người dùng có nút **"Xem Thống Kê & Bảng Xếp Hạng"** mở ngay bảng phân tích trực quan.
-> - Backend Apps Script hỗ trợ endpoint công khai `.../exec?action=voteStats` trả về: tổng số bài thi, tổng người bình chọn, tổng lượt React (+2đ), tổng lời bình luận (+1đ), tổng điểm, phân bổ tương tác theo nhóm/ban ngành và bảng xếp hạng tác phẩm (ẩn danh thông tin cá nhân).
+> - Sau khi gửi bình chọn (hoặc bấm nút "Thống kê" trên thanh công cụ), người dùng thấy modal **"Công Bố Kết Quả Bình Chọn"** — mở ra là màn hình "Sẵn sàng để ra kết quả chưa?", bấm **Bắt đầu** thì lần lượt công bố Hạng 1 → Hạng 2 → Hạng 3 (dạng bục vinh danh/podium) → Giải khuyến khích, giống 1 buổi lễ trao giải thu nhỏ — có thể bấm "Xem lại từ đầu" để công bố lại.
+> - Backend Apps Script hỗ trợ endpoint công khai `.../exec?action=voteStats` trả về: tổng người bình chọn, tổng React, tổng bình luận, tổng điểm, bảng xếp hạng tác phẩm và giải khuyến khích — không kèm thông tin cá nhân.
+
+> **Về hiệu năng khi nhiều người vào cùng lúc (~50 người):**
+> - `Code.gs` dùng `CacheService` (bộ nhớ đệm dùng chung của toàn script) để cache kết quả `voteEntries` (30 giây), `comments` và `voteStats` (15 giây) — tránh việc mỗi lượt tải trang đều phải quét lại Sheet + quét thư mục Drive để tìm ảnh bìa (bước tốn thời gian nhất). Khi có người gửi React/bình luận mới, cache `comments`/`voteStats` tự xoá ngay để không phải chờ hết 15 giây mới thấy cập nhật.
+> - Trang nộp bài cũ (`/`) không còn được render nữa — mọi lượt truy cập tự chuyển sang `/binh-chon` (chuyển ở tầng Vercel qua `vercel.json`, không cần tải JS trước mới chuyển hướng). Bỏ luôn màn hình nộp bài khỏi gói JS build ra giúp trang tải nhẹ hơn.
 >
 > **Về ảnh bìa hiển thị & đồng bộ Drive:**
 > - Bài nộp mới qua web tự động bật quyền xem công khai ("Anyone with the link — Viewer") cho ảnh bìa.

@@ -45,7 +45,6 @@ const EntryPickerList = ({ title, entries, excludeEntryId, imageUrlFor, onSelect
                   </span>
                   <span className="vote-card-sub">
                     <span className={`type-pill ${isTeam ? "team" : "solo"}`}>{isTeam ? "Nhóm" : "Cá nhân"}</span>
-                    {entry.group && <span className="vote-card-group">{entry.group}</span>}
                   </span>
                   {entry.description && <span className="mobile-entry-row-desc">{entry.description}</span>}
                 </span>
