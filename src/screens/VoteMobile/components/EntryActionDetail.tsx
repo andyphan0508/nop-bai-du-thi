@@ -13,6 +13,9 @@ type EntryActionDetailProps = {
   imgSrc: string;
   comments: string[];
   availableActions: TurnAction[];
+  // Chế độ chỉ xem (sau khi đã bình chọn xong): ẩn hết nút chọn hành động và
+  // nút xác nhận, chỉ còn ảnh + mô tả + lời khích lệ của mọi người.
+  readOnly?: boolean;
   onBack: () => void;
   onSkip: () => void;
   onConfirm: (action: TurnAction, commentText: string) => void;
@@ -24,6 +27,7 @@ const EntryActionDetail = ({
   imgSrc,
   comments,
   availableActions,
+  readOnly = false,
   onBack,
   onSkip,
   onConfirm,
@@ -43,7 +47,7 @@ const EntryActionDetail = ({
         <button className="mobile-back" type="button" onClick={onBack}>
           <MdArrowBack size={20} />
         </button>
-        <span>Chọn tương tác</span>
+        <span>{readOnly ? "Xem tác phẩm" : "Chọn tương tác"}</span>
       </div>
 
       <div className="mobile-detail-img-wrap">
@@ -75,6 +79,7 @@ const EntryActionDetail = ({
         </div>
       )}
 
+      {!readOnly && (
       <div className="vote-card-actions" style={{ marginTop: 16 }}>
         <button
           type="button"
@@ -97,8 +102,9 @@ const EntryActionDetail = ({
           {canComment ? (selectedAction === "comment" ? "Đang viết" : "Bình luận (1đ)") : "Đã dùng"}
         </button>
       </div>
+      )}
 
-      {selectedAction === "comment" && (
+      {!readOnly && selectedAction === "comment" && (
         <div className="vote-comment-box">
           <textarea
             className="vote-comment-input"
@@ -114,6 +120,7 @@ const EntryActionDetail = ({
         </div>
       )}
 
+      {!readOnly && (
       <div className="mobile-detail-actions">
         <button className="btn btn-tonal" type="button" onClick={onSkip} style={{ margin: 0 }}>
           Bỏ qua lượt này
@@ -127,6 +134,7 @@ const EntryActionDetail = ({
           Xác nhận lượt này
         </button>
       </div>
+      )}
     </div>
   );
 };

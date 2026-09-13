@@ -62,19 +62,18 @@ export type VoteEntryListResponse = {
   entries?: VoteEntry[];
 };
 
-// Mỗi người (tài khoản Google) có đúng 1 lượt React (2 điểm) + 1 lượt bình
-// luận (1 điểm), dùng 1 lần duy nhất cho cả 2 lựa chọn cùng lúc — có thể bỏ
-// trống 1 trong 2 (hoặc cả 2 id để trống nếu chỉ dùng 1 lượt). entryId để
-// trống ('') nghĩa là không dùng lượt đó.
+// Mỗi thiết bị có đúng 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm),
+// dùng 1 lần duy nhất cho cả 2 lựa chọn cùng lúc — có thể bỏ trống 1 trong 2
+// (hoặc cả 2 id để trống nếu chỉ dùng 1 lượt). entryId để trống ('') nghĩa là
+// không dùng lượt đó.
 export type EngagePayload = {
   reactEntryId: string;
   commentEntryId: string;
   commentText: string;
-  // Danh tính thật của người tương tác: JWT ID token từ Google Sign-In —
-  // server xác minh chữ ký/aud rồi mới tính điểm (xem Code.gs
-  // verifyGoogleIdToken). Đây là chốt chặn chính chống mở ẩn danh tương tác
-  // nhiều lần, thay cho việc tự khai SĐT trước đây (dễ bịa số khác).
-  googleIdToken: string;
+  // Mã thiết bị do trình duyệt tự sinh (xem utils/deviceId.ts) — thay cho
+  // đăng nhập Google đã bỏ. Server băm + đối chiếu để chặn CÙNG 1 THIẾT BỊ
+  // dùng quá 1 lượt React + bình luận (không phải danh tính xác thực).
+  deviceId: string;
   // Token reCAPTCHA v3 — thêm 1 lớp chấm điểm hành vi người/bot.
   recaptchaToken: string;
   // Chống spam bổ sung: field ẩn (honeypot) + số ms đã trôi qua kể từ khi tải
@@ -86,6 +85,18 @@ export type EngagePayload = {
 export type EngageResponse = {
   ok: boolean;
   error?: string;
+  // Mã lỗi máy đọc được, để giao diện xử lý đúng thay vì chỉ hiện chữ:
+  //  ALREADY_VOTED — thiết bị đã dùng lượt (chuyển thẳng sang màn "đã bình chọn")
+  //  BUSY          — quá tải tạm thời, gửi lại được (tự thử lại)
+  code?: "ALREADY_VOTED" | "BUSY";
+};
+
+// Trạng thái "thiết bị này đã bình chọn chưa" lấy từ máy chủ — nguồn đáng tin
+// hơn localStorage (xoá dữ liệu trang / đổi tab / mở lại vẫn đúng).
+export type VoteStatusResponse = {
+  ok: boolean;
+  error?: string;
+  voted?: boolean;
 };
 
 // Bình luận công khai theo từng bài dự thi (ẩn danh — không kèm tên người

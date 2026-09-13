@@ -20,15 +20,15 @@ var SHEET_ID = 'PASTE_SHEET_ID';
 // Để trống '' nếu muốn TẮT hẳn tính năng xoá / xem kết quả.
 var ADMIN_KEY = '';
 
-// Chuỗi bí mật để "băm" danh tính người bình chọn — đổi thành chuỗi ngẫu nhiên
-// của riêng bạn (không cần nhớ, chỉ cần giữ cố định trong suốt đợt bình chọn).
+// Chuỗi bí mật để "băm" mã thiết bị người bình chọn — đổi thành chuỗi ngẫu
+// nhiên của riêng bạn (không cần nhớ, chỉ cần giữ cố định trong suốt đợt bình
+// chọn). Không dùng tài khoản Google nữa (đã bỏ đăng nhập) — mã thiết bị do
+// TRÌNH DUYỆT tự sinh (xem src/utils/deviceId.ts), lưu localStorage, gửi kèm
+// mỗi lượt bình chọn để server chặn dùng quá 1 lần trên CÙNG 1 THIẾT BỊ. Đây
+// là chặn Ở MỨC THIẾT BỊ, không phải danh tính thật — xoá dữ liệu trình duyệt
+// hoặc đổi máy/trình duyệt khác vẫn có thể bình chọn lại (đánh đổi chấp nhận
+// được khi bỏ yêu cầu đăng nhập).
 var VOTE_SALT = 'doi-chuoi-nay-truoc-khi-deploy-binh-chon';
-
-// Google Sign-In — PHẢI khớp với GOOGLE_CLIENT_ID bên src/config.ts (frontend).
-// Dùng để xác minh token đăng nhập Google là thật + đúng đúng app này (chặn
-// giả mạo token). Để trống '' thì server sẽ KHÔNG bắt buộc đăng nhập Google
-// (không khuyến khích — dễ bị mở ẩn danh bình chọn nhiều lần).
-var GOOGLE_CLIENT_ID = 'PASTE_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
 // reCAPTCHA v3 — Secret Key (KHÔNG dán vào frontend, chỉ dùng ở đây).
 // Tạo tại https://www.google.com/recaptcha/admin — để trống '' để tắt kiểm tra.
@@ -39,37 +39,36 @@ var RECAPTCHA_MIN_SCORE = 0.5; // 0 (giống bot) → 1 (giống người thật
 var TRASH_SHEET_NAME = 'Đã xoá';
 
 // Tên 3 sheet phục vụ React + Bình luận — TÁCH RIÊNG có chủ đích:
-// "Người bình chọn" chỉ lưu mã băm tài khoản Google (ai đã dùng lượt — chặn
-// dùng 2 lần), "Kết quả bình chọn" chỉ lưu bài được React (2 điểm/dòng),
-// "Bình luận" lưu bài + nội dung bình luận (1 điểm/dòng, hiển thị công khai).
-// KHÔNG sheet nào lưu kèm danh tính người tương tác → phiếu kín, không ai
-// (kể cả quản trị viên) tra ngược được ai đã react/bình luận bài nào.
+// "Người bình chọn" chỉ lưu mã băm THIẾT BỊ (ai đã dùng lượt — chặn dùng 2
+// lần trên cùng thiết bị), "Kết quả bình chọn" chỉ lưu bài được React (2
+// điểm/dòng), "Bình luận" lưu bài + nội dung bình luận (1 điểm/dòng, hiển thị
+// công khai). KHÔNG sheet nào lưu kèm danh tính người tương tác → phiếu kín,
+// không ai (kể cả quản trị viên) tra ngược được ai đã react/bình luận bài nào.
 var VOTERS_SHEET_NAME = 'Người bình chọn';
 var VOTES_SHEET_NAME = 'Kết quả bình chọn'; // mỗi dòng = 1 lượt React (2 điểm)
 var COMMENTS_SHEET_NAME = 'Bình luận'; // mỗi dòng = 1 lượt bình luận (1 điểm), nội dung hiển thị công khai
 var COMMENT_MAX_LEN = 500;
 var COMMENT_MIN_WORDS = 20; // chặn bình luận spam kiểu "hay quá", "đẹp" — bắt buộc viết nội dung thật
 
-// Sheet TUỲ CHỌN, tạo thủ công khi cần: dùng cho trường hợp 1 người nộp nhiều
-// bài dự thi bằng NHIỀU EMAIL KHÁC NHAU (nên hệ thống không tự phát hiện được
-// qua email nộp bài). Mỗi dòng là các email bạn XÁC NHẬN NGOÀI ĐỜI là CÙNG 1
-// NGƯỜI, cách nhau bởi dấu phẩy, KHÔNG có dòng tiêu đề (bắt đầu từ dòng 1
-// luôn). VD dòng: "email1@gmail.com, email2@gmail.com, email3@gmail.com".
-// Không tạo sheet này thì tính năng chặn tự bình chọn vẫn hoạt động bình
-// thường theo đúng email đã nộp bài (không ảnh hưởng gì nếu không dùng).
-//
-// CỐ Ý không dùng cách so tên (regex/độ giống tên) để tự phát hiện: tên hiển
-// thị Google do người dùng tự đặt (không xác minh như email) nên dễ bị né
-// tránh, và tên tiếng Việt rất dễ trùng giữa 2 người HOÀN TOÀN khác nhau →
-// tự động chặn theo tên giống sẽ dễ chặn OAN người vô tội trùng tên với thí
-// sinh, một lỗi công bằng còn tệ hơn việc bỏ sót vài phiếu gian lận.
-var LINKED_EMAILS_SHEET_NAME = 'Email liên kết (cùng 1 người)';
-
 // Giới hạn dung lượng mỗi file upload trực tiếp (MB). File nặng hơn → dùng link.
 var MAX_FILE_MB = 45;
 
 // Múi giờ hiển thị
 var TZ = 'GMT+7';
+
+// --- Thời gian giữ cache (giây) — điều chỉnh theo mức độ đông người ----------
+// Danh sách bài + ảnh bìa gần như KHÔNG đổi trong suốt đợt bình chọn, nhưng
+// tính lại thì rất đắt (quét thư mục Drive của từng bài). Giữ 6 giờ (mức tối đa
+// của CacheService) và xoá cache thủ công khi cần bằng ?action=syncImages.
+var CACHE_TTL_ENTRIES = 21600;
+var CACHE_TTL_COMMENTS = 15; // bình luận mới cần hiện nhanh
+var CACHE_TTL_STATS = 20; // thống kê/xếp hạng
+// Danh sách mã băm người đã dùng lượt — giữ trong bộ nhớ đệm để bước kiểm tra
+// trùng lượt không phải đọc Sheet (đọc Sheet ~300ms, đọc cache ~5ms). Đây là
+// bước nằm TRONG khoá, nên nhanh được bao nhiêu thì chịu tải tốt bấy nhiêu.
+var CACHE_TTL_VOTERS = 21600;
+var VOTERS_CACHE_KEY = 'voterHashes';
+var ENTRIES_CACHE_KEY = 'voteEntries';
 // ----------------------------------------------------------------------------
 
 var HEADERS = [
@@ -92,15 +91,16 @@ function json(obj) {
 // từng bài để tìm ảnh bìa (findBestCoverImageId). Chỉ cache kết quả THÀNH
 // CÔNG (ok:true) — lỗi tạm thời không bị cache lại.
 function cachedJson(cacheKey, ttlSeconds, computeFn) {
+  return json(cachedData(cacheKey, ttlSeconds, computeFn));
+}
+
+// Bản trả về OBJECT (không phải HTTP response) của cachedJson — để 1 endpoint
+// dùng lại dữ liệu đã cache của endpoint khác (VD voteStats dùng lại danh sách
+// bài + ảnh bìa của voteEntries thay vì quét lại Drive từ đầu).
+function cachedData(cacheKey, ttlSeconds, computeFn) {
   var cache = CacheService.getScriptCache();
-  try {
-    var cached = cache.get(cacheKey);
-    if (cached) {
-      return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
-    }
-  } catch (readErr) {
-    // Cache lỗi (hiếm) → tính lại bình thường, không chặn chức năng
-  }
+  var cached = readCacheJson(cache, cacheKey);
+  if (cached) return cached;
 
   var result = computeFn();
   if (result && result.ok) {
@@ -110,7 +110,49 @@ function cachedJson(cacheKey, ttlSeconds, computeFn) {
       // Kết quả quá lớn để cache (>100KB) hoặc lỗi tạm thời — bỏ qua, vẫn trả kết quả bình thường
     }
   }
-  return json(result);
+  return result;
+}
+
+// Như cachedData nhưng có "single-flight": khi cache hết hạn mà CÓ ĐÔNG NGƯỜI
+// cùng mở trang (VD 60-70 người vào /binh-chon trong vài giây), chỉ 1 lượt
+// chạy thật sự tính lại, các lượt còn lại đợi rồi đọc cache. Không có bước này
+// thì cả 70 lượt cùng quét Google Drive để tìm ảnh bìa (mỗi lượt hàng chục
+// giây) → vượt giới hạn số lượt chạy đồng thời của Apps Script và gần như ai
+// cũng gặp lỗi. Chỉ dùng cho dữ liệu ĐẮT (voteEntries); dữ liệu rẻ thì khoá
+// lại phản tác dụng vì phải xếp hàng chung với lượt gửi bình chọn.
+function cachedDataSingleFlight(cacheKey, ttlSeconds, computeFn) {
+  var cache = CacheService.getScriptCache();
+  var cached = readCacheJson(cache, cacheKey);
+  if (cached) return cached;
+
+  var lock = LockService.getScriptLock();
+  var locked = false;
+  try { locked = lock.tryLock(30000); } catch (lockErr) { locked = false; }
+  try {
+    if (locked) {
+      // Đợi xong khoá: rất có thể lượt chạy trước đã tính và điền cache rồi
+      cached = readCacheJson(cache, cacheKey);
+      if (cached) return cached;
+    }
+    var result = computeFn();
+    if (result && result.ok) {
+      try {
+        cache.put(cacheKey, JSON.stringify(result), ttlSeconds);
+      } catch (writeErr) {}
+    }
+    return result;
+  } finally {
+    if (locked) lock.releaseLock();
+  }
+}
+
+function readCacheJson(cache, cacheKey) {
+  try {
+    var raw = cache.get(cacheKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null; // Cache lỗi/hỏng (hiếm) → tính lại bình thường
+  }
 }
 
 // Xoá cache của các endpoint hiển thị công khai sau khi có React/bình luận
@@ -130,6 +172,7 @@ function invalidatePublicCache(keys) {
 //   .../exec?action=voteEntries   → danh sách bài dự thi khổ A3 để React/bình luận (kèm ID ảnh bìa)
 //   .../exec?action=comments      → bình luận công khai của mọi bài (ẩn danh), gộp theo bài
 //   .../exec?action=voteStats     → thống kê công khai & xếp hạng bình chọn (xem sau khi vote)
+//   .../exec?action=voteStatus&deviceId=... → thiết bị này đã dùng lượt chưa (để trang tự hiện "đã bình chọn")
 //   .../exec?action=voteResults&key=ADMIN_KEY      → bảng xếp hạng chi tiết có tên thí sinh (quản trị)
 //   .../exec?action=syncImages[&key=ADMIN_KEY]     → đồng bộ quyền chia sẻ công khai cho toàn bộ ảnh trên Drive
 function doGet(e) {
@@ -138,6 +181,7 @@ function doGet(e) {
   if (action === 'voteEntries') return handleVoteEntries();
   if (action === 'comments') return handleComments();
   if (action === 'voteStats') return handleVoteStats(e);
+  if (action === 'voteStatus') return handleVoteStatus(e);
   if (action === 'voteResults') return handleVoteResults(e);
   if (action === 'syncImages' || action === 'fixImageSharing') return handleSyncImages(e);
   if (action === 'debugEntry') return handleDebugEntry(e);
@@ -283,7 +327,16 @@ function entryIdOf(timeValue) {
 // CỐ Ý KHÔNG trả về Họ tên/Thành viên nhóm — để người bình chọn không biết
 // bài nào của ai, tránh thiên vị theo quen biết thay vì đánh giá tác phẩm.
 function handleVoteEntries() {
-  return cachedJson('voteEntries', 30, function () {
+  return json(getVoteEntriesData());
+}
+
+// Nguồn dữ liệu DUY NHẤT cho danh sách bài dự thi + ảnh bìa. Dùng chung bởi
+// ?action=voteEntries, ?action=voteStats và bước kiểm tra "mã bài có thật
+// không" khi gửi bình chọn — cả 3 đều đọc từ 1 bản cache, nên khi 60-70 người
+// thao tác cùng lúc thì việc quét Drive (rất chậm) chỉ xảy ra 1 lần mỗi 6 giờ
+// thay vì lặp lại ở từng lượt gọi.
+function getVoteEntriesData() {
+  return cachedDataSingleFlight(ENTRIES_CACHE_KEY, CACHE_TTL_ENTRIES, function () {
     try {
       var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
       var lastRow = sheet.getLastRow();
@@ -317,11 +370,23 @@ function handleVoteEntries() {
   });
 }
 
+// Hâm nóng cache trước giờ mở bình chọn. Lần tính đầu tiên phải quét thư mục
+// Drive của TỪNG bài (khoảng 0,7 giây/bài) — nếu để nguội thì người đầu tiên
+// vào trang phải đợi cả chục giây và mọi người vào cùng lúc cũng đợi theo.
+// Cách dùng: mở Apps Script → chọn hàm warmCache → Run, hoặc đặt Trigger theo
+// thời gian (mỗi 4 giờ) để cache không bao giờ nguội trong suốt đợt bình chọn.
+function warmCache() {
+  CacheService.getScriptCache().remove(ENTRIES_CACHE_KEY);
+  var data = getVoteEntriesData();
+  readVoterHashes();
+  return 'Đã nạp sẵn ' + ((data.entries || []).length) + ' bài dự thi vào bộ nhớ đệm.';
+}
+
 // Bình luận công khai (ẩn danh — không kèm tên người bình luận) của mọi bài
 // dự thi, gộp theo entryId — dùng để hiển thị lời khích lệ ngay trên trang
 // bình chọn. Trả về dạng { entryId: [nội dung, nội dung, ...] }.
 function handleComments() {
-  return cachedJson('comments', 15, function () {
+  return cachedJson('comments', CACHE_TTL_COMMENTS, function () {
     try {
       var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(COMMENTS_SHEET_NAME);
       var byEntry = {};
@@ -417,6 +482,11 @@ function handleSyncImages(e) {
       });
     }
 
+    // Danh sách bài + ảnh bìa được cache tới 6 giờ (xem CACHE_TTL_ENTRIES) nên
+    // sau khi đồng bộ ảnh phải xoá cache, nếu không thì ảnh mới 6 giờ sau mới
+    // hiện. Đây cũng là cách quản trị viên ép trang tải lại dữ liệu mới nhất.
+    invalidatePublicCache([ENTRIES_CACHE_KEY, 'voteStats', 'comments']);
+
     return json({
       ok: true,
       synced: fixed,
@@ -448,7 +518,7 @@ function countByEntryId(sheet, columnCount) {
 // và 1 "giải khuyến khích" — tác phẩm có SỐ BÌNH LUẬN cao nhất trong số các bài
 // KHÔNG nằm trong top 3, để giải nội dung không trùng với giải hạng 1-2-3.
 function handleVoteStats(e) {
-  return cachedJson('voteStats', 15, function () {
+  return cachedJson('voteStats', CACHE_TTL_STATS, function () {
     try {
       var ss = SpreadsheetApp.openById(SHEET_ID);
       var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME);
@@ -463,39 +533,30 @@ function handleVoteStats(e) {
       var totalComments = 0;
       for (var k2 in commentCounts) totalComments += commentCounts[k2];
 
-      var mainSheet = ss.getSheets()[0];
-      var lastRow = mainSheet.getLastRow();
+      // Dùng lại danh sách bài đã cache (getVoteEntriesData) thay vì đọc Sheet
+      // chính + quét Drive lần nữa: trước đây mỗi 15 giây lại có 1 lượt phải
+      // quét toàn bộ thư mục Drive của mọi bài — chính là lý do trang thống kê
+      // treo/timeout khi đông người.
+      var entriesData = getVoteEntriesData();
       var rankedEntries = [];
       var totalPoints = 0;
 
-      if (lastRow > 1) {
-        var values = mainSheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
-        values.forEach(function (r) {
-          var uploadCell = String(r[10] || '');
-          var sourceLink = String(r[9] || '');
-          var folderUrl = String(r[11] || '');
-          var imgId = findBestCoverImageId(uploadCell, sourceLink, folderUrl);
-          if (!imgId) return;
+      (entriesData.entries || []).forEach(function (entry) {
+        var reacts = reactCounts[entry.id] || 0;
+        var comms = commentCounts[entry.id] || 0;
+        var points = reacts * 2 + comms * 1;
+        totalPoints += points;
 
-          var id = entryIdOf(r[0]);
-          var group = String(r[4] || 'Khác');
-          var title = String(r[5] || 'Chưa đặt tên');
-          var reacts = reactCounts[id] || 0;
-          var comms = commentCounts[id] || 0;
-          var points = reacts * 2 + comms * 1;
-          totalPoints += points;
-
-          rankedEntries.push({
-            id: id,
-            title: title,
-            group: group,
-            points: points,
-            reactCount: reacts,
-            commentCount: comms,
-            imageFileId: imgId,
-          });
+        rankedEntries.push({
+          id: entry.id,
+          title: entry.title || 'Chưa đặt tên',
+          group: entry.group || 'Khác',
+          points: points,
+          reactCount: reacts,
+          commentCount: comms,
+          imageFileId: entry.imageFileId,
         });
-      }
+      });
 
       // Hạng 1-2-3: tổng điểm cao nhất, hoà điểm thì xét số React cao hơn (đúng
       // yêu cầu "điểm tương ứng với lượt React cao"), rồi mới đến số bình luận.
@@ -749,112 +810,112 @@ function verifyRecaptcha(token) {
   }
 }
 
-// Gọi Google để xác minh 1 ID token (JWT) từ Google Sign-In: đúng chữ ký,
-// đúng ứng dụng (aud = GOOGLE_CLIENT_ID) và email đã xác minh. Đây là chốt
-// chặn chính chống mở ẩn danh + bịa thông tin bình chọn nhiều lần — muốn vượt
-// qua phải có nhiều tài khoản Google thật khác nhau, chứ không chỉ xoá
-// localStorage hay gõ SĐT khác.
-function verifyGoogleIdToken(token) {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.indexOf('PASTE_') === 0) {
-    return { ok: false, error: 'Trang chưa cấu hình đăng nhập Google — liên hệ Ban tổ chức.' };
+// Kiểm tra 1 danh sách entryId có thực sự là bài đang mở bình chọn không.
+// Đối chiếu với danh sách bài ĐÃ CACHE (getVoteEntriesData) — không đọc Sheet
+// nữa: đây là bước chạy ở MỌI lượt gửi bình chọn, bỏ được 1 lần gọi Sheets API
+// là mỗi lượt nhanh hơn ~300ms khi đông người. Trả về { entryId: true|false }.
+function checkEntryIdsExist(entryIds) {
+  var result = {};
+  entryIds.forEach(function (id) { if (id) result[id] = false; });
+  if (!Object.keys(result).length) return result;
+
+  var entriesData = getVoteEntriesData();
+  (entriesData.entries || []).forEach(function (entry) {
+    if (Object.prototype.hasOwnProperty.call(result, entry.id)) result[entry.id] = true;
+  });
+  return result;
+}
+
+// Mã băm 1 chiều của 1 thiết bị (SHA-256 + VOTE_SALT) — thứ duy nhất được lưu
+// lại để chặn dùng quá 1 lượt, không lần ngược ra mã thiết bị gốc được.
+function voterHashOf(deviceId) {
+  return Utilities.base64EncodeWebSafe(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(deviceId) + VOTE_SALT),
+  );
+}
+
+// Danh sách mã băm đã dùng lượt, ưu tiên đọc từ cache. Cache hết hạn/bị dọn →
+// đọc lại từ sheet "Người bình chọn" (nguồn gốc bền vững) rồi cache lại.
+// ponytail: nếu cache bị dọn ĐÚNG lúc 1 lượt vừa giữ chỗ nhưng chưa ghi xong
+// sheet (cửa sổ ~2 giây, rất hiếm), thiết bị đó có thể bình chọn thêm 1 lần.
+// Cần chặt hơn thì chuyển dedupe sang ghi thẳng 1 dòng "khoá" vào sheet trong
+// lock, đổi lại mỗi lượt gửi chậm thêm ~300ms.
+function readVoterHashes() {
+  var cache = CacheService.getScriptCache();
+  var cached = readCacheJson(cache, VOTERS_CACHE_KEY);
+  if (cached) return cached;
+
+  var hashes = [];
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(VOTERS_SHEET_NAME);
+  if (sheet && sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
+      if (r[0]) hashes.push(String(r[0]));
+    });
   }
-  if (!token) return { ok: false, error: 'Vui lòng đăng nhập Google để bình chọn.' };
+  writeVoterHashes(hashes);
+  return hashes;
+}
+
+function writeVoterHashes(hashes) {
   try {
-    var response = UrlFetchApp.fetch(
-      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
-      { muteHttpExceptions: true },
-    );
-    if (response.getResponseCode() !== 200) {
-      return { ok: false, error: 'Đăng nhập Google không hợp lệ hoặc đã hết hạn — hãy đăng nhập lại.' };
-    }
-    var payload = JSON.parse(response.getContentText());
-    if (payload.aud !== GOOGLE_CLIENT_ID) {
-      return { ok: false, error: 'Token đăng nhập không khớp ứng dụng — hãy tải lại trang.' };
-    }
-    if (payload.email_verified !== 'true' && payload.email_verified !== true) {
-      return { ok: false, error: 'Tài khoản Google chưa xác minh email.' };
-    }
-    return { ok: true, sub: String(payload.sub || ''), email: String(payload.email || '') };
-  } catch (err) {
-    return { ok: false, error: 'Không xác minh được đăng nhập Google, vui lòng thử lại.' };
-  }
+    var payload = JSON.stringify(hashes);
+    // CacheService giới hạn 100KB/khoá (~2000 mã băm). Vượt ngưỡng thì thôi
+    // không cache — mỗi lượt sẽ đọc lại Sheet, chậm hơn nhưng vẫn đúng.
+    if (payload.length < 90000) CacheService.getScriptCache().put(VOTERS_CACHE_KEY, payload, CACHE_TTL_VOTERS);
+  } catch (err) {}
 }
 
-// Với 1 email nộp bài, tìm "cụm email" cùng 1 người thật — dựa vào sheet
-// LINKED_EMAILS_SHEET_NAME do quản trị viên khai báo thủ công (xem giải thích
-// ở khai báo hằng số phía trên). Trả về mảng email đã chuẩn hoá (chữ thường,
-// trim); rỗng nếu sheet chưa tồn tại hoặc email không thuộc cụm nào đã khai.
-function findLinkedEmailCluster(email) {
-  var normalizedTarget = String(email || '').trim().toLowerCase();
-  if (!normalizedTarget) return [];
+// Thiết bị này đã dùng lượt chưa — để trang bình chọn hiện đúng trạng thái
+// "đã bình chọn" NGAY KHI MỞ, kể cả khi người dùng xoá dữ liệu trang, đổi tab
+// hay mở lại trên trình duyệt khác (trước đây chỉ dựa vào localStorage nên
+// người đã vote vẫn thấy giao diện chọn bài rồi mới bị từ chối lúc gửi).
+function handleVoteStatus(e) {
   try {
-    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(LINKED_EMAILS_SHEET_NAME);
-    if (!sheet || sheet.getLastRow() < 1) return [];
-    var rows = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues();
-    for (var i = 0; i < rows.length; i++) {
-      var cluster = String(rows[i][0] || '')
-        .split(',')
-        .map(function (e) { return e.trim().toLowerCase(); })
-        .filter(String);
-      if (cluster.indexOf(normalizedTarget) !== -1) return cluster;
-    }
-    return [];
+    var deviceId = String((e && e.parameter && e.parameter.deviceId) || '').trim();
+    if (!deviceId) return json({ ok: true, voted: false });
+    var hashes = readVoterHashes();
+    return json({ ok: true, voted: hashes.indexOf(voterHashOf(deviceId)) !== -1 });
   } catch (err) {
-    return [];
+    // Không chặn người dùng nếu tra cứu lỗi — cứ cho vào trang, bước gửi vẫn kiểm tra lại
+    return json({ ok: false, voted: false, error: String(err && err.message ? err.message : err) });
   }
 }
 
-// Tìm 1 bài dự thi theo entryId, trả về email đã dùng để nộp bài đó (chữ
-// thường, trim) — hoặc null nếu không tìm thấy entryId này trong Sheet.
-function findEntryEmail(entryId) {
-  var mainSheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
-  var lastRow = mainSheet.getLastRow();
-  if (lastRow > 1) {
-    var idAndEmail = mainSheet.getRange(2, 1, lastRow - 1, 3).getValues(); // Thời gian, Họ tên, Email
-    for (var i = 0; i < idAndEmail.length; i++) {
-      if (entryIdOf(idAndEmail[i][0]) === entryId) {
-        return String(idAndEmail[i][2] || '').trim().toLowerCase();
-      }
-    }
-  }
-  return null;
-}
-
-// Bài có email nộp bài "entryEmailNorm" có phải của cùng người đang đăng nhập
-// bằng "voterEmailNorm" không — gồm cả cụm email liên kết (nếu quản trị viên
-// đã khai báo cho trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau).
-function isSameContestant(entryEmailNorm, voterEmailNorm) {
-  if (!entryEmailNorm || !voterEmailNorm) return false;
-  var cluster = [entryEmailNorm].concat(findLinkedEmailCluster(entryEmailNorm));
-  return cluster.indexOf(voterEmailNorm) !== -1;
-}
-
-// Ghi nhận 1 lượt React + bình luận — "phiếu kín, chống spam":
+// Ghi nhận 1 lượt React + bình luận — "phiếu kín, chống spam", KHÔNG yêu cầu
+// đăng nhập tài khoản nào (đã bỏ Google Sign-In):
 //  1) Honeypot 'hp' (field ẩn, chỉ bot điền vào) → coi như đã xử lý, không lộ lý do.
 //  2) Chặn gửi quá nhanh sau khi tải trang (bot gửi ngay lập tức) — đo bằng số ms
 //     đã trôi qua do CHÍNH TRÌNH DUYỆT tính (elapsedMs), không so trực tiếp với
 //     Date.now() của server, để tránh đồng hồ máy người dùng lệch giờ làm từ chối
 //     oan người tương tác thật.
 //  3) Xác minh reCAPTCHA v3 (điểm hành vi người/bot).
-//  4) Xác minh token đăng nhập Google thật (không phải tự khai SĐT) — đây là
-//     lý do mở ẩn danh (incognito) không giúp dùng thêm lượt: vẫn phải đăng
-//     nhập lại bằng 1 tài khoản Google thật, không thể chỉ gõ số khác.
-//  5) Bài dự thi CỦA CHÍNH MÌNH chỉ được nhận 1 trong 2 (React HOẶC bình luận,
-//     không phải cả hai) — so email Google đã xác minh với email đã dùng để
-//     nộp (các) bài đó, cộng cụm email liên kết (dùng cho trường hợp 1 người
-//     nộp nhiều bài bằng nhiều email khác nhau).
+//  4) Mỗi bài dự thi chỉ được nhận 1 trong 2 từ CÙNG 1 lượt bình chọn (React
+//     HOẶC bình luận, không phải cả hai) — chặn thẳng nếu reactEntryId trùng
+//     commentEntryId.
+//  5) deviceId (mã thiết bị do trình duyệt tự sinh, xem src/utils/deviceId.ts)
+//     đóng vai trò thay thế tài khoản Google — băm SHA-256 (có muối VOTE_SALT)
+//     rồi so với sheet "Người bình chọn" để chặn CÙNG 1 THIẾT BỊ dùng quá 1
+//     lượt. ĐÂY LÀ CHẶN Ở MỨC THIẾT BỊ, không phải danh tính thật — không còn
+//     chặn được 1 người cố tình đổi máy/trình duyệt/xoá localStorage để bình
+//     chọn lại, và không còn chặn được thí sinh tự bình chọn bài của chính
+//     mình (cả 2 đều cần biết danh tính thật, đã bỏ khi bỏ đăng nhập).
 //  6) LockService khoá toàn script khi kiểm tra-và-ghi → 2 yêu cầu gửi cùng lúc
 //     (double-click, mạng chậm gửi lại...) không thể cùng lọt qua bước kiểm tra
-//     "đã dùng lượt chưa" (tránh race condition khiến 1 người dùng được 2 lần).
+//     "đã dùng lượt chưa" (tránh race condition khiến 1 thiết bị được 2 lần).
 //  7) Danh tính chỉ lưu dưới dạng băm SHA-256 (có muối VOTE_SALT) ở sheet riêng
 //     "Người bình chọn"; React lưu ở sheet "Kết quả bình chọn", bình luận lưu ở
-//     sheet "Bình luận" — cả hai không kèm danh tính → không sheet nào nối
-//     được "ai" với "đã tương tác bài nào".
+//     sheet "Bình luận" — cả hai không kèm mã thiết bị → không sheet nào nối
+//     được "thiết bị nào" với "đã tương tác bài nào".
 function handleEngage(data) {
   if (String(data.hp || '').trim()) return json({ ok: true }); // bot dính honeypot
 
   if (Number(data.elapsedMs || 0) < 1500) {
     return json({ ok: false, error: 'Vui lòng thử lại sau ít giây.' });
+  }
+
+  var deviceId = String(data.deviceId || '').trim();
+  if (!deviceId) {
+    return json({ ok: false, error: 'Thiếu mã thiết bị — hãy tải lại trang rồi thử lại.' });
   }
 
   var reactEntryId = String(data.reactEntryId || '').trim();
@@ -863,6 +924,9 @@ function handleEngage(data) {
 
   if (!reactEntryId && !commentEntryId) {
     return json({ ok: false, error: 'Vui lòng chọn ít nhất 1 bài để React hoặc để lại bình luận.' });
+  }
+  if (reactEntryId && commentEntryId && reactEntryId === commentEntryId) {
+    return json({ ok: false, error: 'Không thể vừa React vừa bình luận trên cùng 1 bài dự thi — hãy chọn 2 bài khác nhau.' });
   }
   if (commentEntryId && !commentText) {
     return json({ ok: false, error: 'Vui lòng nhập nội dung bình luận.' });
@@ -883,90 +947,105 @@ function handleEngage(data) {
   var recaptchaCheck = verifyRecaptcha(data.recaptchaToken);
   if (!recaptchaCheck.ok) return json({ ok: false, error: recaptchaCheck.error });
 
-  var googleCheck = verifyGoogleIdToken(data.googleIdToken);
-  if (!googleCheck.ok) return json({ ok: false, error: googleCheck.error });
-
-  var voterEmailNorm = String(googleCheck.email || '').trim().toLowerCase();
-
-  var reactEmail = reactEntryId ? findEntryEmail(reactEntryId) : undefined;
-  if (reactEntryId && reactEmail === null) {
+  var entryExists = checkEntryIdsExist([reactEntryId, commentEntryId].filter(String));
+  if (reactEntryId && !entryExists[reactEntryId]) {
     return json({ ok: false, error: 'Bài để React không hợp lệ — hãy tải lại trang.' });
   }
-  var commentEmail = commentEntryId ? findEntryEmail(commentEntryId) : undefined;
-  if (commentEntryId && commentEmail === null) {
+  if (commentEntryId && !entryExists[commentEntryId]) {
     return json({ ok: false, error: 'Bài để bình luận không hợp lệ — hãy tải lại trang.' });
   }
 
-  var reactIsSelf = reactEntryId ? isSameContestant(reactEmail, voterEmailNorm) : false;
-  var commentIsSelf = commentEntryId ? isSameContestant(commentEmail, voterEmailNorm) : false;
-  if (reactIsSelf && commentIsSelf) {
-    return json({
-      ok: false,
-      error: 'Bài dự thi của bạn chỉ được nhận 1 trong 2: React hoặc bình luận, không phải cả hai.',
-    });
-  }
+  var voterHash = voterHashOf(deviceId);
 
-  var voterHash = Utilities.base64EncodeWebSafe(
-    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, googleCheck.sub + VOTE_SALT),
-  );
-
+  // --- Phần DUY NHẤT cần khoá: "giữ chỗ" mã băm thiết bị ---------------------
+  // Chỉ đọc/ghi bộ nhớ đệm (vài ms) rồi nhả khoá ngay. Trước đây cả phần ghi 3
+  // sheet nằm trong khoá (~1.5-2.5 giây mỗi lượt) → 60-70 người bấm gửi cùng
+  // lúc phải xếp hàng hơn 100 giây, quá mức chờ 10 giây nên đa số nhận lỗi
+  // "Hệ thống đang bận". Nay mỗi lượt giữ khoá ~10ms → cả 70 lượt qua hết
+  // trong khoảng 1 giây.
   var lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    lock.waitLock(30000);
   } catch (lockErr) {
-    return json({ ok: false, error: 'Hệ thống đang bận, vui lòng thử lại.' });
+    return json({ ok: false, code: 'BUSY', error: 'Hệ thống đang bận, vui lòng thử lại.' });
   }
+  var hashes;
   try {
-    var ss = SpreadsheetApp.openById(SHEET_ID);
-
-    var votersSheet = ss.getSheetByName(VOTERS_SHEET_NAME) || ss.insertSheet(VOTERS_SHEET_NAME);
-    if (votersSheet.getLastRow() === 0) {
-      votersSheet.appendRow(['Mã định danh (băm tài khoản Google)', 'Thời gian dùng lượt']);
-      votersSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
-      votersSheet.setFrozenRows(1);
+    hashes = readVoterHashes();
+    if (hashes.indexOf(voterHash) !== -1) {
+      return json({
+        ok: false,
+        code: 'ALREADY_VOTED',
+        error: 'Thiết bị này đã dùng hết lượt React + bình luận rồi.',
+      });
     }
-    var votersLastRow = votersSheet.getLastRow();
-    if (votersLastRow > 1) {
-      var existingHashes = votersSheet.getRange(2, 1, votersLastRow - 1, 1).getValues();
-      for (var h = 0; h < existingHashes.length; h++) {
-        if (String(existingHashes[h][0]) === voterHash) {
-          return json({
-            ok: false,
-            error: 'Tài khoản Google này đã dùng hết lượt React + bình luận rồi.',
-          });
-        }
-      }
-    }
-    votersSheet.appendRow([voterHash, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
-
-    if (reactEntryId) {
-      var votesSheet = ss.getSheetByName(VOTES_SHEET_NAME) || ss.insertSheet(VOTES_SHEET_NAME);
-      if (votesSheet.getLastRow() === 0) {
-        votesSheet.appendRow(['Mã bài dự thi', 'Thời gian']);
-        votesSheet.getRange(1, 1, 1, 2).setFontWeight('bold');
-        votesSheet.setFrozenRows(1);
-      }
-      votesSheet.appendRow([reactEntryId, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
-    }
-
-    if (commentEntryId) {
-      var commentsSheet = ss.getSheetByName(COMMENTS_SHEET_NAME) || ss.insertSheet(COMMENTS_SHEET_NAME);
-      if (commentsSheet.getLastRow() === 0) {
-        commentsSheet.appendRow(['Mã bài dự thi', 'Nội dung bình luận', 'Thời gian']);
-        commentsSheet.getRange(1, 1, 1, 3).setFontWeight('bold');
-        commentsSheet.setFrozenRows(1);
-      }
-      commentsSheet.appendRow([commentEntryId, commentText, Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss')]);
-    }
-
-    // Xoá cache "comments"/"voteStats" để người vừa tương tác thấy ngay kết quả
-    // mới thay vì đợi hết TTL — "voteEntries" không đổi nên không cần xoá.
-    invalidatePublicCache(['comments', 'voteStats']);
-
-    return json({ ok: true });
+    hashes.push(voterHash);
+    writeVoterHashes(hashes);
   } finally {
     lock.releaseLock();
   }
+
+  // --- Ghi dữ liệu: chạy NGOÀI khoá -----------------------------------------
+  // appendRow tự nối vào cuối sheet nên 2 lượt ghi song song không đè lên nhau.
+  // Nếu ghi hỏng (hết hạn mức/timeout) thì trả lại "chỗ" đã giữ để người dùng
+  // gửi lại được, tránh mất lượt oan.
+  try {
+    writeEngagement(voterHash, reactEntryId, commentEntryId, commentText);
+  } catch (writeErr) {
+    releaseVoterHash(voterHash);
+    return json({ ok: false, code: 'BUSY', error: 'Chưa ghi nhận được, vui lòng gửi lại sau ít giây.' });
+  }
+
+  // Xoá cache "comments"/"voteStats" để người vừa tương tác thấy ngay kết quả
+  // mới thay vì đợi hết TTL — "voteEntries" không đổi nên không cần xoá.
+  invalidatePublicCache(['comments', 'voteStats']);
+
+  return json({ ok: true });
+}
+
+// Ghi 1 lượt bình chọn vào 3 sheet tách biệt (giữ nguyên nguyên tắc phiếu kín:
+// sheet nào cũng không nối được "thiết bị nào" với "bài nào").
+function writeEngagement(voterHash, reactEntryId, commentEntryId, commentText) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var now = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss');
+
+  var votersSheet = ensureSheet(ss, VOTERS_SHEET_NAME, ['Mã định danh (băm thiết bị)', 'Thời gian dùng lượt']);
+  votersSheet.appendRow([voterHash, now]);
+
+  if (reactEntryId) {
+    ensureSheet(ss, VOTES_SHEET_NAME, ['Mã bài dự thi', 'Thời gian']).appendRow([reactEntryId, now]);
+  }
+  if (commentEntryId) {
+    ensureSheet(ss, COMMENTS_SHEET_NAME, ['Mã bài dự thi', 'Nội dung bình luận', 'Thời gian'])
+      .appendRow([commentEntryId, commentText, now]);
+  }
+}
+
+// Bỏ "chỗ đã giữ" của 1 thiết bị khỏi bộ nhớ đệm khi ghi sheet thất bại
+function releaseVoterHash(voterHash) {
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(5000); } catch (lockErr) { return; }
+  try {
+    var hashes = readVoterHashes();
+    var index = hashes.indexOf(voterHash);
+    if (index !== -1) {
+      hashes.splice(index, 1);
+      writeVoterHashes(hashes);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Lấy sheet theo tên, tạo mới kèm dòng tiêu đề nếu chưa có
+function ensureSheet(ss, name, headerRow) {
+  var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headerRow);
+    sheet.getRange(1, 1, 1, headerRow.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
 }
 
 // Xoá mềm 1 bài: chuyển dòng sang sheet "Đã xoá" rồi xoá khỏi sheet chính.

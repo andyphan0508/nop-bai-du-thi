@@ -13,6 +13,11 @@ const VoteDoneCard = ({
   onBrowseAll,
   onViewStats,
 }: VoteDoneCardProps) => {
+  // Máy chủ báo thiết bị này đã bình chọn nhưng máy không còn lưu chi tiết (VD
+  // đã xoá dữ liệu trang, hoặc mở ở tab/trình duyệt khác) — vẫn xác nhận là đã
+  // bình chọn, chỉ không liệt kê được tên tác phẩm đã chọn.
+  const hasReceiptDetail = Boolean(reactedTitle || commentedTitle);
+
   return (
     <div className="success" style={{ padding: "36px 24px" }}>
       <svg className="checkmark" viewBox="0 0 56 56">
@@ -50,6 +55,14 @@ const VoteDoneCard = ({
         >
           Biên nhận bình chọn
         </div>
+
+        {!hasReceiptDetail && (
+          <div style={{ fontSize: "0.9rem", color: "var(--md-on-surface-variant)" }}>
+            Hệ thống ghi nhận thiết bị này <b>đã dùng hết lượt bình chọn</b>. Chi tiết bài đã chọn
+            không còn lưu trên máy (có thể bạn đã xoá dữ liệu trang hoặc dùng tab khác), nhưng phiếu
+            của bạn vẫn được tính đầy đủ.
+          </div>
+        )}
 
         {reactedTitle && (
           <div

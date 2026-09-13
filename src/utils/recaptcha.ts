@@ -1,4 +1,4 @@
-import { RECAPTCHA_SITE_KEY } from "../config";
+import { IS_VOTE_AUTH_CONFIGURED, RECAPTCHA_SITE_KEY } from "../config";
 
 declare global {
   interface Window {
@@ -29,6 +29,12 @@ const loadRecaptchaScript = (): Promise<void> => {
 // 1 hành động cụ thể (VD "vote") — server sẽ gửi token này lên Google để lấy
 // điểm tin cậy trước khi tính là 1 phiếu hợp lệ.
 export const getRecaptchaToken = async (action: string): Promise<string> => {
+  // Chưa dán Site Key → bỏ qua hẳn bước này (máy chủ cũng tự bỏ qua khi chưa
+  // có Secret Key). Trước đây trang vẫn cố gọi reCAPTCHA với khoá "PASTE_..."
+  // nên MỌI lượt bình chọn đều thất bại — chỉ bật lớp chống bot này khi đã
+  // cấu hình đủ 2 khoá.
+  if (!IS_VOTE_AUTH_CONFIGURED) return "";
+
   await loadRecaptchaScript();
   return new Promise((resolve, reject) => {
     if (!window.grecaptcha) {

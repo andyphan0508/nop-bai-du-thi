@@ -1450,23 +1450,6 @@ a.btn { text-decoration: none; }
   font-size: 0.86rem;
   margin: 0 0 14px;
 }
-.google-signin-btn {
-  display: flex;
-  justify-content: center;
-  margin: 4px 0 16px;
-}
-.google-profile {
-  background: var(--md-success-container);
-  color: var(--md-on-success-container);
-  border-radius: var(--md-shape-md);
-  padding: 12px 14px;
-  font-size: 0.86rem;
-  margin: 4px 0 16px;
-}
-.google-profile b {
-  display: block;
-  font-size: 0.94rem;
-}
 .ballot-note {
   display: flex;
   align-items: flex-start;
@@ -2061,4 +2044,177 @@ a.btn { text-decoration: none; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* =====================================================================
+   Bình chọn — lớp hoàn thiện giao diện & khả năng tiếp cận
+   (chuẩn theo ui-ux-pro-max: vùng bấm ≥44px, viền focus thấy rõ khi dùng
+   bàn phím, trạng thái đã chọn không chỉ dựa vào màu, hiệu ứng lộ diện
+   so le theo thứ tự thẻ)
+   ===================================================================== */
+
+/* Viền focus cho người dùng bàn phím — dùng :focus-visible nên KHÔNG hiện
+   viền khi bấm chuột, không ảnh hưởng cảm giác nhìn của đa số người dùng. */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--md-primary);
+  outline-offset: 2px;
+  border-radius: var(--md-shape-xs);
+}
+
+/* Vùng bấm tối thiểu 44×44px (khuyến nghị của cả Apple lẫn WCAG 2.2) — ngón
+   tay trên điện thoại không bấm chính xác được nút cao 38px. */
+.vote-react-btn,
+.vote-comment-btn,
+.vote-card-deselect-btn {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+}
+.vote-zoom {
+  width: 44px;
+  height: 44px;
+}
+
+/* Thẻ bài dự thi lộ diện so le theo thứ tự (hiệu ứng "wave"), tối đa 12 thẻ
+   đầu để cuộn xuống không phải chờ hiệu ứng. */
+.vote-card { animation-delay: calc(var(--card-index, 0) * 45ms); }
+
+/* Trạng thái ĐÃ CHỌN không chỉ báo bằng màu viền: thêm dải nhãn có biểu tượng
+   ở góc ảnh, để người khó phân biệt màu vẫn nhận ra bài mình đã chọn. */
+.vote-pick-flag {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: var(--md-shape-full);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+.vote-pick-flag.react { background: #d3315f; }
+.vote-pick-flag.comment { background: var(--md-primary); }
+
+/* --- Hero: thể lệ 3 bước, thay cho dải "1 React = 2 điểm" rời rạc --------- */
+.vote-hero {
+  max-width: 860px;
+  margin: 0 auto 22px;
+  background: var(--md-surface-container-lowest);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-lg);
+  padding: 18px 20px;
+  box-shadow: var(--md-elev-1);
+}
+.vote-hero-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 620px) {
+  .vote-hero { padding: 16px 14px; }
+  .vote-hero-steps { grid-template-columns: 1fr; gap: 10px; }
+}
+.vote-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.vote-step-num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--md-shape-full);
+  display: grid;
+  place-items: center;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+.vote-step-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--md-on-surface);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.vote-step-desc {
+  font-size: 0.8rem;
+  color: var(--md-on-surface-variant);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.vote-point-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--md-shape-full);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.vote-point-tag.react { background: #ffe4e8; color: #b3264a; }
+.vote-point-tag.comment { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+
+/* Dải nhắc khổ giấy + quyền riêng tư dưới hero */
+.vote-hero-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--md-outline-variant);
+  font-size: 0.78rem;
+  color: var(--md-on-surface-variant);
+}
+.vote-hero-foot span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Thứ hạng trong bảng xếp hạng: dùng huy hiệu số thay cho emoji (emoji hiển
+   thị khác nhau trên từng máy và trình đọc màn hình đọc rất lộn xộn). */
+.rank-medal {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--md-shape-full);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #fff;
+  flex: none;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.16);
+}
+.rank-medal-1 { background: linear-gradient(145deg, #f0b429, #c98a06); }
+.rank-medal-2 { background: linear-gradient(145deg, #c3ccd5, #93a1ad); }
+.rank-medal-3 { background: linear-gradient(145deg, #d99058, #a8632f); }
+
+/* Thanh dock dính đáy: chừa chỗ cho vùng an toàn của iPhone (thanh home) */
+.vote-actionbar { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
+
+/* Chế độ chỉ xem sau khi đã bình chọn */
+.vote-readonly-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin: 18px auto 2px;
+  padding: 10px 16px;
+  max-width: 640px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  font-size: 0.84rem;
+  font-weight: 600;
 }

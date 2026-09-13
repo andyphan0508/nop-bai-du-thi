@@ -9,6 +9,7 @@ import type {
   VoteEntryListResponse,
   VoteResultsResponse,
   VoteStatsResponse,
+  VoteStatusResponse,
 } from "../types";
 
 const getEntryList = async (): Promise<EntryListResponse> => {
@@ -34,13 +35,53 @@ const voteImageUrl = (fileId: string, width = 800): string => {
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${width}`;
 };
 
+// Thiết bị này đã dùng lượt chưa — hỏi thẳng máy chủ khi mở trang, để người đã
+// bình chọn thấy ngay màn hình "đã bình chọn" thay vì chọn bài xong mới bị từ
+// chối lúc gửi. Lỗi mạng → coi như chưa vote (không chặn oan ai), bước gửi vẫn
+// kiểm tra lại lần nữa ở máy chủ.
+const getVoteStatus = async (deviceId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(
+      `${ENDPOINT}?action=voteStatus&deviceId=${encodeURIComponent(deviceId)}&_t=${Date.now()}`,
+      { cache: "no-store" },
+    );
+    const data = (await response.json()) as VoteStatusResponse;
+    return Boolean(data.ok && data.voted);
+  } catch {
+    return false;
+  }
+};
+
+// Số lần gửi lại khi máy chủ báo quá tải. Apps Script giới hạn số lượt chạy
+// đồng thời, nên lúc cao điểm (60-70 người bấm gửi trong vài giây) vẫn có thể
+// có lượt bị dội ra — thử lại có giãn cách + lệch ngẫu nhiên để không cùng lúc
+// dội ngược lại máy chủ.
+const ENGAGE_MAX_ATTEMPTS = 3;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const submitEngagement = async (payload: EngagePayload): Promise<EngageResponse> => {
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: "engage", ...payload }),
-  });
-  return (await response.json()) as EngageResponse;
+  let lastError = "Gửi tương tác thất bại.";
+
+  for (let attempt = 1; attempt <= ENGAGE_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "engage", ...payload }),
+      });
+      const data = (await response.json()) as EngageResponse;
+      // Chỉ gửi lại khi máy chủ báo bận; lỗi nội dung (thiếu từ, trùng bài…)
+      // gửi lại bao nhiêu lần cũng vậy nên trả về ngay.
+      if (data.ok || data.code !== "BUSY") return data;
+      lastError = data.error || lastError;
+    } catch {
+      lastError = "Lỗi mạng, vui lòng thử lại.";
+    }
+    if (attempt < ENGAGE_MAX_ATTEMPTS) await delay(attempt * 900 + Math.random() * 600);
+  }
+
+  return { ok: false, code: "BUSY", error: lastError };
 };
 
 // Bình luận công khai của TẤT CẢ bài dự thi, gộp theo entryId — tải 1 lần
@@ -145,6 +186,7 @@ export const submissionApi = {
   getVoteEntries,
   voteImageUrl,
   submitEngagement,
+  getVoteStatus,
   getComments,
   getVoteResults,
   getVoteStats,

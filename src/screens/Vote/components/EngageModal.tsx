@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MdClose, MdFavorite, MdHowToVote, MdLock, MdModeComment } from "react-icons/md";
-import { IS_VOTE_AUTH_CONFIGURED } from "../../../config";
 import type { VoteEntry } from "../../../types";
 import { submissionApi } from "../../../api/submissionApi";
-import GoogleSignIn from "./GoogleSignIn";
 
 type EngageModalProps = {
   reactTarget: VoteEntry | null;
@@ -12,27 +10,7 @@ type EngageModalProps = {
   isSubmitting: boolean;
   errorMessage: string | null;
   onCancel: () => void;
-  onConfirm: (googleIdToken: string, honeypot: string) => void;
-};
-
-type GoogleProfile = { name: string; email: string };
-
-// Chỉ để HIỂN THỊ tên/email cho người dùng thấy họ đang đăng nhập bằng tài
-// khoản nào — KHÔNG dùng để xác thực (việc xác thực thật sự nằm ở server,
-// server gọi Google để kiểm tra chữ ký token, xem Code.gs verifyGoogleIdToken).
-const decodeJwtPayloadForDisplay = (token: string): Record<string, unknown> | null => {
-  try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
-        .join(""),
-    );
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
+  onConfirm: (honeypot: string) => void;
 };
 
 const EngageModal = ({
@@ -44,20 +22,11 @@ const EngageModal = ({
   onCancel,
   onConfirm,
 }: EngageModalProps) => {
-  const [idToken, setIdToken] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
-
-  const profile = useMemo<GoogleProfile | null>(() => {
-    if (!idToken) return null;
-    const payload = decodeJwtPayloadForDisplay(idToken);
-    if (!payload) return null;
-    return { name: String(payload.name || ""), email: String(payload.email || "") };
-  }, [idToken]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!idToken) return;
-    onConfirm(idToken, honeypot);
+    onConfirm(honeypot);
   };
 
   return (
@@ -141,29 +110,10 @@ const EngageModal = ({
           )}
         </div>
 
-        {!IS_VOTE_AUTH_CONFIGURED && (
-          <div className="msg err">
-            Trang chưa cấu hình đăng nhập Google / reCAPTCHA — xem HUONG-DAN.md mục "Bình chọn".
-          </div>
-        )}
-
-        {IS_VOTE_AUTH_CONFIGURED && !profile && (
-          <>
-            <p className="ballot-note-plain">
-              Đăng nhập bằng Google để xác nhận đây là bạn — mỗi tài khoản Google chỉ có 1 lượt React + 1 lượt bình
-              luận, dùng 1 lần duy nhất.
-            </p>
-            <GoogleSignIn onCredential={setIdToken} />
-          </>
-        )}
-
-        {profile && (
-          <div className="google-profile">
-            Đã đăng nhập: <b>{profile.name}</b>
-            <br />
-            {profile.email}
-          </div>
-        )}
+        <p className="ballot-note-plain">
+          Không cần đăng nhập — mỗi thiết bị chỉ có 1 lượt React + 1 lượt bình luận, dùng 1 lần duy nhất. Sau khi xác
+          nhận, thiết bị này sẽ không bình chọn thêm được nữa.
+        </p>
 
         {/* Honeypot chống bot — ẩn khỏi người dùng thật bằng CSS, không dùng display:none
             để tránh vài trình đọc màn hình/bot bỏ qua thuộc tính này */}
@@ -181,13 +131,12 @@ const EngageModal = ({
 
         <div className="ballot-note">
           <MdLock size={14} />
-          Bình luận sẽ hiển thị công khai (ẩn danh, không kèm tên) — tài khoản Google chỉ dùng để đảm bảo mỗi người
-          chỉ dùng đúng 1 lượt React + 1 lượt bình luận.
+          Bình luận sẽ hiển thị công khai (ẩn danh). Mỗi thiết bị chỉ dùng đúng 1 lượt React + 1 lượt bình luận.
         </div>
 
         {errorMessage && <div className="msg err">{errorMessage}</div>}
 
-        <button className="btn" type="submit" disabled={isSubmitting || !profile}>
+        <button className="btn" type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Đang gửi…" : "Xác nhận"}
         </button>
       </form>

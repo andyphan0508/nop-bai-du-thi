@@ -100,8 +100,8 @@ Trang web hiển thị **danh sách các bạn đã nộp bài + tổng số lư
 
 Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh bìa dự thi (đọc trực tiếp từ Google Drive qua Apps Script) để mọi người ủng hộ bài yêu thích. Đây **không phải** kiểu "chọn 1 bài duy nhất" mà là chấm điểm theo tương tác:
 
-- **Mỗi người (1 tài khoản Google) có đúng 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm)**, dùng 1 lần duy nhất cho cả cuộc thi — có thể dùng cả 2, chỉ 1, hoặc bỏ qua.
-- Có thể React/bình luận cho **bất kỳ bài nào**, kể cả bài của chính mình — **riêng bài của chính mình chỉ được nhận 1 trong 2** (React HOẶC bình luận, không phải cả hai).
+- **Mỗi thiết bị có đúng 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm)**, dùng 1 lần duy nhất cho cả cuộc thi — có thể dùng cả 2, chỉ 1, hoặc bỏ qua. Không cần đăng nhập tài khoản nào.
+- Có thể React/bình luận cho **bất kỳ bài nào** — **không được chọn cùng 1 bài cho cả React lẫn bình luận** trong cùng 1 lượt (phải là 2 bài khác nhau).
 - Bình luận **bắt buộc tối thiểu 20 từ** (kiểm tra cả 2 phía: hiện đếm số từ ngay khi gõ, và server từ chối nếu dưới 20 từ) — tránh kiểu bình luận spam "hay quá", "đẹp" chỉ để lấy điểm.
 - Bình luận **hiển thị công khai** ngay trên trang (dạng lời khích lệ) nhưng **ẩn danh** — không kèm tên người bình luận. Điểm/xếp hạng thì **ngược lại**, ẩn công khai, chỉ quản trị viên xem được.
 
@@ -113,41 +113,31 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 1. Màn hình chính hiện 2 thẻ **"Lượt 1"** / **"Lượt 2"** (Lượt 2 khoá tới khi xong Lượt 1).
 2. Bấm 1 lượt → hiện danh sách bài (dạng dòng, dễ bấm ngón tay) → chọn 1 bài → hiện ảnh to + mô tả ý tưởng + lời khích lệ đã có + 2 nút React/Bình luận.
 3. Làm xong Lượt 1 tự chuyển sang chọn bài cho Lượt 2 — **bài đã chọn ở Lượt 1 không hiện lại**, và hành động đã dùng (React hoặc Bình luận) cũng bị khoá ở Lượt 2, chỉ còn hành động kia.
-4. Xong cả 2 lượt (hoặc bấm "Bỏ qua lượt này" nếu không muốn dùng) → bấm **"Xác nhận & Gửi"** → hiện đúng modal đăng nhập Google như bản desktop để gửi đi.
+4. Xong cả 2 lượt (hoặc bấm "Bỏ qua lượt này" nếu không muốn dùng) → bấm **"Xác nhận & Gửi"** → hiện đúng modal xác nhận như bản desktop để gửi đi (không cần đăng nhập).
 
 **Cơ chế chống spam / đảm bảo công bằng** (đã cài sẵn trong `Code.gs`):
 
-1. **Định danh bằng đăng nhập Google thật** (Google Sign-In) — KHÔNG dùng tự khai SĐT, vì tự khai thì ai cũng bịa số khác được. Bắt buộc đăng nhập Google mới gửi được lượt → mở ẩn danh (incognito) không giúp ích gì vì vẫn phải đăng nhập lại bằng 1 tài khoản Google thật; muốn dùng thêm lượt phải có nhiều tài khoản Google khác nhau.
+1. **Định danh bằng mã thiết bị** — không dùng tài khoản/đăng nhập nào. Trình duyệt tự sinh 1 mã ngẫu nhiên khi mở trang lần đầu, lưu vĩnh viễn trong `localStorage` (`src/utils/deviceId.ts`) và gửi kèm mỗi lượt bình chọn. Server băm SHA-256 (kèm `VOTE_SALT`) rồi đối chiếu với sheet **"Người bình chọn"** để chặn CÙNG 1 THIẾT BỊ dùng quá 1 lượt.
 2. **reCAPTCHA v3** (vô hình, không cần người dùng làm gì) — Google chấm điểm hành vi giống người/bot, lượt bị nghi là bot sẽ bị từ chối.
-3. **Danh tính giữ kín** — mã định danh Google (`sub`) được băm SHA-256 (kèm `VOTE_SALT`) và lưu ở sheet riêng **"Người bình chọn"** (chỉ để chặn dùng 2 lần, không lưu email/tên); React lưu ở sheet **"Kết quả bình chọn"**, bình luận lưu ở sheet **"Bình luận"** — cả 2 không kèm danh tính. Không sheet nào nối lại được → không ai, kể cả bạn, tra ngược được "ai đã react/bình luận bài nào".
-4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã dùng lượt chưa" + ghi lượt, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 người lọt qua vòng kiểm tra và dùng được 2 lần.
+3. **Danh tính giữ kín** — mã thiết bị chỉ lưu dạng băm ở sheet riêng **"Người bình chọn"** (không lưu email/tên vì không còn thu thập); React lưu ở sheet **"Kết quả bình chọn"**, bình luận lưu ở sheet **"Bình luận"** — cả 2 không kèm mã thiết bị. Không sheet nào nối lại được → không ai, kể cả bạn, tra ngược được "thiết bị nào đã react/bình luận bài nào".
+4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã dùng lượt chưa" + ghi lượt, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 thiết bị lọt qua vòng kiểm tra và dùng được 2 lần.
 5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
 6. **Ẩn điểm/xếp hạng khi đang mở tương tác** — KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
 7. **Kín danh khi tương tác (blind)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm/Nhóm-ban ngành của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + mô tả ý tưởng. `?action=voteEntries` cũng không trả Họ tên/Thành viên nhóm về — tránh chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
-8. **Bài của chính mình chỉ nhận 1 trong 2** — nếu email tài khoản Google đăng nhập trùng với email đã dùng để nộp bài đó, và người này đồng thời chọn CẢ React lẫn bình luận cho (các) bài của chính họ, server sẽ từ chối yêu cầu và nhắc chỉ được chọn 1 trong 2 (chưa tính là đã dùng hết lượt, có thể thử lại).
+8. **Không được React lẫn bình luận cùng 1 bài** — nếu chọn cùng 1 bài cho cả 2 lượt trong 1 lần gửi, server từ chối và yêu cầu chọn 2 bài khác nhau.
 
-> **Trường hợp 1 người nộp nhiều bài bằng nhiều email khác nhau** (VD 5 bài của cùng 1 bạn nhưng mỗi bài dùng 1 email khác nhau): mục 8 ở trên chỉ so đúng 1 email/1 bài nên KHÔNG tự phát hiện được — hệ thống không thể tự biết 5 email đó là cùng 1 người thật. Cách xử lý: tạo thêm 1 sheet tên **đúng** `Email liên kết (cùng 1 người)` trong cùng Google Sheet, mỗi dòng (không có tiêu đề, bắt đầu từ dòng 1) là các email của 1 người, cách nhau bởi dấu phẩy — VD dòng: `email1@gmail.com, email2@gmail.com, email3@gmail.com, email4@gmail.com, email5@gmail.com`. Sau khi có sheet này, hễ ai đăng nhập bằng BẤT KỲ email nào trong nhóm đó và chọn CẢ React lẫn bình luận nhắm vào (các) bài trong nhóm đó (dù là 2 bài khác nhau) sẽ bị chặn — coi như "1 người, 1 hành động lên chính mình". Không tạo sheet này thì tính năng vẫn chạy bình thường theo mục 8, không bắt buộc phải dùng.
->
-> Cố ý **không** dùng cách so tên/regex để tự động phát hiện: tên hiển thị Google do người dùng tự đặt (không xác minh được như email) nên dễ né tránh, và tên tiếng Việt rất dễ trùng giữa 2 người hoàn toàn khác nhau — tự động chặn theo tên giống sẽ dễ **chặn oan người vô tội** trùng tên với thí sinh, một lỗi công bằng còn tệ hơn việc bỏ sót vài lượt gian lận. Vì vậy việc xác nhận "đây là cùng 1 người" cần bạn (người biết rõ thành viên nhóm/hội thánh) khai báo thủ công qua sheet trên.
+> **Đánh đổi khi bỏ đăng nhập:** mã thiết bị chỉ chặn được ở MỨC THIẾT BỊ — xoá dữ liệu trình duyệt (localStorage), dùng chế độ ẩn danh, hoặc đổi sang máy/trình duyệt khác đều tạo được mã thiết bị mới và bình chọn lại được. Hệ thống cũng KHÔNG còn biết ai nộp bài nào, nên **không còn chặn được thí sinh tự React/bình luận cho chính bài của mình**. Đây là đánh đổi hợp lý cho quy mô nội bộ (~50-60 người), không phù hợp nếu cần chống gian lận chặt ở quy mô lớn/công khai — muốn chặt hơn cần quay lại xác thực tài khoản.
 
 **Việc bạn cần làm:**
 
-1. **Tạo Google OAuth Client ID** (miễn phí, dùng chung tài khoản Google đang chạy Apps Script):
-   - Vào https://console.cloud.google.com/apis/credentials (tạo project mới nếu chưa có).
-   - Nếu chưa cấu hình **OAuth consent screen**: chọn **External** → điền tên app + email → Save (không cần submit verify, dùng nội bộ vẫn chạy được, chỉ hiện cảnh báo "chưa xác minh" — bình thường).
-   - **Create Credentials → OAuth client ID → Application type: Web application**.
-   - **Authorized JavaScript origins**: thêm domain thật (VD `https://nop-bai-du-thi.vercel.app`) và `http://localhost:5173` (để chạy thử `npm run dev`).
-   - Copy **Client ID** (dạng `xxxx.apps.googleusercontent.com`).
-2. **Tạo reCAPTCHA v3** (miễn phí): vào https://www.google.com/recaptcha/admin → Register a new site → chọn **v3** → điền domain thật + `localhost` → copy **Site Key** và **Secret Key**.
-3. Dán **Client ID** + **Site Key** vào `src/config.ts` (`GOOGLE_CLIENT_ID`, `RECAPTCHA_SITE_KEY`) → commit/push để Vercel build lại.
-4. Dán **Client ID** (phải khớp) + **Secret Key** vào `apps-script/Code.gs` (`GOOGLE_CLIENT_ID`, `RECAPTCHA_SECRET_KEY`); đổi `VOTE_SALT` thành 1 chuỗi ngẫu nhiên của riêng bạn.
-5. Đặt `ADMIN_KEY` (nếu chưa đặt) để xem kết quả sau khi đóng bình chọn.
-6. Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
-7. Mở `<domain>/binh-chon` để React/bình luận, `<domain>/binh-chon?admin=1` để xem bảng xếp hạng điểm (nhập `ADMIN_KEY` vào ô "Mã quản trị").
+1. **Tạo reCAPTCHA v3** (miễn phí): vào https://www.google.com/recaptcha/admin → Register a new site → chọn **v3** → điền domain thật + `localhost` → copy **Site Key** và **Secret Key**.
+2. Dán **Site Key** vào `src/config.ts` (`RECAPTCHA_SITE_KEY`) → commit/push để Vercel build lại.
+3. Dán **Secret Key** vào `apps-script/Code.gs` (`RECAPTCHA_SECRET_KEY`); đổi `VOTE_SALT` thành 1 chuỗi ngẫu nhiên của riêng bạn.
+4. Đặt `ADMIN_KEY` (nếu chưa đặt) để xem kết quả sau khi đóng bình chọn.
+5. Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
+6. Mở `<domain>/binh-chon` để React/bình luận, `<domain>/binh-chon?admin=1` để xem bảng xếp hạng điểm (nhập `ADMIN_KEY` vào ô "Mã quản trị").
 
-> **Chưa kịp setup Google Sign-In / reCAPTCHA?** Trang vẫn chạy được (xem được ảnh, chọn bài để React/bình luận) nhưng nút "Xác nhận" sẽ báo lỗi/không hiện nút đăng nhập cho tới khi bạn dán đủ 4 giá trị ở bước 3–4. Đây là chủ đích — tránh mở tương tác "chay" (ai cũng gửi được, không xác thực).
-
-> **Giới hạn cần biết:** đăng nhập Google chặn được kiểu spam phổ biến nhất (mở ẩn danh/đổi SĐT), nhưng không phải tuyệt đối — người thật sự muốn gian lận vẫn có thể tạo nhiều tài khoản Google khác nhau để dùng thêm lượt. Muốn chặt hơn nữa (VD: chỉ cho phép domain email nội bộ, hoặc yêu cầu OTP SĐT qua dịch vụ SMS trả phí) cần thêm cấu hình ngoài phạm vi bản miễn phí này.
+> **Chưa kịp setup reCAPTCHA?** Trang **vẫn bình chọn bình thường** — bước lấy token được bỏ qua ở cả web lẫn `Code.gs`. Các lớp chặn spam còn lại vẫn hoạt động: 1 lượt/thiết bị (đối chiếu ở máy chủ), honeypot, chặn gửi quá nhanh sau khi tải trang, và bình luận tối thiểu 20 từ. Dán đủ Site Key + Secret Key khi nào bạn sẵn sàng để bật thêm lớp chấm điểm hành vi của Google.
 
 > **Về khổ bài dự thi:** Cuộc thi sử dụng chuẩn **Khổ A3 Ngang (420 × 297mm, tỉ lệ 1.414 : 1)** cho thiết kế bìa sách trải rộng toàn bộ (bìa trước, gáy, bìa sau). Giao diện web và xem ảnh được căn vừa khít 100% không bị viền trống hay méo hình.
 >
@@ -155,15 +145,36 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 > - Sau khi gửi bình chọn (hoặc bấm nút "Thống kê" trên thanh công cụ), người dùng thấy modal **"Công Bố Kết Quả Bình Chọn"** — mở ra là màn hình "Sẵn sàng để ra kết quả chưa?", bấm **Bắt đầu** thì lần lượt công bố Hạng 1 → Hạng 2 → Hạng 3 (dạng bục vinh danh/podium) → Giải khuyến khích, giống 1 buổi lễ trao giải thu nhỏ — có thể bấm "Xem lại từ đầu" để công bố lại.
 > - Backend Apps Script hỗ trợ endpoint công khai `.../exec?action=voteStats` trả về: tổng người bình chọn, tổng React, tổng bình luận, tổng điểm, bảng xếp hạng tác phẩm và giải khuyến khích — không kèm thông tin cá nhân.
 
-> **Về hiệu năng khi nhiều người vào cùng lúc (~50 người):**
-> - `Code.gs` dùng `CacheService` (bộ nhớ đệm dùng chung của toàn script) để cache kết quả `voteEntries` (30 giây), `comments` và `voteStats` (15 giây) — tránh việc mỗi lượt tải trang đều phải quét lại Sheet + quét thư mục Drive để tìm ảnh bìa (bước tốn thời gian nhất). Khi có người gửi React/bình luận mới, cache `comments`/`voteStats` tự xoá ngay để không phải chờ hết 15 giây mới thấy cập nhật.
-> - Trang nộp bài cũ (`/`) không còn được render nữa — mọi lượt truy cập tự chuyển sang `/binh-chon` (chuyển ở tầng Vercel qua `vercel.json`, không cần tải JS trước mới chuyển hướng). Bỏ luôn màn hình nộp bài khỏi gói JS build ra giúp trang tải nhẹ hơn.
+> **Về hiệu năng khi 60–70 người vào cùng lúc:**
+>
+> Chạy thử bằng bộ mô phỏng có sẵn (không cần deploy):
+>
+> ```bash
+> node apps-script/test-concurrency.cjs
+> ```
+>
+> Bộ này giả lập 70 người mở trang và bấm gửi đồng thời, có tính độ trễ thật của mỗi lượt gọi Sheets/Drive API, rồi kiểm tra: đủ 70 lượt được ghi nhận, 1 thiết bị bấm 5 lần chỉ tính 1 lượt, và số dòng ghi xuống Sheet khớp.
+>
+> Những điểm đã tối ưu để chịu được mức đó:
+>
+> - **Danh sách bài + ảnh bìa cache 6 giờ** (`CACHE_TTL_ENTRIES`) thay vì 30 giây, kèm cơ chế *single-flight*: khi cache hết hạn mà nhiều người vào cùng lúc, chỉ **1** lượt chạy quét lại Drive, số còn lại đợi rồi đọc cache. Trước đây 70 người mở trang lúc cache nguội là 70 lượt cùng quét thư mục Drive của từng bài.
+> - **Trang thống kê không quét Drive nữa** — dùng lại chính danh sách đã cache ở trên. Trước đây `voteStats` cache 15 giây nhưng mỗi lần tính lại đều quét toàn bộ Drive, nên cứ 15 giây lại có 1 lượt rất nặng.
+> - **Khoá (LockService) chỉ bao đúng bước kiểm tra trùng lượt** (~10ms, đọc/ghi bộ nhớ đệm) — phần ghi 3 sheet đã chuyển ra ngoài khoá. Trước đây mỗi lượt giữ khoá 1,5–2,5 giây, 70 người bấm gửi cùng lúc phải xếp hàng hơn 100 giây trong khi mức chờ tối đa chỉ 10 giây → đa số nhận lỗi *"Hệ thống đang bận"*.
+> - **Tự gửi lại khi quá tải**: máy chủ trả mã `BUSY`, web tự thử lại tối đa 3 lần có giãn cách ngẫu nhiên thay vì bắt người dùng bấm lại.
+> - **Hâm nóng cache trước giờ G**: mở Apps Script → chọn hàm `warmCache` → **Run** (hoặc đặt Trigger theo thời gian, mỗi 4 giờ). Lần tính đầu tiên mất khoảng 0,7 giây/bài, làm trước thì người vào đầu tiên không phải chờ.
+> - Trang nộp bài cũ (`/`) không còn được render nữa — mọi lượt truy cập tự chuyển sang `/binh-chon` (chuyển ở tầng Vercel qua `vercel.json`).
+>
+> **Về việc "đã bình chọn rồi thì vào lại có biết không":**
+> - Khi mở trang, web gọi `.../exec?action=voteStatus&deviceId=...` để hỏi thẳng máy chủ. Đã dùng lượt → hiện ngay **biên nhận bình chọn** + chế độ **chỉ xem** (xem lại được toàn bộ tác phẩm nhưng không còn nút thả tim/bình luận), thay vì để người dùng chọn bài xong mới báo lỗi lúc gửi.
+> - Nếu máy đã xoá dữ liệu trang thì biên nhận không còn tên tác phẩm đã chọn, nhưng vẫn xác nhận đúng là "đã dùng hết lượt" theo mã thiết bị lưu ở máy chủ.
+> - Trường hợp phiếu gửi thành công nhưng rớt mạng nên web không nhận được phản hồi: lần gửi lại sẽ nhận mã `ALREADY_VOTED` và web chuyển thẳng sang màn "đã bình chọn" (coi như thành công) thay vì báo lỗi.
 >
 > **Về ảnh bìa hiển thị & đồng bộ Drive:**
 > - Bài nộp mới qua web tự động bật quyền xem công khai ("Anyone with the link — Viewer") cho ảnh bìa.
 > - Để đồng bộ / sửa quyền chia sẻ cho toàn bộ các bài đã nộp trước đó (hoặc bài nộp qua dán link Google Drive), bạn chỉ cần mở 1 lần link sau trên trình duyệt:
 >   `<ENDPOINT>/exec?action=syncImages` (hoặc `?action=syncImages&key=<ADMIN_KEY>`).
 >   Hệ thống sẽ tự động quét cả cột upload lẫn cột link nguồn để bật quyền xem, trả về `{ ok: true, fixed, failed, total }`.
+> - `syncImages` đồng thời **xoá cache danh sách bài** — vì danh sách được giữ tới 6 giờ, nên sau khi thay/thêm ảnh trên Drive hãy chạy link này 1 lần để trang cập nhật ngay.
 
 ---
 
@@ -209,8 +220,7 @@ nop-bai-du-thi/
 │  │  └─ components/
 │  │     ├─ VoteCard.tsx            1 thẻ bài dự thi (ảnh + nút React/Bình luận + lời khích lệ)
 │  │     ├─ VoteLightbox.tsx        Xem ảnh bìa cỡ lớn
-│  │     ├─ GoogleSignIn.tsx        Nút đăng nhập Google (dùng chung trong modal)
-│  │     ├─ EngageModal.tsx         Modal xác nhận React + bình luận (đăng nhập Google) — dùng chung với VoteMobile
+│  │     ├─ EngageModal.tsx         Modal xác nhận React + bình luận (không cần đăng nhập) — dùng chung với VoteMobile
 │  │     ├─ VoteDoneCard.tsx        Màn hình đã dùng hết lượt — dùng chung với VoteMobile
 │  │     └─ AdminResultsPanel.tsx   Bảng xếp hạng điểm (chỉ quản trị viên, ?admin=1)
 │  └─ screens/VoteMobile/           Luồng "Lượt 1 / Lượt 2" từng bước — route "/binh-chon/mobile"

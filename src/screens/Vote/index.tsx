@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   MdSearch,
   MdClose,
@@ -9,10 +9,12 @@ import {
   MdInfoOutline,
   MdBarChart,
   MdRefresh,
+  MdLockOutline,
+  MdOutlineVisibility,
 } from "react-icons/md";
 import BackgroundDecor from "../Submit/components/BackgroundDecor";
 import SubmitHeader from "../Submit/components/SubmitHeader";
-import ToastStack, { type ToastItem } from "../Submit/components/Toast";
+import ToastStack from "../Submit/components/Toast";
 import VoteCard from "./components/VoteCard";
 import VoteLightbox from "./components/VoteLightbox";
 import EngageModal from "./components/EngageModal";
@@ -21,16 +23,28 @@ import VoteStatsModal from "./components/VoteStatsModal";
 import AdminResultsPanel from "./components/AdminResultsPanel";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
-import { getRecaptchaToken } from "../../utils/recaptcha";
-import { readEngagedRecord, writeEngagedRecord, type EngagedRecord } from "../../utils/engagedRecord";
-import { COMMENT_MIN_WORDS, countWords } from "../../utils/wordCount";
-import type { EntryCommentsMap, VoteEntry } from "../../types";
+import { useVoteSession } from "./useVoteSession";
+import type { VoteEntry } from "../../types";
 
 const VoteScreen = () => {
-  const [entries, setEntries] = useState<VoteEntry[]>([]);
-  const [comments, setComments] = useState<EntryCommentsMap>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // Tải dữ liệu + gửi phiếu + trạng thái "đã bình chọn" dùng chung với bản
+  // mobile (xem useVoteSession) để 2 giao diện không bao giờ lệch hành vi.
+  const {
+    entries,
+    comments,
+    isLoading,
+    loadError,
+    reload,
+    hasVoted,
+    engagedRecord,
+    isSubmitting: isSubmittingEngage,
+    engageError,
+    setEngageError,
+    submit,
+    toasts,
+    showToast,
+    dismissToast,
+  } = useVoteSession();
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -47,55 +61,12 @@ const VoteScreen = () => {
 
   // Engage modal state
   const [isEngageModalOpen, setIsEngageModalOpen] = useState<boolean>(false);
-  const [isSubmittingEngage, setIsSubmittingEngage] = useState<boolean>(false);
-  const [engageError, setEngageError] = useState<string | null>(null);
-
-  const [engagedRecord, setEngagedRecord] = useState<EngagedRecord | null>(readEngagedRecord);
   const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
 
   const [isAdmin] = useState<boolean>(() => new URLSearchParams(window.location.search).has("admin"));
 
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const toastIdRef = useRef<number>(0);
-  const pageLoadedAtRef = useRef<number>(Date.now());
-
-  const showToast = (message: string, type: ToastItem["type"] = "error") => {
-    const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 4500);
-  };
-  const dismissToast = (id: number) => setToasts((prev) => prev.filter((toast) => toast.id !== id));
-
-  const fetchData = async () => {
-    if (!IS_CONFIGURED) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setLoadError(null);
-    try {
-      const [entriesResponse, commentsResponse] = await Promise.all([
-        submissionApi.getVoteEntries(),
-        submissionApi.getComments(),
-      ]);
-      if (!entriesResponse.ok) throw new Error(entriesResponse.error || "Không tải được danh sách bài dự thi.");
-      setEntries(entriesResponse.entries || []);
-      setComments(commentsResponse.ok ? commentsResponse.comments || {} : {});
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const handleToggleReact = (entry: VoteEntry) => {
-    if (engagedRecord) {
+    if (hasVoted) {
       showToast("Bạn đã hoàn tất lượt bình chọn của mình rồi — cảm ơn bạn!", "info");
       return;
     }
@@ -103,7 +74,7 @@ const VoteScreen = () => {
   };
 
   const handleToggleComment = (entry: VoteEntry) => {
-    if (engagedRecord) {
+    if (hasVoted) {
       showToast("Bạn đã hoàn tất lượt bình luận của mình rồi — cảm ơn bạn!", "info");
       return;
     }
@@ -146,43 +117,14 @@ const VoteScreen = () => {
     return result;
   }, [entries, comments, selectedType, searchQuery, sortBy]);
 
-  const handleConfirmEngage = async (googleIdToken: string, honeypot: string) => {
-    if (!reactTarget && !commentTarget) return;
-    if (commentTarget && countWords(commentText) < COMMENT_MIN_WORDS) {
-      setEngageError(`Bình luận cần tối thiểu ${COMMENT_MIN_WORDS} từ (đang có ${countWords(commentText)} từ).`);
-      return;
-    }
-    setIsSubmittingEngage(true);
-    setEngageError(null);
-    try {
-      const recaptchaToken = await getRecaptchaToken("engage");
-      const response = await submissionApi.submitEngagement({
-        reactEntryId: reactTarget?.id || "",
-        commentEntryId: commentTarget?.id || "",
-        commentText: commentTarget ? commentText.trim() : "",
-        googleIdToken,
-        recaptchaToken,
-        hp: honeypot,
-        elapsedMs: Date.now() - pageLoadedAtRef.current,
-      });
-      if (!response.ok) throw new Error(response.error || "Gửi tương tác thất bại.");
-
-      const record: EngagedRecord = {
-        reactedTitle: reactTarget?.title || null,
-        commentedTitle: commentTarget?.title || null,
-        at: new Date().toISOString(),
-      };
-      writeEngagedRecord(record);
-      setEngagedRecord(record);
-      setIsEngageModalOpen(false);
-      showToast("Đã ghi nhận bình chọn — cảm ơn bạn đã tham gia!", "success");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setEngageError(message);
-      showToast(message);
-    } finally {
-      setIsSubmittingEngage(false);
-    }
+  const handleConfirmEngage = async (honeypot: string) => {
+    const sent = await submit({
+      reactEntry: reactTarget,
+      commentEntry: commentTarget,
+      commentText,
+      honeypot,
+    });
+    if (sent) setIsEngageModalOpen(false);
   };
 
   const totalPointsSelected = (reactTarget ? 2 : 0) + (commentTarget ? 1 : 0);
@@ -197,7 +139,7 @@ const VoteScreen = () => {
       <div className="wrap">
         <SubmitHeader
           title="React & Bình chọn tác phẩm dự thi"
-          subtitle="Mỗi tài khoản có 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm) dành tặng cho các bài thi bạn ấn tượng nhất."
+          subtitle="Mỗi thiết bị có 1 lượt thả tim (2 điểm) + 1 lượt bình luận (1 điểm) dành tặng cho các tác phẩm bạn ấn tượng nhất."
           nav={
             <a className="nav-link" href="/binh-chon/mobile">
               Đang dùng điện thoại? Thử bản mobile gọn nhẹ →
@@ -205,63 +147,53 @@ const VoteScreen = () => {
           }
         />
 
-        {/* Banner tóm tắt điểm và thể lệ */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexWrap: "wrap",
-            gap: "10px",
-            margin: "0 auto 16px",
-            maxWidth: "720px",
-          }}
-        >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#ffe4e8",
-              color: "#e11d48",
-              padding: "5px 12px",
-              borderRadius: "999px",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-            }}
-          >
-            <MdFavorite size={15} /> 1 React = 2 điểm
-          </span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "var(--md-primary-container)",
-              color: "var(--md-primary)",
-              padding: "5px 12px",
-              borderRadius: "999px",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-            }}
-          >
-            <MdModeComment size={15} /> 1 Bình luận = 1 điểm
-          </span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "var(--md-surface-container-high)",
-              color: "var(--md-on-surface)",
-              padding: "5px 12px",
-              borderRadius: "999px",
-              fontSize: "0.82rem",
-              fontWeight: 600,
-            }}
-          >
-            <MdDescription size={15} /> Khổ A3 Ngang (420 × 297mm)
-          </span>
+        {/* Thể lệ 3 bước — đặt ngay đầu trang để người vào lần đầu hiểu
+            "được làm gì / được mấy điểm / có mất lượt không" trước khi bấm. */}
+        <div className="vote-hero">
+          <div className="vote-hero-steps">
+            <div className="vote-step">
+              <span className="vote-step-num">1</span>
+              <div>
+                <div className="vote-step-title">
+                  Thả tim 1 tác phẩm
+                  <span className="vote-point-tag react">
+                    <MdFavorite size={11} /> +2 điểm
+                  </span>
+                </div>
+                <div className="vote-step-desc">Chọn bài bạn ấn tượng nhất — mỗi thiết bị 1 lượt.</div>
+              </div>
+            </div>
+
+            <div className="vote-step">
+              <span className="vote-step-num">2</span>
+              <div>
+                <div className="vote-step-title">
+                  Bình luận 1 tác phẩm khác
+                  <span className="vote-point-tag comment">
+                    <MdModeComment size={11} /> +1 điểm
+                  </span>
+                </div>
+                <div className="vote-step-desc">Viết cảm nhận thật, tối thiểu 20 từ. Có thể bỏ qua.</div>
+              </div>
+            </div>
+
+            <div className="vote-step">
+              <span className="vote-step-num">3</span>
+              <div>
+                <div className="vote-step-title">Xác nhận gửi</div>
+                <div className="vote-step-desc">Gửi 1 lần duy nhất cho cả 2 lượt — cân nhắc kỹ trước khi bấm.</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="vote-hero-foot">
+            <span>
+              <MdDescription size={14} /> Tác phẩm khổ A3 Ngang (420 × 297mm)
+            </span>
+            <span>
+              <MdLockOutline size={14} /> Phiếu kín — bình luận hiển thị ẩn danh
+            </span>
+          </div>
         </div>
 
         {!IS_CONFIGURED && (
@@ -270,25 +202,23 @@ const VoteScreen = () => {
           </div>
         )}
 
-        {IS_CONFIGURED && engagedRecord && (
+        {IS_CONFIGURED && hasVoted && (
           <div className="card" style={{ marginBottom: 24 }}>
             <VoteDoneCard
-              reactedTitle={engagedRecord.reactedTitle}
-              commentedTitle={engagedRecord.commentedTitle}
+              reactedTitle={engagedRecord?.reactedTitle}
+              commentedTitle={engagedRecord?.commentedTitle}
               onViewStats={() => setIsStatsOpen(true)}
             />
           </div>
         )}
 
+        {/* Đã bình chọn xong → vẫn xem được toàn bộ tác phẩm nhưng ở CHẾ ĐỘ
+            CHỈ XEM: mọi nút thả tim/bình luận bị ẩn và thanh xác nhận không
+            hiện nữa. Trạng thái "đã bình chọn" lấy từ máy chủ (theo mã thiết
+            bị) chứ không chỉ từ localStorage, nên xoá dữ liệu trang hay mở lại
+            ở tab khác vẫn không bình chọn thêm được. */}
         {IS_CONFIGURED && (
           <>
-            {engagedRecord && (
-              <div className="section-head" style={{ marginTop: 20, marginBottom: 12 }}>
-                <MdDescription size={18} />
-                Triển lãm các tác phẩm dự thi (Khổ A3 Ngang)
-              </div>
-            )}
-
             {isLoading && <div className="list-note">Đang tải danh sách tác phẩm khổ A3 Ngang…</div>}
 
             {!isLoading && loadError && (
@@ -305,6 +235,13 @@ const VoteScreen = () => {
 
             {!isLoading && !loadError && entries.length > 0 && (
               <>
+                {hasVoted && (
+                  <div className="vote-readonly-note">
+                    <MdOutlineVisibility size={17} />
+                    Chế độ chỉ xem — bạn đã dùng hết lượt, mời xem lại toàn bộ tác phẩm dự thi.
+                  </div>
+                )}
+
                 {/* Thanh tìm kiếm & bộ lọc */}
                 <div className="vote-toolbar">
                   <div className="vote-toolbar-top">
@@ -342,7 +279,7 @@ const VoteScreen = () => {
                       <button
                         className={isLoading ? "refresh spin" : "refresh"}
                         type="button"
-                        onClick={fetchData}
+                        onClick={reload}
                         title="Tải lại danh sách bài dự thi (xoá cache)"
                         style={{
                           border: "1px solid rgba(215, 194, 184, 0.45)",
@@ -407,33 +344,26 @@ const VoteScreen = () => {
                 ) : (
                   <div className="vote-grid">
                     {filteredEntries.map(({ entry, originalIndex }, index) => {
-                      const isReactChosenForThis =
-                        reactTarget?.id === entry.id ||
-                        (Boolean(engagedRecord) && engagedRecord?.reactedTitle === entry.title);
-                      const isCommentChosenForThis =
-                        commentTarget?.id === entry.id ||
-                        (Boolean(engagedRecord) && engagedRecord?.commentedTitle === entry.title);
-                      const isThisEntryVoted = isReactChosenForThis || isCommentChosenForThis;
+                      // Khối này chỉ render khi !engagedRecord (xem điều kiện bao ngoài) —
+                      // nghĩa là đến đây chắc chắn NGƯỜI DÙNG CHƯA VOTE, nên không cần xét
+                      // lại engagedRecord ở từng thẻ nữa.
+                      const isThisEntryVoted =
+                        reactTarget?.id === entry.id || commentTarget?.id === entry.id;
                       const hasReactSelection = Boolean(reactTarget);
                       const hasCommentSelection = Boolean(commentTarget);
-                      const isAlreadyEngaged = Boolean(engagedRecord);
 
                       // 1. Khi người dùng select lượt react: các bài còn lại disable nút react và chỉ hiển thị comment
                       // 2. Ngược lại, khi select lượt comment: các bài còn lại disable nút comment và chỉ hiển thị react
-                      const hideReact =
-                        !isAlreadyEngaged && !isThisEntryVoted && hasReactSelection && !hasCommentSelection;
-                      const hideComment =
-                        !isAlreadyEngaged && !isThisEntryVoted && hasCommentSelection && !hasReactSelection;
+                      const hideReact = !isThisEntryVoted && hasReactSelection && !hasCommentSelection;
+                      const hideComment = !isThisEntryVoted && hasCommentSelection && !hasReactSelection;
 
                       // 3. Bài nào đã vote 1 trong 2 thì disable cả 2 của bài đó luôn
                       // Ngoài ra, nếu lượt đó đã được dùng ở bài khác hoặc đã nộp thì cũng disable
-                      const disableReact = isAlreadyEngaged || isThisEntryVoted || hasReactSelection;
-                      const disableComment = isAlreadyEngaged || isThisEntryVoted || hasCommentSelection;
+                      const disableReact = isThisEntryVoted || hasReactSelection;
+                      const disableComment = isThisEntryVoted || hasCommentSelection;
 
                       // Cho phép hủy chọn trực tiếp trên thẻ đối với bài đang được chọn trong phiên hiện tại
-                      const canDeselectThis =
-                        !isAlreadyEngaged &&
-                        (reactTarget?.id === entry.id || commentTarget?.id === entry.id);
+                      const canDeselectThis = isThisEntryVoted;
                       const handleDeselectThis = canDeselectThis
                         ? () => {
                             if (reactTarget?.id === entry.id) setReactTarget(null);
@@ -449,14 +379,15 @@ const VoteScreen = () => {
                           key={entry.id}
                           entry={entry}
                           order={originalIndex}
+                          cardIndex={index}
                           imgSrc={submissionApi.voteImageUrl(entry.imageFileId, 800)}
-                          isReactSelected={isReactChosenForThis}
-                          isCommentSelected={isCommentChosenForThis}
+                          isReactSelected={reactTarget?.id === entry.id}
+                          isCommentSelected={commentTarget?.id === entry.id}
                           isReactDisabled={disableReact}
                           isCommentDisabled={disableComment}
-                          hideReactButton={hideReact}
-                          hideCommentButton={hideComment}
-                          onDeselect={handleDeselectThis}
+                          hideReactButton={hasVoted || hideReact}
+                          hideCommentButton={hasVoted || hideComment}
+                          onDeselect={hasVoted ? undefined : handleDeselectThis}
                           commentText={commentTarget?.id === entry.id ? commentText : ""}
                           comments={comments[entry.id] || []}
                           onToggleReact={() => handleToggleReact(entry)}
@@ -483,7 +414,7 @@ const VoteScreen = () => {
       </div>
 
       {/* Floating Action Dock dính đáy */}
-      {(reactTarget || commentTarget) && !engagedRecord && (
+      {(reactTarget || commentTarget) && !hasVoted && (
         <div className="vote-actionbar">
           <div className="vote-actionbar-inner">
             <div className="vote-dock-slots">

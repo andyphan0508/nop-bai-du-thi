@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   MdFavorite,
   MdFavoriteBorder,
@@ -19,6 +19,8 @@ const COMMENTS_PREVIEW_COUNT = 3;
 type VoteCardProps = {
   entry: VoteEntry;
   order: number;
+  // Thứ tự thẻ trong lưới — chỉ dùng để hiệu ứng lộ diện so le (xem --card-index)
+  cardIndex?: number;
   imgSrc: string;
   isReactSelected: boolean;
   isCommentSelected: boolean;
@@ -38,6 +40,7 @@ type VoteCardProps = {
 const VoteCard = ({
   entry,
   order,
+  cardIndex = 0,
   imgSrc,
   isReactSelected,
   isCommentSelected,
@@ -62,7 +65,10 @@ const VoteCard = ({
     : comments.slice(0, COMMENTS_PREVIEW_COUNT);
 
   return (
-    <div className={`vote-card${isSelected ? " selected" : ""}`}>
+    <div
+      className={`vote-card${isSelected ? " selected" : ""}`}
+      style={{ "--card-index": Math.min(cardIndex, 11) } as React.CSSProperties}
+    >
       {/* Khung hiển thị tranh tỉ lệ chuẩn A3 (1:1.4142) */}
       <div className="vote-card-img" onClick={onZoom} title="Bấm để xem phóng to khổ A3">
         <div
@@ -79,6 +85,16 @@ const VoteCard = ({
           <MdDescription size={11} />
           Khổ A3
         </span>
+        {isReactSelected && (
+          <span className="vote-pick-flag react">
+            <MdFavorite size={12} /> Bạn đã chọn thả tim
+          </span>
+        )}
+        {isCommentSelected && (
+          <span className="vote-pick-flag comment">
+            <MdModeComment size={12} /> Bạn đang bình luận bài này
+          </span>
+        )}
         <button
           className="vote-zoom"
           type="button"

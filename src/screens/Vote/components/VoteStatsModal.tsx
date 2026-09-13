@@ -19,7 +19,7 @@ type VoteStatsModalProps = {
   comments: EntryCommentsMap;
 };
 
-const MEDAL = ["🥇", "🥈", "🥉"];
+
 
 // Dữ liệu dự phòng khi chưa gọi được server (chỉ tính được số bình luận —
 // không có số React vì đó là dữ liệu riêng chỉ server mới đọc được).
@@ -53,7 +53,9 @@ const buildFallbackStats = (entries: VoteEntry[], comments: EntryCommentsMap): V
 
 const PodiumCard = ({ rank, item }: { rank: 1 | 2 | 3; item: VoteRankedEntry }) => (
   <div className={`podium-card podium-card-${rank}`}>
-    <span className="podium-medal">{MEDAL[rank - 1]}</span>
+    <span className={`rank-medal rank-medal-${rank}`} aria-label={`Hạng ${rank}`}>
+      {rank}
+    </span>
     {item.imageFileId && (
       <img className="podium-thumb" src={submissionApi.voteImageUrl(item.imageFileId, 240)} alt="" loading="lazy" />
     )}

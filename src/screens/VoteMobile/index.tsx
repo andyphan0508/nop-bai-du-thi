@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import BackgroundDecor from "../Submit/components/BackgroundDecor";
 import SubmitHeader from "../Submit/components/SubmitHeader";
-import ToastStack, { type ToastItem } from "../Submit/components/Toast";
+import ToastStack from "../Submit/components/Toast";
 import EngageModal from "../Vote/components/EngageModal";
 import VoteDoneCard from "../Vote/components/VoteDoneCard";
 import VoteStatsModal from "../Vote/components/VoteStatsModal";
@@ -10,16 +10,18 @@ import EntryPickerList from "./components/EntryPickerList";
 import EntryActionDetail from "./components/EntryActionDetail";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
-import { getRecaptchaToken } from "../../utils/recaptcha";
-import { readEngagedRecord, writeEngagedRecord, type EngagedRecord } from "../../utils/engagedRecord";
-import { COMMENT_MIN_WORDS, countWords } from "../../utils/wordCount";
+import { useVoteSession } from "../Vote/useVoteSession";
 import { turnActionOf, turnEntryIdOf, type TurnAction, type TurnResult } from "./turnTypes";
-import type { EntryCommentsMap, VoteEntry } from "../../types";
+import type { VoteEntry } from "../../types";
 
 type ScreenState =
   | { view: "home" }
   | { view: "list"; turn: 1 | 2 }
   | { view: "detail"; turn: 1 | 2; entry: VoteEntry };
+
+// Màn xem lại tác phẩm sau khi đã dùng hết lượt — giữ đúng hành vi "chỉ xem"
+// giống bản desktop, chỉ khác cách trình bày (danh sách dọc thay vì lưới).
+type BrowseState = { view: "list" } | { view: "detail"; entry: VoteEntry } | null;
 
 const findTurnWithAction = (
   turn1: TurnResult,
@@ -33,58 +35,31 @@ const findTurnWithAction = (
 };
 
 const VoteMobileScreen = () => {
-  const [entries, setEntries] = useState<VoteEntry[]>([]);
-  const [comments, setComments] = useState<EntryCommentsMap>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // Cùng một "ruột" với bản desktop (xem Vote/useVoteSession) — khác nhau chỉ
+  // ở cách trình bày, nên trạng thái "đã bình chọn", cách gửi lại khi quá tải
+  // và thông báo lỗi luôn giống hệt giữa 2 bản.
+  const {
+    entries,
+    comments,
+    isLoading,
+    loadError,
+    hasVoted,
+    engagedRecord,
+    isSubmitting: isSubmittingEngage,
+    engageError,
+    setEngageError,
+    submit,
+    toasts,
+    dismissToast,
+  } = useVoteSession();
 
   const [screen, setScreen] = useState<ScreenState>({ view: "home" });
   const [turn1, setTurn1] = useState<TurnResult>(null);
   const [turn2, setTurn2] = useState<TurnResult>(null);
 
   const [isEngageModalOpen, setIsEngageModalOpen] = useState<boolean>(false);
-  const [isSubmittingEngage, setIsSubmittingEngage] = useState<boolean>(false);
-  const [engageError, setEngageError] = useState<string | null>(null);
-
-  const [engagedRecord, setEngagedRecord] = useState<EngagedRecord | null>(readEngagedRecord);
   const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
-
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const toastIdRef = useRef<number>(0);
-  const pageLoadedAtRef = useRef<number>(Date.now());
-
-  const showToast = (message: string, type: ToastItem["type"] = "error") => {
-    const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 4500);
-  };
-  const dismissToast = (id: number) => setToasts((prev) => prev.filter((toast) => toast.id !== id));
-
-  useEffect(() => {
-    if (!IS_CONFIGURED) {
-      setIsLoading(false);
-      return;
-    }
-    (async () => {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const [entriesResponse, commentsResponse] = await Promise.all([
-          submissionApi.getVoteEntries(),
-          submissionApi.getComments(),
-        ]);
-        if (!entriesResponse.ok) throw new Error(entriesResponse.error || "Không tải được danh sách bài dự thi.");
-        setEntries(entriesResponse.entries || []);
-        setComments(commentsResponse.ok ? commentsResponse.comments || {} : {});
-      } catch (err) {
-        setLoadError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, []);
+  const [browse, setBrowse] = useState<BrowseState>(null);
 
   // Lượt còn lại (không phải turnNumber) quyết định: bài nào bị loại khỏi danh
   // sách, và hành động nào không còn được chọn nữa (đã dùng ở lượt kia).
@@ -124,42 +99,14 @@ const VoteMobileScreen = () => {
   const reactTurn = findTurnWithAction(turn1, turn2, "react");
   const commentTurn = findTurnWithAction(turn1, turn2, "comment");
 
-  const handleConfirmEngage = async (googleIdToken: string, honeypot: string) => {
-    if (commentTurn && countWords(commentTurn.commentText) < COMMENT_MIN_WORDS) {
-      setEngageError(`Bình luận cần tối thiểu ${COMMENT_MIN_WORDS} từ (đang có ${countWords(commentTurn.commentText)} từ).`);
-      return;
-    }
-    setIsSubmittingEngage(true);
-    setEngageError(null);
-    try {
-      const recaptchaToken = await getRecaptchaToken("engage");
-      const response = await submissionApi.submitEngagement({
-        reactEntryId: reactTurn?.entry.id || "",
-        commentEntryId: commentTurn?.entry.id || "",
-        commentText: commentTurn?.commentText || "",
-        googleIdToken,
-        recaptchaToken,
-        hp: honeypot,
-        elapsedMs: Date.now() - pageLoadedAtRef.current,
-      });
-      if (!response.ok) throw new Error(response.error || "Gửi tương tác thất bại.");
-
-      const record: EngagedRecord = {
-        reactedTitle: reactTurn?.entry.title || null,
-        commentedTitle: commentTurn?.entry.title || null,
-        at: new Date().toISOString(),
-      };
-      writeEngagedRecord(record);
-      setEngagedRecord(record);
-      setIsEngageModalOpen(false);
-      showToast("Đã ghi nhận tương tác — cảm ơn bạn!", "success");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setEngageError(message);
-      showToast(message);
-    } finally {
-      setIsSubmittingEngage(false);
-    }
+  const handleConfirmEngage = async (honeypot: string) => {
+    const sent = await submit({
+      reactEntry: reactTurn?.entry || null,
+      commentEntry: commentTurn?.entry || null,
+      commentText: commentTurn?.commentText || "",
+      honeypot,
+    });
+    if (sent) setIsEngageModalOpen(false);
   };
 
   const renderBody = () => {
@@ -235,17 +182,43 @@ const VoteMobileScreen = () => {
           </div>
         )}
 
-        {IS_CONFIGURED && engagedRecord && (
+        {IS_CONFIGURED && hasVoted && !browse && (
           <div className="card">
             <VoteDoneCard
-              reactedTitle={engagedRecord.reactedTitle}
-              commentedTitle={engagedRecord.commentedTitle}
+              reactedTitle={engagedRecord?.reactedTitle}
+              commentedTitle={engagedRecord?.commentedTitle}
               onViewStats={() => setIsStatsOpen(true)}
+              onBrowseAll={entries.length > 0 ? () => setBrowse({ view: "list" }) : undefined}
             />
           </div>
         )}
 
-        {IS_CONFIGURED && !engagedRecord && renderBody()}
+        {IS_CONFIGURED && hasVoted && browse?.view === "list" && (
+          <EntryPickerList
+            title="Xem lại tác phẩm dự thi"
+            entries={entries}
+            excludeEntryId={null}
+            imageUrlFor={submissionApi.voteImageUrl}
+            onSelect={(entry) => setBrowse({ view: "detail", entry })}
+            onBack={() => setBrowse(null)}
+          />
+        )}
+
+        {IS_CONFIGURED && hasVoted && browse?.view === "detail" && (
+          <EntryActionDetail
+            entry={browse.entry}
+            order={entries.findIndex((entry) => entry.id === browse.entry.id) + 1}
+            imgSrc={submissionApi.voteImageUrl(browse.entry.imageFileId, 1200)}
+            comments={comments[browse.entry.id] || []}
+            availableActions={[]}
+            readOnly
+            onBack={() => setBrowse({ view: "list" })}
+            onSkip={() => setBrowse({ view: "list" })}
+            onConfirm={() => setBrowse({ view: "list" })}
+          />
+        )}
+
+        {IS_CONFIGURED && !hasVoted && renderBody()}
 
         <div className="foot">© {new Date().getFullYear()} Ban Thanh Niên · HTTL Chi Hội Sài Gòn</div>
       </div>
