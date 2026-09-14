@@ -161,8 +161,37 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 > - **Trang thống kê không quét Drive nữa** — dùng lại chính danh sách đã cache ở trên. Trước đây `voteStats` cache 15 giây nhưng mỗi lần tính lại đều quét toàn bộ Drive, nên cứ 15 giây lại có 1 lượt rất nặng.
 > - **Khoá (LockService) chỉ bao đúng bước kiểm tra trùng lượt** (~10ms, đọc/ghi bộ nhớ đệm) — phần ghi 3 sheet đã chuyển ra ngoài khoá. Trước đây mỗi lượt giữ khoá 1,5–2,5 giây, 70 người bấm gửi cùng lúc phải xếp hàng hơn 100 giây trong khi mức chờ tối đa chỉ 10 giây → đa số nhận lỗi *"Hệ thống đang bận"*.
 > - **Tự gửi lại khi quá tải**: máy chủ trả mã `BUSY`, web tự thử lại tối đa 3 lần có giãn cách ngẫu nhiên thay vì bắt người dùng bấm lại.
+> - **Mỗi lượt gửi không hỏi lại Sheet 3 lần** về dòng tiêu đề nữa (nhớ trong bộ nhớ đệm) — bớt ~0,45 giây mỗi phiếu.
+> - **Ping giữ máy chủ "thức"**: Apps Script tắt máy khi script rảnh, lần gọi kế tiếp phải khởi động lại — đo thực tế **17,5 giây** cho một lượt gọi không làm gì cả, so với **1,7 giây** khi máy đang thức. Trang bình chọn tự gọi rỗng 2 phút/lần khi tab đang mở và người dùng chưa bầu, nên lúc bấm "Xác nhận" máy luôn ở trạng thái thức.
 > - **Hâm nóng cache trước giờ G**: mở Apps Script → chọn hàm `warmCache` → **Run** (hoặc đặt Trigger theo thời gian, mỗi 4 giờ). Lần tính đầu tiên mất khoảng 0,7 giây/bài, làm trước thì người vào đầu tiên không phải chờ.
 > - Trang nộp bài cũ (`/`) không còn được render nữa — mọi lượt truy cập tự chuyển sang `/binh-chon` (chuyển ở tầng Vercel qua `vercel.json`).
+>
+> **Một lượt bình chọn mất bao lâu (số đo thật, đo bằng `curl` vào chính endpoint):**
+>
+> | Việc | Thời gian |
+> |---|---|
+> | `/exec` — không đụng Sheet, chỉ trả 1 dòng JSON | **1,7 – 3,6s** |
+> | `?action=list` — mở Sheet + đọc 1 lần | 2,1 – 2,8s |
+> | Lượt gọi đầu sau khi script "ngủ" (khởi động lại) | **17,5s** |
+>
+> Nghĩa là **1,7 giây là sàn cứng của Apps Script**, không phụ thuộc code — gồm thời gian khởi tạo môi trường và chặng chuyển hướng `script.google.com` → `script.googleusercontent.com`. Muốn nhanh hơn mức này thì phải đổi hẳn nền tảng (VD Cloudflare Workers + Supabase/Postgres), không phải việc tối ưu code Apps Script làm được.
+>
+> Phần code mình kiểm soát được, sau tối ưu, chỉ còn khoảng **0,8 giây** (mở Sheet + ghi 3 dòng). Đổi sang cơ chế "ghi tạm rồi 1 phút sau mới đổ vào Sheet" thì tiết kiệm thêm được tối đa ~0,6 giây, nhưng đánh đổi bằng nguy cơ mất phiếu nếu trigger hỏng — **không đáng**, nên cố ý không làm.
+>
+> **Về độ mượt của giao diện:**
+>
+> | Chỗ tốn | Trước | Sau |
+> |---|---|---|
+> | Hiệu ứng nền chạy vô tận | 45 (3 quầng sáng `blur(90px)` animation + 26 sao + 16 nốt nhạc) | 19 trên máy tính, 3 trên điện thoại |
+> | Quầng sáng | `filter: blur(90px)` — tô lại vùng mờ mỗi khung hình | `radial-gradient` — tô 1 lần |
+> | Nền trang | `background-attachment: fixed` — vẽ lại toàn màn hình mỗi lần cuộn | bỏ (lớp trang trí vốn đã `position: fixed`) |
+> | Thẻ ngoài màn hình | dựng hết | `content-visibility: auto` — bỏ qua tới khi cuộn tới |
+> | Ảnh | lớp nền mờ ăn theo làm tải hết ảnh ngay | bỏ lớp đó, `loading="lazy"` hoạt động thật |
+> | Gõ 1 ký tự bình luận | dựng lại toàn bộ thẻ trong lưới | `React.memo` — chỉ dựng lại thẻ đang gõ |
+> | Chuyển động nền trên điện thoại | 6 (quầng sáng, hoạ tiết, logo nhún) | 0 — đứng yên hoàn toàn |
+> | Màn hình chờ | 1 dòng chữ "Đang tải…" | khung xám đúng hình thẻ/dòng, quá 4 giây thì báo "máy chủ đang khởi động" |
+> | Ảnh xem trước ở danh sách mobile | tải bản rộng 800px cho ô 76px | 240px |
+> | Font tải về | Inter 5 độ đậm + Montserrat 2 | Inter 4 + Montserrat 1 (bớt 2 file) |
 >
 > **Về việc "đã bình chọn rồi thì vào lại có biết không":**
 > - Khi mở trang, web gọi `.../exec?action=voteStatus&deviceId=...` để hỏi thẳng máy chủ. Đã dùng lượt → hiện ngay **biên nhận bình chọn** + chế độ **chỉ xem** (xem lại được toàn bộ tác phẩm nhưng không còn nút thả tim/bình luận), thay vì để người dùng chọn bài xong mới báo lỗi lúc gửi.

@@ -51,11 +51,6 @@ const EntryActionDetail = ({
       </div>
 
       <div className="mobile-detail-img-wrap">
-        <div
-          className="vote-card-img-blur"
-          style={{ backgroundImage: `url("${imgSrc}")` }}
-          aria-hidden="true"
-        />
         <img className="mobile-detail-img" src={imgSrc} alt={`Bìa dự thi: ${entry.title}`} />
         <span className="a3-badge">Khổ A3</span>
       </div>

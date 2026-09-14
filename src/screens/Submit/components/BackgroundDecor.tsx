@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 
 const NOTE_GLYPHS = ['♪', '♫', '♬', '♩'];
 
+// Giảm từ 26 sao + 16 nốt nhạc xuống 10 + 6. Mỗi phần tử là 1 animation chạy
+// vô tận, càng nhiều thì trình duyệt càng phải làm việc liên tục kể cả khi
+// người dùng chỉ đứng đọc — mà nhìn thì gần như không nhận ra khác biệt.
 const createStarStyles = (): React.CSSProperties[] => {
-  return Array.from({ length: 26 }, () => ({
+  return Array.from({ length: 10 }, () => ({
     left: `${Math.random() * 100}%`,
     top: `${Math.random() * 100}%`,
     animationDelay: `${Math.random() * 4}s`,
@@ -14,7 +17,7 @@ const createStarStyles = (): React.CSSProperties[] => {
 type NoteStyle = React.CSSProperties & { '--sway'?: string };
 
 const createNoteStyles = (): { glyph: string; style: NoteStyle }[] => {
-  return Array.from({ length: 16 }, (_, index) => ({
+  return Array.from({ length: 6 }, (_, index) => ({
     glyph: NOTE_GLYPHS[index % NOTE_GLYPHS.length],
     style: {
       left: `${Math.random() * 100}%`,

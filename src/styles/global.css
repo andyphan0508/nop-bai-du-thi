@@ -77,28 +77,39 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   background: linear-gradient(180deg, #fff0e6 0%, var(--md-surface) 34%);
-  background-attachment: fixed;
+  /* KHÔNG dùng background-attachment: fixed — nó buộc trình duyệt vẽ lại toàn
+     bộ khung hình mỗi lần cuộn, là nguyên nhân giật kinh điển. Lớp trang trí
+     (.bg-decor) vốn đã position: fixed nên nhìn vẫn y hệt. */
+  background-repeat: no-repeat;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ===== Nền trang trí (quầng sáng ấm + hạt) ===== */
 .bg-decor { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-.blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.45; will-change: transform; }
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.85;
+  /* Trước đây dùng filter: blur(90px) + animation scale. Mỗi khung hình trình
+     duyệt phải tô lại vùng mờ 90px của 1 khối 640px — việc nặng nhất có thể
+     bắt CSS làm, nhân với 3 khối chạy liên tục. radial-gradient cho ra đúng
+     vẻ quầng sáng mềm đó nhưng chỉ tô 1 lần rồi thôi. */
+}
 .blob.b1 {
   width: 520px; height: 520px; left: -140px; top: -160px;
-  background: rgba(237, 177, 78, 0.26);
-  animation: drift1 18s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(237, 177, 78, 0.3) 0%, rgba(237, 177, 78, 0) 68%);
+  animation: drift1 26s ease-in-out infinite alternate;
 }
 .blob.b2 {
   width: 640px; height: 640px; right: -200px; top: 22%;
-  background: rgba(226, 102, 44, 0.16);
-  animation: drift2 22s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(226, 102, 44, 0.2) 0%, rgba(226, 102, 44, 0) 68%);
+  animation: drift2 32s ease-in-out infinite alternate;
 }
 .blob.b3 {
   width: 460px; height: 460px; left: 28%; bottom: -220px;
-  background: rgba(119, 87, 74, 0.14);
-  animation: drift1 26s ease-in-out infinite alternate-reverse;
+  background: radial-gradient(circle, rgba(119, 87, 74, 0.17) 0%, rgba(119, 87, 74, 0) 68%);
+  animation: drift1 38s ease-in-out infinite alternate-reverse;
 }
 @keyframes drift1 { from { transform: translate(0, 0) scale(1); } to { transform: translate(70px, 50px) scale(1.15); } }
 @keyframes drift2 { from { transform: translate(0, 0) scale(1.05); } to { transform: translate(-80px, -40px) scale(0.95); } }
@@ -106,9 +117,11 @@ body {
   position: absolute; width: 4px; height: 4px; border-radius: 50%;
   background: var(--amber); opacity: 0.35; animation: twinkle 4s ease-in-out infinite;
 }
+/* Chỉ đổi opacity — trình duyệt xử lý trên GPU, không phải tính lại bố cục.
+   Trước đây đổi kèm transform: scale nên mỗi ngôi sao là 1 lớp vẽ riêng. */
 @keyframes twinkle {
-  0%, 100% { opacity: 0.12; transform: scale(0.8); }
-  50% { opacity: 0.6; transform: scale(1.25); }
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.6; }
 }
 
 /* ===== Nốt nhạc bay ===== */
@@ -556,7 +569,7 @@ a.btn { text-decoration: none; }
 /* Danh sách tên thành viên nhóm */
 .entry-members { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .member-chip {
-  font-size: 0.68rem; font-weight: 500; color: var(--md-on-surface-variant);
+  font-size: 0.68rem; font-weight: 400; color: var(--md-on-surface-variant);
   background: var(--md-surface-container-high);
   padding: 3px 10px; border-radius: var(--md-shape-full);
 }
@@ -612,7 +625,7 @@ a.btn { text-decoration: none; }
 .toast {
   display: flex; align-items: center; gap: 10px;
   padding: 13px 16px; border-radius: var(--md-shape-md);
-  box-shadow: var(--md-elev-3); font-size: 0.9rem; font-weight: 500;
+  box-shadow: var(--md-elev-3); font-size: 0.9rem; font-weight: 400;
   animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .toast.error { background: var(--md-error); color: var(--md-on-error); }
@@ -656,6 +669,10 @@ a.btn { text-decoration: none; }
 }
 
 .vote-card {
+  /* Thẻ chưa cuộn tới thì trình duyệt bỏ qua không dựng nội dung bên trong.
+     contain-intrinsic-size giữ sẵn chiều cao để thanh cuộn không nhảy. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 460px;
   container-type: inline-size;
   container-name: votecard;
   background: var(--md-surface-container-lowest);
@@ -1158,8 +1175,10 @@ a.btn { text-decoration: none; }
   width: 100%;
   max-width: 780px;
   background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  /* blur(20px) + saturate phải tính lại nền phía sau ở MỌI khung hình khi
+     cuộn. Hạ xuống 10px và bỏ saturate: nhìn gần như không khác, nhẹ hơn hẳn. */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1.5px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--md-shape-full);
   padding: 6px 8px 6px 14px;
@@ -2038,6 +2057,12 @@ a.btn { text-decoration: none; }
   margin-top: 2px;
 }
 
+/* Điện thoại yếu hơn máy tính nhiều mà lại là nơi đa số người dùng mở trang —
+   bỏ hẳn sao + nốt nhạc, giữ lại quầng sáng cho vẫn ra không khí. */
+@media (max-width: 680px) {
+  .star, .note { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -2217,4 +2242,62 @@ select:focus-visible,
   color: var(--md-on-surface-variant);
   font-size: 0.84rem;
   font-weight: 600;
+}
+
+/* ===== Màn hình chờ (skeleton) khi đang tải tác phẩm ===================== */
+.vote-skeleton-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 4px 0 16px;
+  font-size: 0.86rem;
+  color: var(--md-on-surface-variant);
+  text-align: center;
+}
+.vote-skeleton-card {
+  background: var(--md-surface-container-lowest);
+  border-radius: var(--md-shape-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(154, 69, 34, 0.06);
+}
+.vote-skeleton-img {
+  width: 100%;
+  aspect-ratio: 1.4142 / 1;
+  border-radius: 0;
+}
+.vote-skeleton-body { padding: 16px; }
+.vote-skeleton-list { display: flex; flex-direction: column; gap: 10px; }
+.vote-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--md-surface-container-lowest);
+  border-radius: var(--md-shape-md);
+}
+.vote-skeleton-thumb {
+  width: 76px;
+  aspect-ratio: 1.4142 / 1;
+  flex: none;
+  border-radius: var(--md-shape-sm);
+}
+
+/* Ảnh hiện dần khi tải xong thay vì "nhảy" đột ngột vào khung trống.
+   Nền khung giữ màu trung tính sẵn nên không có khoảng trắng chói mắt. */
+.vote-card-img img {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.vote-card-img img.is-loaded { opacity: 1; }
+
+/* ===== Điện thoại: dừng hẳn mọi chuyển động nền =========================
+   Máy yếu hơn, pin có hạn, và đây là nơi đa số người dùng mở trang. Hoạ tiết
+   vẫn còn nguyên, chỉ là đứng yên — nhìn gần như không khác mà máy được nghỉ. */
+@media (max-width: 680px) {
+  .blob,
+  .motif,
+  .head .logo {
+    animation: none;
+  }
 }

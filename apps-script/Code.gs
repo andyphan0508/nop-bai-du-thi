@@ -68,6 +68,9 @@ var CACHE_TTL_STATS = 20; // thống kê/xếp hạng
 // bước nằm TRONG khoá, nên nhanh được bao nhiêu thì chịu tải tốt bấy nhiêu.
 var CACHE_TTL_VOTERS = 21600;
 var VOTERS_CACHE_KEY = 'voterHashes';
+// Nhớ rằng 3 sheet bình chọn đã có dòng tiêu đề, để mỗi lượt gửi không phải
+// gọi getLastRow() 3 lần chỉ để hỏi đi hỏi lại cùng một câu (mỗi lần ~150ms).
+var SHEETS_READY_CACHE_KEY = 'voteSheetsReady';
 var ENTRIES_CACHE_KEY = 'voteEntries';
 // ----------------------------------------------------------------------------
 
@@ -1009,15 +1012,25 @@ function writeEngagement(voterHash, reactEntryId, commentEntryId, commentText) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var now = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss');
 
-  var votersSheet = ensureSheet(ss, VOTERS_SHEET_NAME, ['Mã định danh (băm thiết bị)', 'Thời gian dùng lượt']);
+  // Lượt gửi đầu tiên kiểm tra tiêu đề 3 sheet rồi ghi nhớ; các lượt sau bỏ
+  // qua hẳn bước đó — tiết kiệm ~450ms mỗi lượt bình chọn.
+  var cache = CacheService.getScriptCache();
+  var sheetsReady = cache.get(SHEETS_READY_CACHE_KEY) === '1';
+
+  var votersSheet = ensureSheet(ss, VOTERS_SHEET_NAME, ['Mã định danh (băm thiết bị)', 'Thời gian dùng lượt'], sheetsReady);
   votersSheet.appendRow([voterHash, now]);
 
   if (reactEntryId) {
-    ensureSheet(ss, VOTES_SHEET_NAME, ['Mã bài dự thi', 'Thời gian']).appendRow([reactEntryId, now]);
+    ensureSheet(ss, VOTES_SHEET_NAME, ['Mã bài dự thi', 'Thời gian'], sheetsReady)
+      .appendRow([reactEntryId, now]);
   }
   if (commentEntryId) {
-    ensureSheet(ss, COMMENTS_SHEET_NAME, ['Mã bài dự thi', 'Nội dung bình luận', 'Thời gian'])
+    ensureSheet(ss, COMMENTS_SHEET_NAME, ['Mã bài dự thi', 'Nội dung bình luận', 'Thời gian'], sheetsReady)
       .appendRow([commentEntryId, commentText, now]);
+  }
+
+  if (!sheetsReady) {
+    try { cache.put(SHEETS_READY_CACHE_KEY, '1', CACHE_TTL_VOTERS); } catch (err) {}
   }
 }
 
@@ -1037,9 +1050,14 @@ function releaseVoterHash(voterHash) {
   }
 }
 
-// Lấy sheet theo tên, tạo mới kèm dòng tiêu đề nếu chưa có
-function ensureSheet(ss, name, headerRow) {
-  var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+// Lấy sheet theo tên, tạo mới kèm dòng tiêu đề nếu chưa có.
+// assumeReady = đã biết chắc sheet tồn tại và có tiêu đề (xem SHEETS_READY_CACHE_KEY)
+// → trả về ngay, bỏ được 1 lần gọi getLastRow().
+function ensureSheet(ss, name, headerRow, assumeReady) {
+  var existing = ss.getSheetByName(name);
+  if (existing && assumeReady) return existing;
+
+  var sheet = existing || ss.insertSheet(name);
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(headerRow);
     sheet.getRange(1, 1, 1, headerRow.length).setFontWeight('bold');

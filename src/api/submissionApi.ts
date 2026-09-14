@@ -56,6 +56,17 @@ const getVoteStatus = async (deviceId: string): Promise<boolean> => {
 // đồng thời, nên lúc cao điểm (60-70 người bấm gửi trong vài giây) vẫn có thể
 // có lượt bị dội ra — thử lại có giãn cách + lệch ngẫu nhiên để không cùng lúc
 // dội ngược lại máy chủ.
+// Gọi rỗng vào endpoint để Apps Script không "ngủ". Google tắt máy chủ khi
+// script rảnh một lúc, và lần gọi kế tiếp phải khởi động lại — đo thực tế mất
+// 15-18 giây, trong khi lần gọi lúc máy còn thức chỉ ~1,7 giây. Người dùng
+// thường ngắm tranh vài phút rồi mới bấm gửi, nên nếu không ping thì đúng lượt
+// bấm "Xác nhận" lại là lượt phải chờ khởi động.
+const keepServerAwake = (): void => {
+  fetch(`${ENDPOINT}?_ping=${Date.now()}`, { cache: "no-store" }).catch(() => {
+    // Ping hỏng thì thôi, không phải chức năng người dùng thấy
+  });
+};
+
 const ENGAGE_MAX_ATTEMPTS = 3;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -186,6 +197,7 @@ export const submissionApi = {
   getVoteEntries,
   voteImageUrl,
   submitEngagement,
+  keepServerAwake,
   getVoteStatus,
   getComments,
   getVoteResults,

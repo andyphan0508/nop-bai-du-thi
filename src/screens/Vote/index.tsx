@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   MdSearch,
   MdClose,
@@ -20,11 +20,17 @@ import VoteLightbox from "./components/VoteLightbox";
 import EngageModal from "./components/EngageModal";
 import VoteDoneCard from "./components/VoteDoneCard";
 import VoteStatsModal from "./components/VoteStatsModal";
+import VoteSkeleton from "./components/VoteSkeleton";
 import AdminResultsPanel from "./components/AdminResultsPanel";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
 import { useVoteSession } from "./useVoteSession";
 import type { VoteEntry } from "../../types";
+
+// Mảng rỗng dùng chung cho các bài chưa có bình luận nào. Nếu viết `|| []` ở
+// chỗ truyền props thì mỗi lần dựng lại sinh ra một mảng MỚI, React.memo coi
+// như dữ liệu đã đổi và dựng lại thẻ — đúng thứ mình đang muốn tránh.
+const NO_COMMENTS: string[] = [];
 
 const VoteScreen = () => {
   // Tải dữ liệu + gửi phiếu + trạng thái "đã bình chọn" dùng chung với bản
@@ -33,6 +39,7 @@ const VoteScreen = () => {
     entries,
     comments,
     isLoading,
+    isSlowLoading,
     loadError,
     reload,
     hasVoted,
@@ -65,22 +72,43 @@ const VoteScreen = () => {
 
   const [isAdmin] = useState<boolean>(() => new URLSearchParams(window.location.search).has("admin"));
 
-  const handleToggleReact = (entry: VoteEntry) => {
-    if (hasVoted) {
-      showToast("Bạn đã hoàn tất lượt bình chọn của mình rồi — cảm ơn bạn!", "info");
-      return;
-    }
-    setReactTarget((prev) => (prev?.id === entry.id ? null : entry));
-  };
+  const handleToggleReact = useCallback(
+    (entry: VoteEntry) => {
+      if (hasVoted) {
+        showToast("Bạn đã hoàn tất lượt bình chọn của mình rồi — cảm ơn bạn!", "info");
+        return;
+      }
+      setReactTarget((prev) => (prev?.id === entry.id ? null : entry));
+    },
+    [hasVoted, showToast],
+  );
 
-  const handleToggleComment = (entry: VoteEntry) => {
-    if (hasVoted) {
-      showToast("Bạn đã hoàn tất lượt bình luận của mình rồi — cảm ơn bạn!", "info");
-      return;
-    }
-    setCommentTarget((prev) => (prev?.id === entry.id ? null : entry));
-    setCommentText("");
-  };
+  const handleToggleComment = useCallback(
+    (entry: VoteEntry) => {
+      if (hasVoted) {
+        showToast("Bạn đã hoàn tất lượt bình luận của mình rồi — cảm ơn bạn!", "info");
+        return;
+      }
+      setCommentTarget((prev) => (prev?.id === entry.id ? null : entry));
+      setCommentText("");
+    },
+    [hasVoted, showToast],
+  );
+
+  // Bỏ chọn ngay trên thẻ. Chỉ xoá nội dung đang gõ khi đúng là bài đang bình
+  // luận, để không làm mất bài viết dở của người dùng khi họ bỏ chọn bài khác.
+  const handleDeselect = useCallback(
+    (entry: VoteEntry) => {
+      setReactTarget((prev) => (prev?.id === entry.id ? null : prev));
+      if (commentTarget?.id === entry.id) {
+        setCommentTarget(null);
+        setCommentText("");
+      }
+    },
+    [commentTarget],
+  );
+
+  const handleZoom = useCallback((cardIndex: number) => setZoomIndex(cardIndex), []);
 
   // Filtered and sorted entries
   const filteredEntries = useMemo(() => {
@@ -219,7 +247,7 @@ const VoteScreen = () => {
             ở tab khác vẫn không bình chọn thêm được. */}
         {IS_CONFIGURED && (
           <>
-            {isLoading && <div className="list-note">Đang tải danh sách tác phẩm khổ A3 Ngang…</div>}
+            {isLoading && <VoteSkeleton variant="grid" isSlow={isSlowLoading} />}
 
             {!isLoading && loadError && (
               <div className="card">
@@ -344,9 +372,8 @@ const VoteScreen = () => {
                 ) : (
                   <div className="vote-grid">
                     {filteredEntries.map(({ entry, originalIndex }, index) => {
-                      // Khối này chỉ render khi !engagedRecord (xem điều kiện bao ngoài) —
-                      // nghĩa là đến đây chắc chắn NGƯỜI DÙNG CHƯA VOTE, nên không cần xét
-                      // lại engagedRecord ở từng thẻ nữa.
+                      // Đã bình chọn xong thì mọi nút đều bị ẩn ở dưới (chế độ chỉ xem),
+                      // nên phần tính toán này chỉ có ý nghĩa khi người dùng còn lượt.
                       const isThisEntryVoted =
                         reactTarget?.id === entry.id || commentTarget?.id === entry.id;
                       const hasReactSelection = Boolean(reactTarget);
@@ -363,16 +390,7 @@ const VoteScreen = () => {
                       const disableComment = isThisEntryVoted || hasCommentSelection;
 
                       // Cho phép hủy chọn trực tiếp trên thẻ đối với bài đang được chọn trong phiên hiện tại
-                      const canDeselectThis = isThisEntryVoted;
-                      const handleDeselectThis = canDeselectThis
-                        ? () => {
-                            if (reactTarget?.id === entry.id) setReactTarget(null);
-                            if (commentTarget?.id === entry.id) {
-                              setCommentTarget(null);
-                              setCommentText("");
-                            }
-                          }
-                        : undefined;
+                      const canDeselect = isThisEntryVoted && !hasVoted;
 
                       return (
                         <VoteCard
@@ -387,13 +405,14 @@ const VoteScreen = () => {
                           isCommentDisabled={disableComment}
                           hideReactButton={hasVoted || hideReact}
                           hideCommentButton={hasVoted || hideComment}
-                          onDeselect={hasVoted ? undefined : handleDeselectThis}
+                          canDeselect={canDeselect}
+                          onDeselect={handleDeselect}
                           commentText={commentTarget?.id === entry.id ? commentText : ""}
-                          comments={comments[entry.id] || []}
-                          onToggleReact={() => handleToggleReact(entry)}
-                          onToggleComment={() => handleToggleComment(entry)}
+                          comments={comments[entry.id] || NO_COMMENTS}
+                          onToggleReact={handleToggleReact}
+                          onToggleComment={handleToggleComment}
                           onCommentTextChange={setCommentText}
-                          onZoom={() => setZoomIndex(index)}
+                          onZoom={handleZoom}
                         />
                       );
                     })}

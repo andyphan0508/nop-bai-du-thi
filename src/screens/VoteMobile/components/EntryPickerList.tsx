@@ -7,7 +7,7 @@ type EntryPickerListProps = {
   title: string;
   entries: VoteEntry[];
   excludeEntryId: string | null;
-  imageUrlFor: (fileId: string) => string;
+  imageUrlFor: (fileId: string, width?: number) => string;
   onSelect: (entry: VoteEntry) => void;
   onBack: () => void;
 };
@@ -38,7 +38,10 @@ const EntryPickerList = ({ title, entries, excludeEntryId, imageUrlFor, onSelect
           return (
             <li key={entry.id}>
               <button className="mobile-entry-row" type="button" onClick={() => onSelect(entry)}>
-                <img src={imageUrlFor(entry.imageFileId)} alt="" loading="lazy" />
+                {/* 240px là đủ cho ô xem trước ~76px kể cả màn hình nét cao — trước đây
+                  lấy mặc định 800px, nghĩa là tải ảnh to gấp 10 lần cần thiết cho MỌI
+                  dòng trong danh sách, rất phí dung lượng mạng trên điện thoại. */}
+              <img src={imageUrlFor(entry.imageFileId, 240)} alt="" loading="lazy" decoding="async" />
                 <span className="mobile-entry-row-info">
                   <span className="mobile-entry-row-title">
                     Bài {order} — {entry.title}

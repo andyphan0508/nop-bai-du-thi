@@ -8,6 +8,15 @@ import { COMMENT_MIN_WORDS, countWords } from "../../utils/wordCount";
 import type { ToastItem } from "../Submit/components/Toast";
 import type { EntryCommentsMap, VoteEntry } from "../../types";
 
+// 2 phút — đủ dày để máy chủ không kịp ngủ, đủ thưa để 70 người cùng mở trang
+// cũng chỉ tạo khoảng 35 lượt gọi rỗng mỗi phút.
+const KEEP_AWAKE_INTERVAL_MS = 120000;
+
+// Quá mốc này mà chưa tải xong thì gần như chắc chắn đang phải đánh thức máy
+// chủ Apps Script (đo thực tế ~17 giây) — đổi lời nhắn để người dùng biết là
+// bình thường, đừng tải lại trang.
+const SLOW_LOADING_AFTER_MS = 4000;
+
 type SubmitArgs = {
   reactEntry: VoteEntry | null;
   commentEntry: VoteEntry | null;
@@ -27,6 +36,7 @@ export const useVoteSession = () => {
   const [comments, setComments] = useState<EntryCommentsMap>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSlowLoading, setIsSlowLoading] = useState<boolean>(false);
 
   // Đã bình chọn hay chưa: ưu tiên bản ghi trong máy (có kèm tên tác phẩm đã
   // chọn để hiện biên nhận), nhưng máy chủ mới là nguồn quyết định.
@@ -57,6 +67,8 @@ export const useVoteSession = () => {
     }
     setIsLoading(true);
     setLoadError(null);
+    setIsSlowLoading(false);
+    const slowTimer = window.setTimeout(() => setIsSlowLoading(true), SLOW_LOADING_AFTER_MS);
     try {
       // Hỏi máy chủ "thiết bị này vote chưa" SONG SONG với việc tải dữ liệu —
       // không nối tiếp, để trang không chậm thêm một vòng gọi mạng.
@@ -72,6 +84,7 @@ export const useVoteSession = () => {
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
     } finally {
+      window.clearTimeout(slowTimer);
       setIsLoading(false);
     }
   }, []);
@@ -79,6 +92,17 @@ export const useVoteSession = () => {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  // Giữ máy chủ "thức" trong lúc người dùng còn đang xem và chưa bình chọn.
+  // Chỉ ping khi tab đang mở (ẩn tab thì thôi) để không tiêu tốn hạn mức gọi
+  // của Apps Script một cách vô ích.
+  useEffect(() => {
+    if (!IS_CONFIGURED || hasVoted) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") submissionApi.keepServerAwake();
+    }, KEEP_AWAKE_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [hasVoted]);
 
   // Ghi nhận "đã bình chọn" ở cả 3 nơi: state, localStorage và cờ hasVoted.
   // record = null nghĩa là biết đã vote nhưng không biết đã chọn bài nào (VD
@@ -154,6 +178,7 @@ export const useVoteSession = () => {
     entries,
     comments,
     isLoading,
+    isSlowLoading,
     loadError,
     reload,
     hasVoted,

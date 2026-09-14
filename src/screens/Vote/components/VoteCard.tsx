@@ -30,11 +30,15 @@ type VoteCardProps = {
   hideCommentButton?: boolean;
   commentText: string;
   comments: string[];
-  onToggleReact: () => void;
-  onToggleComment: () => void;
-  onDeselect?: () => void;
+  // Các hàm này nhận vào entry/cardIndex thay vì "đóng gói" sẵn bên ngoài, để
+  // chúng giữ nguyên danh tính qua các lần dựng lại — điều kiện bắt buộc để
+  // React.memo bên dưới phát huy tác dụng.
+  canDeselect?: boolean;
+  onToggleReact: (entry: VoteEntry) => void;
+  onToggleComment: (entry: VoteEntry) => void;
+  onDeselect: (entry: VoteEntry) => void;
   onCommentTextChange: (text: string) => void;
-  onZoom: () => void;
+  onZoom: (cardIndex: number) => void;
 };
 
 const VoteCard = ({
@@ -50,6 +54,7 @@ const VoteCard = ({
   hideCommentButton = false,
   commentText,
   comments,
+  canDeselect = false,
   onToggleReact,
   onToggleComment,
   onDeselect,
@@ -59,6 +64,10 @@ const VoteCard = ({
   const isTeam = entry.entryType === ENTRY_TYPE_TEAM;
   const isSelected = isReactSelected || isCommentSelected;
   const [showAllComments, setShowAllComments] = useState<boolean>(false);
+  // Ảnh từ Google Drive tải khá chậm — cho hiện dần khi xong thay vì nhảy đột
+  // ngột vào khung trống. Dùng kèm ref vì ảnh đã nằm sẵn trong bộ nhớ đệm thì
+  // sự kiện onLoad không bắn ra nữa, ảnh sẽ kẹt ở trạng thái trong suốt.
+  const [isImageLoaded, setIsImageLoaded] = useState<boolean>(false);
 
   const displayedComments = showAllComments
     ? comments
@@ -70,16 +79,18 @@ const VoteCard = ({
       style={{ "--card-index": Math.min(cardIndex, 11) } as React.CSSProperties}
     >
       {/* Khung hiển thị tranh tỉ lệ chuẩn A3 (1:1.4142) */}
-      <div className="vote-card-img" onClick={onZoom} title="Bấm để xem phóng to khổ A3">
-        <div
-          className="vote-card-img-blur"
-          style={{ backgroundImage: `url("${imgSrc}")` }}
-          aria-hidden="true"
-        />
+      <div className="vote-card-img" onClick={() => onZoom(cardIndex)} title="Bấm để xem phóng to khổ A3">
         <img
           src={imgSrc}
           alt={`Bài dự thi: ${entry.title}`}
+          className={isImageLoaded ? "is-loaded" : ""}
           loading="lazy"
+          decoding="async"
+          ref={(node) => {
+            if (node?.complete) setIsImageLoaded(true);
+          }}
+          onLoad={() => setIsImageLoaded(true)}
+          onError={() => setIsImageLoaded(true)}
         />
         <span className="a3-badge">
           <MdDescription size={11} />
@@ -101,7 +112,7 @@ const VoteCard = ({
           title="Xem ảnh lớn chuẩn A3"
           onClick={(e) => {
             e.stopPropagation();
-            onZoom();
+            onZoom(cardIndex);
           }}
         >
           <MdZoomIn size={20} />
@@ -125,17 +136,17 @@ const VoteCard = ({
 
         <div
           className={`vote-card-actions${
-            (!hideReactButton ? 1 : 0) + (!hideCommentButton ? 1 : 0) + (onDeselect ? 1 : 0) > 1
+            (!hideReactButton ? 1 : 0) + (!hideCommentButton ? 1 : 0) + (canDeselect ? 1 : 0) > 1
               ? " has-multiple"
               : ""
-          }${onDeselect ? " has-deselect" : ""}`}
+          }${canDeselect ? " has-deselect" : ""}`}
         >
           {!hideReactButton && (
             <button
               type="button"
               disabled={isReactDisabled}
               className={`vote-react-btn${isReactSelected ? " active" : ""}`}
-              onClick={onToggleReact}
+              onClick={() => onToggleReact(entry)}
               title={
                 isReactSelected
                   ? "Bài này đã được chọn React (+2đ)"
@@ -160,7 +171,7 @@ const VoteCard = ({
               type="button"
               disabled={isCommentDisabled}
               className={`vote-comment-btn${isCommentSelected ? " active" : ""}`}
-              onClick={onToggleComment}
+              onClick={() => onToggleComment(entry)}
               title={
                 isCommentSelected
                   ? "Đang viết bình luận cho bài này"
@@ -178,11 +189,11 @@ const VoteCard = ({
             </button>
           )}
 
-          {onDeselect && (
+          {canDeselect && (
             <button
               type="button"
               className="vote-card-deselect-btn"
-              onClick={onDeselect}
+              onClick={() => onDeselect(entry)}
               title="Hủy lựa chọn bài này"
             >
               <MdClose size={16} className="vote-btn-icon" />
@@ -242,4 +253,7 @@ const VoteCard = ({
   );
 };
 
-export default VoteCard;
+// Gõ 1 ký tự vào ô bình luận làm màn hình cha dựng lại, kéo theo TOÀN BỘ thẻ
+// trong lưới dựng lại theo — với vài chục bài thì mỗi phím gõ là một lần khựng.
+// Bọc memo để thẻ chỉ dựng lại khi dữ liệu của chính nó đổi.
+export default React.memo(VoteCard);

@@ -5,6 +5,7 @@ import ToastStack from "../Submit/components/Toast";
 import EngageModal from "../Vote/components/EngageModal";
 import VoteDoneCard from "../Vote/components/VoteDoneCard";
 import VoteStatsModal from "../Vote/components/VoteStatsModal";
+import VoteSkeleton from "../Vote/components/VoteSkeleton";
 import TurnHome from "./components/TurnHome";
 import EntryPickerList from "./components/EntryPickerList";
 import EntryActionDetail from "./components/EntryActionDetail";
@@ -42,6 +43,7 @@ const VoteMobileScreen = () => {
     entries,
     comments,
     isLoading,
+    isSlowLoading,
     loadError,
     hasVoted,
     engagedRecord,
@@ -110,7 +112,7 @@ const VoteMobileScreen = () => {
   };
 
   const renderBody = () => {
-    if (isLoading) return <div className="list-note">Đang tải danh sách bài dự thi…</div>;
+    if (isLoading) return <VoteSkeleton variant="list" isSlow={isSlowLoading} />;
     if (loadError)
       return (
         <div className="card">
