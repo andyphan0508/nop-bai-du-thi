@@ -658,8 +658,13 @@ a.btn { text-decoration: none; }
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
   margin-top: 14px;
-  padding-bottom: 110px; /* Chừa chỗ cho thanh dock dính đáy */
+  padding-bottom: 24px;
 }
+
+/* Chỉ chừa chỗ cho thanh xác nhận KHI nó đang hiện (xem isDockVisible) —
+   trước đây chừa sẵn 110px kể cả lúc chưa chọn bài nào, để lại một khoảng
+   trống lửng ở cuối trang. */
+.wrap.has-dock .vote-grid { padding-bottom: 130px; }
 
 @media (max-width: 680px) {
   .vote-grid {
@@ -2300,4 +2305,141 @@ select:focus-visible,
   .head .logo {
     animation: none;
   }
+}
+
+/* =====================================================================
+   Thanh công cụ & thanh xác nhận — viết theo lối MOBILE FIRST
+   Mặc định là bố cục cho màn hình hẹp, rồi mới mở rộng ra ở màn lớn.
+   Lỗi cũ: hàng dưới thanh công cụ dùng space-between mà ô chữ bên trái
+   không được phép co giãn, nên trên điện thoại nó bị bóp còn đúng một từ
+   mỗi dòng, đồng thời ô "Sắp xếp" tràn ra ngoài mép phải màn hình.
+   ===================================================================== */
+.vote-toolbar-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.vote-toolbar-count {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.vote-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.vote-toolbar-refresh {
+  border: 1px solid rgba(215, 194, 184, 0.45);
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+.vote-toolbar-stats {
+  width: auto;
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 40px;
+  flex: none;
+}
+.vote-toolbar-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.vote-toolbar-sort .vote-sort-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+}
+/* Màn hẹp: bỏ chữ "Sắp xếp:" — ô chọn đã tự nói lên nội dung, giữ lại chỉ
+   tổ ép ô chọn hẹp đi. Vẫn đọc được bằng trình đọc màn hình. */
+.vote-toolbar-sort-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 700px) {
+  .vote-toolbar-bottom {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .vote-toolbar-controls { flex-wrap: nowrap; }
+  .vote-toolbar-sort { flex: none; }
+  .vote-toolbar-sort .vote-sort-select { flex: none; min-height: 0; }
+  .vote-toolbar-refresh { width: 34px; height: 34px; }
+  .vote-toolbar-stats { min-height: 0; padding: 6px 12px; }
+  .vote-toolbar-sort-label {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+  }
+}
+
+/* --- Thanh xác nhận dính đáy --------------------------------------------- */
+/* Nhãn điểm không được xuống dòng — xuống dòng là thẻ cao gấp đôi, đẩy cả
+   thanh che mất tên tác phẩm phía sau (đúng lỗi trong ảnh chụp màn hình). */
+.vote-dock-badge { white-space: nowrap; }
+
+@media (max-width: 680px) {
+  /* Chỉ còn icon + số điểm; icon trái tim / bóng chat đã đủ phân biệt */
+  .vote-dock-badge-word { display: none; }
+
+  /* Bỏ giới hạn 90px: để tên tác phẩm dùng hết chỗ còn lại rồi mới cắt */
+  .vote-dock-title { max-width: none; }
+
+  .vote-dock-card { min-width: 0; }
+  .vote-dock-thumb { width: 38px; }
+
+  /* Ẩn dòng gợi ý "Còn 1đ Bình luận" — trên màn hẹp nó chiếm chỗ của chính
+     thẻ đang chọn, mà cột điểm "x/3đ" bên dưới đã nói cùng một ý. */
+  .vote-dock-hint { display: none; }
+
+  .vote-dock-submit {
+    padding: 12px 18px;
+    font-size: 0.92rem;
+  }
+
+  /* Thanh dính đáy trên điện thoại cao hơn (2 hàng) — chừa đủ chỗ để thẻ
+     cuối cùng không bị che mất tên. */
+  .wrap.has-dock .vote-grid { padding-bottom: 210px; }
+}
+
+/* =====================================================================
+   Dọn phần đầu trang cho màn hình điện thoại
+   Toàn bộ khoảng cách/kích thước ở trên viết cho màn rộng; trên điện thoại
+   chúng ăn mất gần hết màn hình đầu tiên trước khi thấy được tác phẩm nào.
+   ===================================================================== */
+@media (max-width: 680px) {
+  .wrap { padding: 20px 14px 48px; }
+  .head { margin-bottom: 22px; }
+  .head .logo { width: 68px; height: 68px; margin-bottom: 10px; }
+  .head .kick { letter-spacing: 1.6px; font-size: 0.66rem; padding: 5px 12px; }
+  .head h1 { margin: 10px 0 6px; }
+  .head p { font-size: 0.9rem; }
+  .head .rule { margin-top: 12px; }
+
+  .vote-toolbar { padding: 12px 14px; border-radius: var(--md-shape-lg); }
+  .vote-hero { margin-bottom: 16px; }
+
+  /* Ô tìm kiếm chiếm trọn bề ngang thay vì cố giữ 220px rồi tràn dòng */
+  .vote-search-box { min-width: 0; width: 100%; }
+
+  /* Thẻ tác phẩm: bo góc và khoảng đệm nhỏ lại cho vừa màn hẹp */
+  .vote-card { border-radius: var(--md-shape-md); }
+  .vote-card-info { padding: 12px 13px 14px; }
+  .vote-card-title { font-size: 0.95rem; }
 }

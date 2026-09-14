@@ -157,6 +157,11 @@ const VoteScreen = () => {
 
   const totalPointsSelected = (reactTarget ? 2 : 0) + (commentTarget ? 1 : 0);
 
+  // Thanh xác nhận dính đáy che mất phần cuối trang. Đánh dấu lên khung ngoài
+  // để CSS chỉ chừa chỗ khi thanh đó thật sự đang hiện — chưa chọn bài nào thì
+  // không để lại khoảng trống thừa ở cuối trang.
+  const isDockVisible = Boolean(reactTarget || commentTarget) && !hasVoted;
+
   // Active zoomed entry
   const activeZoomed = zoomIndex !== null && filteredEntries[zoomIndex] ? filteredEntries[zoomIndex] : null;
 
@@ -164,7 +169,7 @@ const VoteScreen = () => {
     <div style={{ minHeight: "100vh" }}>
       <BackgroundDecor />
 
-      <div className="wrap">
+      <div className={`wrap${isDockVisible ? " has-dock" : ""}`}>
         <SubmitHeader
           title="React & Bình chọn tác phẩm dự thi"
           subtitle="Mỗi thiết bị có 1 lượt thả tim (2 điểm) + 1 lượt bình luận (1 điểm) dành tặng cho các tác phẩm bạn ấn tượng nhất."
@@ -295,40 +300,28 @@ const VoteScreen = () => {
                   </div>
 
                   <div className="vote-toolbar-bottom">
-                    <div>
-                      Đang hiển thị{" "}
+                    <div className="vote-toolbar-count">
+                      Hiển thị{" "}
                       <span className="vote-count-badge">
-                        {filteredEntries.length} / {entries.length}
+                        {filteredEntries.length}/{entries.length}
                       </span>{" "}
-                      tác phẩm khổ A3 Ngang
+                      tác phẩm
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="vote-toolbar-controls">
                       <button
-                        className={isLoading ? "refresh spin" : "refresh"}
+                        className={`refresh vote-toolbar-refresh${isLoading ? " spin" : ""}`}
                         type="button"
                         onClick={reload}
-                        title="Tải lại danh sách bài dự thi (xoá cache)"
-                        style={{
-                          border: "1px solid rgba(215, 194, 184, 0.45)",
-                          width: 32,
-                          height: 32,
-                        }}
+                        title="Tải lại danh sách bài dự thi"
+                        aria-label="Tải lại danh sách bài dự thi"
                       >
                         <MdRefresh size={18} />
                       </button>
 
                       <button
-                        className="btn btn-tonal"
+                        className="btn btn-tonal vote-toolbar-stats"
                         type="button"
-                        style={{
-                          width: "auto",
-                          padding: "6px 12px",
-                          fontSize: "0.82rem",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5,
-                        }}
                         onClick={() => setIsStatsOpen(true)}
                         title="Xem thống kê tổng quan và xếp hạng bình chọn"
                       >
@@ -336,8 +329,8 @@ const VoteScreen = () => {
                         Thống kê
                       </button>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>Sắp xếp:</span>
+                      <label className="vote-toolbar-sort">
+                        <span className="vote-toolbar-sort-label">Sắp xếp:</span>
                         <select
                           className="vote-sort-select"
                           value={sortBy}
@@ -347,7 +340,7 @@ const VoteScreen = () => {
                           <option value="title">Tên tác phẩm (A-Z)</option>
                           <option value="comments">Nhiều bình luận nhất</option>
                         </select>
-                      </div>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -433,7 +426,7 @@ const VoteScreen = () => {
       </div>
 
       {/* Floating Action Dock dính đáy */}
-      {(reactTarget || commentTarget) && !hasVoted && (
+      {isDockVisible && (
         <div className="vote-actionbar">
           <div className="vote-actionbar-inner">
             <div className="vote-dock-slots">
@@ -446,7 +439,7 @@ const VoteScreen = () => {
                   />
                   <div className="vote-dock-meta">
                     <span className="vote-dock-badge react">
-                      <MdFavorite size={11} /> +2đ React
+                      <MdFavorite size={11} /> +2đ<span className="vote-dock-badge-word"> React</span>
                     </span>
                     <span className="vote-dock-title">{reactTarget.title}</span>
                   </div>
@@ -471,7 +464,7 @@ const VoteScreen = () => {
                   />
                   <div className="vote-dock-meta">
                     <span className="vote-dock-badge comment">
-                      <MdModeComment size={11} /> +1đ Bình luận
+                      <MdModeComment size={11} /> +1đ<span className="vote-dock-badge-word"> Bình luận</span>
                     </span>
                     <span className="vote-dock-title">{commentTarget.title}</span>
                   </div>
