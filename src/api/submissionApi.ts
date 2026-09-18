@@ -16,8 +16,8 @@ const getEntryList = async (): Promise<EntryListResponse> => {
   return (await response.json()) as EntryListResponse;
 };
 
-// Phần động của trang bình chọn trong 1 lượt gọi: thứ tự bài (không kèm điểm),
-// bình luận, và thiết bị này đã bình chọn chưa. Danh sách bài là snapshot tĩnh
+// Phần động của trang bình chọn trong 1 lượt gọi: bình luận, và thiết bị này
+// đã bình chọn chưa. Danh sách bài là snapshot tĩnh
 // nên lượt gọi này chạy nền, không chặn trang hiển thị.
 const getVotePage = async (deviceId: string): Promise<VotePageResponse> => {
   const response = await fetch(

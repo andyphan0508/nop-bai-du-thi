@@ -13,7 +13,7 @@
  *   1. 70 người khác thiết bị → cả 70 lượt được ghi nhận, không ai bị từ chối.
  *   2. 1 thiết bị bấm gửi 5 lần liên tiếp → đúng 1 lượt được ghi, 4 lượt bị chặn.
  *   3. Trang mở lại sau khi vote → votePage trả voted = true.
- *   4. votePage xếp bài điểm cao lên đầu nhưng KHÔNG lộ số điểm; exportScores ghi đúng tổng điểm.
+ *   4. votePage KHÔNG lộ điểm hay thứ tự theo điểm; exportScores ghi đúng tổng điểm.
  */
 
 const fs = require('fs');
@@ -254,7 +254,7 @@ console.log(`    Số lần quét Google Drive : ${counters.driveScans} (trướ
 console.log(`    Số lần đọc Sheet          : ${counters.sheetReads} (cache 30 giây dùng chung)`);
 console.log(`    Lượt lâu nhất            : ${(slowestOpen / 1000).toFixed(1)} giây (lượt phải tính lại khi cache nguội)`);
 assert.ok(openResults.every((r) => r.result.ok), 'Có lượt mở trang bị lỗi');
-assert.ok(openResults.every((r) => r.result.voted === false && Array.isArray(r.result.order)), 'votePage trả sai dữ liệu');
+assert.ok(openResults.every((r) => r.result.voted === false && typeof r.result.comments === 'object'), 'votePage trả sai dữ liệu');
 assert.strictEqual(counters.driveScans, 0, 'Mở trang không được quét Drive (danh sách bài là snapshot tĩnh)');
 
 // --- Bước 2: tất cả cùng bấm GỬI ----------------------------------------------
@@ -335,13 +335,12 @@ const page = runExecution('page', () => api.doGet({ parameter: { action: 'votePa
 const exported = runExecution('export', () => ({ text: JSON.stringify(api.exportScores()) }));
 const scoreRows = spreadsheet.getSheetByName('Tổng điểm').rows.slice(1).filter((r) => typeof r[0] === 'number');
 const totalFromSheet = scoreRows.reduce((sum, r) => sum + r[6], 0);
-console.log(`\n[6] Thứ tự hiển thị & sheet "Tổng điểm"`);
-const topTitle = mainSheet.rows.find((r) => r[0] === page.result.order[0])[5];
-console.log(`    Bài đầu danh sách        : ${topTitle} (điểm cao nhất: ${scoreRows[0][1]})`);
+console.log(`\n[6] Không lộ thứ tự + sheet "Tổng điểm"`);
+console.log(`    Bài điểm cao nhất        : ${scoreRows[0][1]} (dồn 5 tim)`);
 console.log(`    Tổng điểm trong sheet    : ${totalFromSheet} · ${exported.result}`);
 assert.strictEqual(counters.driveScans, 0, 'votePage vẫn quét lại Drive');
-assert.strictEqual(topTitle, scoreRows[0][1], 'Bài điểm cao nhất không nằm đầu danh sách');
-assert.ok(page.result.order.every((id) => typeof id === 'string') && !('points' in page.result), 'votePage làm lộ điểm');
+assert.strictEqual(scoreRows[0][1], 'Tác phẩm 20', 'Sheet Tổng điểm xếp sai');
+assert.deepStrictEqual(Object.keys(page.result).sort(), ['comments', 'ok', 'voted'], 'votePage làm lộ điểm/thứ tự');
 assert.strictEqual(totalFromSheet, (VOTER_COUNT + 1) * 3 + 5 * 2, 'Tổng điểm sai (React 2đ + bình luận 1đ)');
 
 // --- Bước 7: nút "Top 3" của quản trị ---------------------------------------
@@ -365,10 +364,10 @@ const backups = spreadsheet.sheets.filter((sh) => sh.name.includes('(sao lưu ')
 console.log(`\n[8] Xoá dữ liệu bình chọn`);
 console.log(`    ${resetMsg}`);
 console.log(`    Bản sao lưu              : ${backups} sheet`);
-console.log(`    Mở lại sau khi xoá       : voted = ${afterReset.result.voted}, order = ${afterReset.result.order.length} bài`);
+console.log(`    Mở lại sau khi xoá       : voted = ${afterReset.result.voted}, bình luận = ${Object.keys(afterReset.result.comments).length} bài`);
 console.log(`    Bình chọn lại            : ${revote.result.ok ? 'được' : revote.result.error}`);
 assert.strictEqual(afterReset.result.voted, false, 'Xoá xong vẫn báo đã vote');
-assert.strictEqual(afterReset.result.order.length, 0, 'Xoá xong vẫn còn điểm');
+assert.strictEqual(Object.keys(afterReset.result.comments).length, 0, 'Xoá xong vẫn còn bình luận');
 assert.strictEqual(revote.result.ok, true, 'Xoá xong không bình chọn lại được');
 assert.strictEqual(backups, 4, 'Thiếu bản sao lưu trước khi xoá');
 assert.strictEqual(spreadsheet.getSheetByName('Người bình chọn').rows.length, 2, 'Sheet người bình chọn phải còn tiêu đề + 1 lượt mới');

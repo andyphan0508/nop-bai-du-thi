@@ -61,8 +61,7 @@ var TZ = 'GMT+7';
 // tính lại thì rất đắt (quét thư mục Drive của từng bài). Giữ 6 giờ (mức tối đa
 // của CacheService) và xoá cache thủ công khi cần bằng ?action=syncImages.
 var CACHE_TTL_ENTRIES = 21600;
-// Điểm từng bài (chỉ để SẮP XẾP, không bao giờ trả số điểm ra web) + bình
-// luận công khai. KHÔNG xoá cache này mỗi lượt gửi: 60-70 người bấm gửi liên
+// Bình luận công khai. KHÔNG xoá cache này mỗi lượt gửi: 60-70 người bấm gửi liên
 // tục sẽ khiến gần như lượt mở trang nào cũng phải đọc lại Sheet. Chậm tối đa
 // 30 giây là chấp nhận được — người vừa bình luận đã thấy ngay bình luận của
 // mình nhờ trang tự thêm vào (xem useVoteSession).
@@ -169,8 +168,7 @@ function invalidatePublicCache(keys) {
 //   .../exec                      → kiểm tra sức khỏe (mở URL bằng trình duyệt để test)
 //   .../exec?action=list          → danh sách công khai các bài đã nộp (tên, nhóm, tác phẩm, giờ nộp)
 //   .../exec?action=voteEntries   → danh sách bài dự thi khổ A3 để React/bình luận (kèm ID ảnh bìa)
-//   .../exec?action=votePage&deviceId=... → phần động của trang bình chọn: thứ tự mã bài (điểm cao → thấp,
-//                                   không kèm điểm), bình luận, thiết bị đã vote chưa
+//   .../exec?action=votePage&deviceId=... → phần động của trang bình chọn: bình luận, thiết bị đã vote chưa
 //   .../exec?action=voteResults&key=ADMIN_KEY      → bảng xếp hạng chi tiết có tên thí sinh (quản trị)
 //   .../exec?action=top3&key=ADMIN_KEY             → 3 bài điểm cao nhất, KHÔNG theo thứ hạng (quản trị)
 //   .../exec?action=syncImages[&key=ADMIN_KEY]     → đồng bộ quyền chia sẻ công khai cho toàn bộ ảnh trên Drive
@@ -380,11 +378,10 @@ function warmCache() {
   return 'Đã nạp sẵn ' + ((data.entries || []).length) + ' bài dự thi vào bộ nhớ đệm.';
 }
 
-// Phần ĐỘNG của trang bình chọn, 1 lượt gọi: thứ tự bài (điểm cao → thấp),
-// bình luận, thiết bị này vote chưa. Danh sách bài + ảnh là snapshot tĩnh
-// trên web (scripts/snapshot.mjs) nên không trả ở đây nữa — lượt gọi này
-// không đọc danh sách bài, không quét Drive, và không chặn trang hiển thị.
-// CHỈ trả thứ tự mã bài, KHÔNG trả số điểm.
+// Phần ĐỘNG của trang bình chọn, 1 lượt gọi: bình luận + thiết bị này vote
+// chưa. Danh sách bài + ảnh là snapshot tĩnh trên web (scripts/snapshot.mjs),
+// web tự xáo trộn thứ tự. KHÔNG trả điểm hay thứ tự theo điểm — kết quả chỉ
+// quản trị viên xem (nút Top 3 / sheet "Tổng điểm").
 function handleVotePage(e) {
   try {
     var board = getVoteBoard();
@@ -396,23 +393,17 @@ function handleVotePage(e) {
       try { voted = readVoterHashes().indexOf(voterHashOf(deviceId)) !== -1; } catch (vErr) {}
     }
 
-    return json({ ok: true, order: board.order, comments: board.comments, voted: voted });
+    return json({ ok: true, comments: board.comments, voted: voted });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message ? err.message : err) });
   }
 }
 
-// Điểm từng bài + bình luận công khai (ẩn danh), đọc chung 1 lượt từ 2 sheet.
-// Cache riêng phần NHỎ này (không gộp danh sách bài có mô tả dài) để không vượt
-// giới hạn 100KB/khoá của CacheService — vượt là mất cache, lượt nào cũng đọc Sheet.
+// Bình luận công khai (ẩn danh) gộp theo bài, cache 30 giây dùng chung.
 function getVoteBoard() {
   return cachedData(BOARD_CACHE_KEY, CACHE_TTL_BOARD, function () {
     try {
       var ss = SpreadsheetApp.openById(SHEET_ID);
-      var points = {};
-      var reactCounts = countByEntryId(ss.getSheetByName(VOTES_SHEET_NAME), 1);
-      for (var id in reactCounts) points[id] = reactCounts[id] * 2;
-
       var comments = {};
       var commentsSheet = ss.getSheetByName(COMMENTS_SHEET_NAME);
       if (commentsSheet && commentsSheet.getLastRow() > 1) {
@@ -420,14 +411,11 @@ function getVoteBoard() {
           var entryId = String(r[0] || '');
           var text = String(r[1] || '');
           if (!entryId || !text) return;
-          points[entryId] = (points[entryId] || 0) + 1;
           if (!comments[entryId]) comments[entryId] = [];
           comments[entryId].push(text);
         });
       }
-      // Mã bài có điểm, cao → thấp. Bài chưa có điểm web tự xếp sau theo thứ tự nộp.
-      var order = Object.keys(points).sort(function (a, b) { return points[b] - points[a]; });
-      return { ok: true, order: order, comments: comments };
+      return { ok: true, comments: comments };
     } catch (err) {
       return { ok: false, error: String(err && err.message ? err.message : err) };
     }

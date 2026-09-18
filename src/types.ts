@@ -59,12 +59,10 @@ export type VoteEntry = {
 // Bình luận công khai theo từng bài dự thi (ẩn danh), gộp theo entryId.
 export type EntryCommentsMap = Record<string, string[]>;
 
-// Phần động của trang bình chọn (?action=votePage). order = mã bài có điểm,
-// cao → thấp; máy chủ KHÔNG trả số điểm.
+// Phần động của trang bình chọn (?action=votePage). Không có điểm/thứ hạng.
 export type VotePageResponse = {
   ok: boolean;
   error?: string;
-  order?: string[];
   comments?: EntryCommentsMap;
   voted?: boolean;
 };

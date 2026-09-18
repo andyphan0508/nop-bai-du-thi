@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
 import { getDeviceId } from "../../utils/deviceId";
@@ -21,23 +21,44 @@ const KEEP_AWAKE_INTERVAL_MS = 120000;
 
 // Bài dự thi + ảnh là snapshot tĩnh (npm run snapshot) đóng thẳng vào bundle
 // → trang có bài NGAY khi JS chạy, không chờ Apps Script. Máy chủ chỉ còn trả
-// phần động (thứ tự theo điểm, bình luận, đã vote chưa), tải ở nền.
+// phần động (bình luận, đã vote chưa), tải ở nền.
 const SNAPSHOT = snapshotEntries as VoteEntry[];
 
-// Nhớ phần động của lần trước để mở lại trang là thấy đúng thứ tự ngay.
-const LIVE_CACHE_KEY = "nbdt-vote-live";
+// Nhớ bình luận của lần trước để mở lại trang là thấy ngay.
+const LIVE_CACHE_KEY = "nbdt-vote-comments";
 
-type LiveData = { order: string[]; comments: EntryCommentsMap };
+type LiveData = { comments: EntryCommentsMap };
 
 const readLiveCache = (): LiveData => {
   try {
     const cached = JSON.parse(localStorage.getItem(LIVE_CACHE_KEY) || "null");
-    if (cached?.order && cached?.comments) return cached;
+    if (cached?.comments) return cached;
   } catch {
-    // Không đọc được bộ nhớ trang → dùng thứ tự nộp bài
+    // Không đọc được bộ nhớ trang → chưa có bình luận, tải ở nền
   }
-  return { order: [], comments: {} };
+  return { comments: {} };
 };
+
+// Xáo trộn cố định theo mã máy: mỗi người thấy 1 thứ tự khác (không bài nào
+// luôn nằm đầu, không đoán được thứ hạng), nhưng tải lại trang không bị nhảy.
+const shuffleFor = <T,>(items: T[], seedText: string): T[] => {
+  let seed = 2166136261;
+  for (let i = 0; i < seedText.length; i++) seed = Math.imul(seed ^ seedText.charCodeAt(i), 16777619);
+  const random = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
+
+const ENTRIES = shuffleFor(SNAPSHOT, getDeviceId());
 
 type SubmitArgs = {
   reactEntry: VoteEntry | null;
@@ -80,7 +101,7 @@ export const useVoteSession = (hasPendingPick: boolean) => {
       .getVotePage(getDeviceId())
       .then((response) => {
         if (!response.ok) return;
-        const fresh: LiveData = { order: response.order || [], comments: response.comments || {} };
+        const fresh: LiveData = { comments: response.comments || {} };
         setLive(fresh);
         try {
           localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify(fresh));
@@ -101,12 +122,6 @@ export const useVoteSession = (hasPendingPick: boolean) => {
         // Máy chủ chậm/lỗi: trang vẫn đủ bài để xem và chọn; bước gửi sẽ tự báo lỗi nếu còn hỏng
       });
   }, []);
-
-  // Bài có điểm lên đầu theo thứ tự máy chủ; bài chưa có điểm giữ thứ tự nộp.
-  const entries = useMemo(() => {
-    const rank = new Map(live.order.map((id, index) => [id, index]));
-    return [...SNAPSHOT].sort((a, b) => (rank.get(a.id) ?? rank.size) - (rank.get(b.id) ?? rank.size));
-  }, [live.order]);
 
   useEffect(() => {
     if (!IS_CONFIGURED || hasVoted || !hasPendingPick) return;
@@ -194,7 +209,7 @@ export const useVoteSession = (hasPendingPick: boolean) => {
   };
 
   return {
-    entries,
+    entries: ENTRIES,
     comments: live.comments,
     hasVoted,
     engagedRecord,

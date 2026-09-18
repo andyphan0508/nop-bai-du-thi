@@ -108,11 +108,11 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 **Dữ liệu bài dự thi là snapshot tĩnh (không đọc Sheet khi mở trang):**
 - Chạy `npm run snapshot` → script gọi `?action=voteEntries` 1 lần, tải ảnh bìa từ Drive về `public/entries/` (2 cỡ: 640px + 1600px, JPEG) và ghi tên/mô tả/mã bài vào `src/data/entries.json` (đóng thẳng vào bundle JS).
 - **Commit cả `src/data/entries.json` lẫn `public/entries/`** rồi deploy. Trang có bài ngay khi JS chạy (~0,3 giây), ảnh phục vụ từ CDN Vercel và cache vĩnh viễn (tên file chứa mã băm nội dung).
-- Apps Script chỉ còn trả **phần động** (thứ tự theo điểm, bình luận, đã vote chưa) — tải ở nền, lỗi/chậm cũng không chặn trang. Phiếu bầu vẫn ghi vào Sheet như cũ.
+- Apps Script chỉ còn trả **phần động** (bình luận, đã vote chưa) — tải ở nền, lỗi/chậm cũng không chặn trang. Phiếu bầu vẫn ghi vào Sheet như cũ.
 - **Thêm/sửa bài hoặc đổi ảnh bìa** → chạy lại `npm run snapshot`, commit, deploy. Bài chưa bật chia sẻ ảnh sẽ được báo trong output (chạy `?action=syncImages` rồi chạy lại).
 
 **Web hiển thị thế nào:**
-- 1 danh sách duy nhất, xếp theo **tổng điểm** (React ×2 + Bình luận ×1) từ cao xuống thấp — không đánh số, không hiện điểm. Thứ tự cập nhật chậm tối đa ~30 giây (cache `CACHE_TTL_BOARD`).
+- 1 danh sách duy nhất, **xáo trộn cố định theo từng máy** (mỗi người 1 thứ tự khác, tải lại không nhảy) — không đánh số, không hiện điểm. Máy chủ không gửi điểm hay thứ tự theo điểm ra web; kết quả chỉ xem bằng nút Top 3 hoặc sheet "Tổng điểm".
 - Mỗi bài có sẵn 2 nút **Thả tim** / **Bình luận** ngay trên dòng; bấm ảnh/tên để xem ảnh lớn, mô tả, bình luận. Thanh dưới đáy cho thấy 2 lựa chọn hiện tại + nút **Gửi**.
 - Gửi xong → màn **"Bạn đã bình chọn!"** (thay cho danh sách). Giao diện không nhắc tới "thiết bị".
 - `/binh-chon/mobile` (link cũ) mở cùng giao diện này.
@@ -168,7 +168,7 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 > - **Danh sách bài + ảnh bìa cache 6 giờ** (`CACHE_TTL_ENTRIES`) thay vì 30 giây, kèm cơ chế *single-flight*: khi cache hết hạn mà nhiều người vào cùng lúc, chỉ **1** lượt chạy quét lại Drive, số còn lại đợi rồi đọc cache. Trước đây 70 người mở trang lúc cache nguội là 70 lượt cùng quét thư mục Drive của từng bài.
 > - **Mở trang không chờ máy chủ** — bài dự thi + ảnh là snapshot tĩnh trên CDN; chỉ 1 lượt gọi nền `?action=votePage` (thứ tự + bình luận + "thiết bị này vote chưa"), không đọc danh sách bài, không quét Drive. 70 người mở trang = 70 lượt chạy nhẹ thay vì 210 lượt như trước.
 > - **Gửi phiếu không đụng Drive** — kiểm tra "mã bài có thật" chỉ đọc cột mã bài của Sheet (cache 6 giờ).
-> - **Không xoá cache mỗi lượt gửi** — điểm/bình luận cache 30 giây; người vừa bình luận thấy ngay bình luận của mình vì web tự thêm vào.
+> - **Không xoá cache mỗi lượt gửi** — bình luận cache 30 giây; người vừa bình luận thấy ngay bình luận của mình vì web tự thêm vào.
 > - **Khoá (LockService) chỉ bao đúng bước kiểm tra trùng lượt** (~10ms, đọc/ghi bộ nhớ đệm) — phần ghi 3 sheet đã chuyển ra ngoài khoá. Trước đây mỗi lượt giữ khoá 1,5–2,5 giây, 70 người bấm gửi cùng lúc phải xếp hàng hơn 100 giây trong khi mức chờ tối đa chỉ 10 giây → đa số nhận lỗi *"Hệ thống đang bận"*.
 > - **Tự gửi lại khi quá tải**: máy chủ trả mã `BUSY`, web tự thử lại tối đa 3 lần có giãn cách ngẫu nhiên thay vì bắt người dùng bấm lại.
 > - **Mỗi lượt gửi không hỏi lại Sheet 3 lần** về dòng tiêu đề nữa (nhớ trong bộ nhớ đệm) — bớt ~0,45 giây mỗi phiếu.
