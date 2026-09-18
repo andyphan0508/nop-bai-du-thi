@@ -5,6 +5,7 @@ import type {
   EntryListResponse,
   SubmitPayload,
   SubmitResponse,
+  Top3Response,
   VotePageResponse,
 } from "../types";
 
@@ -24,6 +25,16 @@ const getVotePage = async (deviceId: string): Promise<VotePageResponse> => {
     { cache: "no-store" },
   );
   return (await response.json()) as VotePageResponse;
+};
+
+// 3 bài điểm cao nhất (chỉ quản trị viên, cần ADMIN_KEY) — máy chủ trả theo
+// tên bài, không theo thứ hạng, không kèm điểm.
+const getTop3 = async (adminKey: string): Promise<Top3Response> => {
+  const response = await fetch(
+    `${ENDPOINT}?action=top3&key=${encodeURIComponent(adminKey)}&_t=${Date.now()}`,
+    { cache: "no-store" },
+  );
+  return (await response.json()) as Top3Response;
 };
 
 // Gọi rỗng vào endpoint để Apps Script không "ngủ". Google tắt máy chủ khi
@@ -131,6 +142,7 @@ export const submissionApi = {
   postSubmission,
   deleteEntry,
   getVotePage,
+  getTop3,
   submitEngagement,
   keepServerAwake,
 };

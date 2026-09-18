@@ -85,6 +85,12 @@ export type EngagePayload = {
   elapsedMs: number;
 };
 
+export type Top3Response = {
+  ok: boolean;
+  error?: string;
+  entries?: { id: string; title: string; name: string }[];
+};
+
 export type EngageResponse = {
   ok: boolean;
   error?: string;

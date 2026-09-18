@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   MdCheckCircle,
   MdClose,
+  MdEmojiEvents,
   MdFavorite,
   MdHowToVote,
   MdModeComment,
@@ -11,23 +12,28 @@ import ToastStack from "../Submit/components/Toast";
 import EntryItem, { type PickKind } from "./components/EntryItem";
 import EntrySheet from "./components/EntrySheet";
 import ConfirmSheet from "./components/ConfirmSheet";
+import Top3Sheet from "./components/Top3Sheet";
 import { IS_CONFIGURED } from "../../config";
 import { useVoteSession } from "./useVoteSession";
 import type { VoteEntry } from "../../types";
 
-const FEATURED_COUNT = 3;
 // Ít bài thì ô tìm kiếm chỉ chiếm chỗ
 const SEARCH_MIN_ENTRIES = 8;
 const NO_COMMENTS: string[] = [];
+// Nút "Top 3" chỉ hiện với link quản trị (/binh-chon?admin) — máy chủ vẫn đòi
+// ADMIN_KEY nên người thường có mở link này cũng không xem được kết quả.
+const IS_ADMIN = new URLSearchParams(window.location.search).has("admin");
 
 type CommentPick = { entry: VoteEntry; text: string };
 
 const VoteScreen = () => {
   const [reactPick, setReactPick] = useState<VoteEntry | null>(null);
   const [commentPick, setCommentPick] = useState<CommentPick | null>(null);
-  const [openEntry, setOpenEntry] = useState<VoteEntry | null>(null);
+  // writing = mở thẳng ô bình luận (bấm "Bình luận" trên dòng)
+  const [sheet, setSheet] = useState<{ entry: VoteEntry; writing: boolean } | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
   const [query, setQuery] = useState<string>("");
+  const [isTop3Open, setIsTop3Open] = useState<boolean>(false);
 
   const hasPick = Boolean(reactPick || commentPick);
 
@@ -44,44 +50,25 @@ const VoteScreen = () => {
     dismissToast,
   } = useVoteSession(hasPick);
 
-  const readOnly = hasVoted;
-
   const toggleReact = useCallback((entry: VoteEntry) => {
     setReactPick((prev) => (prev?.id === entry.id ? null : entry));
   }, []);
 
-  const closeSheet = useCallback(() => setOpenEntry(null), []);
+  const closeSheet = useCallback(() => setSheet(null), []);
+  const openEntry = useCallback((entry: VoteEntry) => setSheet({ entry, writing: false }), []);
+  const openComment = useCallback((entry: VoteEntry) => setSheet({ entry, writing: true }), []);
 
-  // Máy chủ đã xếp bài điểm cao → thấp: 3 bài đầu là nhóm nổi bật, còn lại là
-  // danh sách gọn. Không hiện số điểm hay số hạng ở bất cứ đâu.
-  const { featured, others } = useMemo(() => {
+  // Không hiện số điểm hay số hạng ở bất cứ đâu.
+  const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (q) {
-      return {
-        featured: [],
-        others: entries.filter(
-          (entry) => entry.title.toLowerCase().includes(q) || entry.description.toLowerCase().includes(q),
-        ),
-      };
-    }
-    return { featured: entries.slice(0, FEATURED_COUNT), others: entries.slice(FEATURED_COUNT) };
+    if (!q) return entries;
+    return entries.filter(
+      (entry) => entry.title.toLowerCase().includes(q) || entry.description.toLowerCase().includes(q),
+    );
   }, [entries, query]);
 
   const pickOf = (entry: VoteEntry): PickKind =>
     reactPick?.id === entry.id ? "react" : commentPick?.entry.id === entry.id ? "comment" : null;
-
-  const renderItem = (entry: VoteEntry, isFeatured: boolean) => (
-    <EntryItem
-      key={entry.id}
-      entry={entry}
-      featured={isFeatured}
-      pick={pickOf(entry)}
-      commentCount={(comments[entry.id] || NO_COMMENTS).length}
-      readOnly={readOnly}
-      onOpen={setOpenEntry}
-      onToggleReact={toggleReact}
-    />
-  );
 
   const handleConfirm = async (honeypot: string) => {
     const sent = await submit({
@@ -109,6 +96,17 @@ const VoteScreen = () => {
           <div className="v-kicker">Ban Thanh Niên · HTTL Sài Gòn</div>
           <h1 className="v-title">Bình chọn bìa dự thi</h1>
         </div>
+        {IS_ADMIN && (
+          <button
+            className="v-header-btn"
+            type="button"
+            aria-label="Xem Top 3"
+            title="Xem Top 3"
+            onClick={() => setIsTop3Open(true)}
+          >
+            <MdEmojiEvents size={22} aria-hidden />
+          </button>
+        )}
       </header>
 
       <main className="v-main">
@@ -117,44 +115,39 @@ const VoteScreen = () => {
         )}
 
         {hasVoted ? (
-          <section className="v-done" aria-live="polite">
-            <MdCheckCircle size={28} className="v-done-icon" aria-hidden />
-            <div>
-              <h2>Cảm ơn bạn đã bình chọn!</h2>
-              {engagedRecord?.reactedTitle || engagedRecord?.commentedTitle ? (
-                <ul>
-                  {engagedRecord.reactedTitle && (
-                    <li>
-                      <MdFavorite size={14} aria-hidden /> {engagedRecord.reactedTitle}
-                    </li>
-                  )}
-                  {engagedRecord.commentedTitle && (
-                    <li>
-                      <MdModeComment size={14} aria-hidden /> {engagedRecord.commentedTitle}
-                    </li>
-                  )}
-                </ul>
-              ) : (
-                <p>Thiết bị này đã dùng lượt bình chọn. Bạn vẫn có thể xem lại các tác phẩm.</p>
-              )}
-            </div>
+          <section className="v-voted" aria-live="polite">
+            <MdCheckCircle size={56} className="v-voted-icon" aria-hidden />
+            <h2>Bạn đã bình chọn!</h2>
+            <p>Cảm ơn bạn đã dành tình cảm và lời khích lệ cho các tác phẩm dự thi.</p>
+            {(engagedRecord?.reactedTitle || engagedRecord?.commentedTitle) && (
+              <ul>
+                {engagedRecord.reactedTitle && (
+                  <li className="react">
+                    <MdFavorite size={18} aria-hidden /> {engagedRecord.reactedTitle}
+                  </li>
+                )}
+                {engagedRecord.commentedTitle && (
+                  <li className="comment">
+                    <MdModeComment size={18} aria-hidden /> {engagedRecord.commentedTitle}
+                  </li>
+                )}
+              </ul>
+            )}
           </section>
         ) : (
-          <section className="v-rules" aria-label="Thể lệ">
-            <span className="v-chip react">
-              <MdFavorite size={13} aria-hidden /> Thả tim 1 bài +2đ
-            </span>
-            <span className="v-chip comment">
-              <MdModeComment size={13} aria-hidden /> Bình luận 1 bài khác +1đ
-            </span>
-            <span className="v-rules-sub">Mỗi thiết bị gửi 1 lần · bình luận tối thiểu 20 từ</span>
-          </section>
-        )}
-
-        {entries.length === 0 && <p className="v-muted v-empty">Chưa có bài dự thi nào (chạy npm run snapshot).</p>}
-
-        {entries.length > 0 && (
           <>
+            <section className="v-rules" aria-label="Thể lệ">
+              <span className="v-chip react">
+                <MdFavorite size={13} aria-hidden /> Thả tim 1 bài +2đ
+              </span>
+              <span className="v-chip comment">
+                <MdModeComment size={13} aria-hidden /> Bình luận 1 bài khác +1đ
+              </span>
+              <span className="v-rules-sub">Chỉ gửi được 1 lần · bình luận tối thiểu 20 từ</span>
+            </section>
+
+            {entries.length === 0 && <p className="v-muted v-empty">Chưa có bài dự thi nào.</p>}
+
             {entries.length >= SEARCH_MIN_ENTRIES && (
               <label className="v-search">
                 <MdSearch size={20} aria-hidden />
@@ -173,25 +166,21 @@ const VoteScreen = () => {
               </label>
             )}
 
-            {featured.length > 0 && (
-              <section aria-labelledby="v-featured-title">
-                <h2 className="v-section-title" id="v-featured-title">
-                  Nổi bật
-                </h2>
-                <ul className="v-feat-list">{featured.map((entry) => renderItem(entry, true))}</ul>
-              </section>
-            )}
+            <ul className="v-list">
+              {visible.map((entry) => (
+                <EntryItem
+                  key={entry.id}
+                  entry={entry}
+                  pick={pickOf(entry)}
+                  commentCount={(comments[entry.id] || NO_COMMENTS).length}
+                  onOpen={openEntry}
+                  onToggleReact={toggleReact}
+                  onComment={openComment}
+                />
+              ))}
+            </ul>
 
-            {others.length > 0 && (
-              <section aria-labelledby="v-all-title">
-                <h2 className="v-section-title" id="v-all-title">
-                  {query ? `Kết quả (${others.length})` : "Các tác phẩm khác"}
-                </h2>
-                <ul className="v-list">{others.map((entry) => renderItem(entry, false))}</ul>
-              </section>
-            )}
-
-            {query && others.length === 0 && <p className="v-muted v-empty">Không tìm thấy tác phẩm phù hợp.</p>}
+            {query && visible.length === 0 && <p className="v-muted v-empty">Không tìm thấy tác phẩm phù hợp.</p>}
           </>
         )}
 
@@ -205,7 +194,7 @@ const VoteScreen = () => {
               <button
                 type="button"
                 className={`v-dock-pick react${reactPick ? "" : " empty"}`}
-                onClick={() => reactPick && setOpenEntry(reactPick)}
+                onClick={() => reactPick && openEntry(reactPick)}
                 disabled={!reactPick}
               >
                 <MdFavorite size={15} aria-hidden />
@@ -214,7 +203,7 @@ const VoteScreen = () => {
               <button
                 type="button"
                 className={`v-dock-pick comment${commentPick ? "" : " empty"}`}
-                onClick={() => commentPick && setOpenEntry(commentPick.entry)}
+                onClick={() => commentPick && openComment(commentPick.entry)}
                 disabled={!commentPick}
               >
                 <MdModeComment size={15} aria-hidden />
@@ -229,16 +218,16 @@ const VoteScreen = () => {
         </div>
       )}
 
-      {openEntry && (
+      {sheet && !hasVoted && (
         <EntrySheet
-          key={openEntry.id}
-          entry={openEntry}
-          comments={comments[openEntry.id] || NO_COMMENTS}
-          pick={pickOf(openEntry)}
-          savedComment={commentPick?.entry.id === openEntry.id ? commentPick.text : null}
-          hasReactElsewhere={Boolean(reactPick && reactPick.id !== openEntry.id)}
-          hasCommentElsewhere={Boolean(commentPick && commentPick.entry.id !== openEntry.id)}
-          readOnly={readOnly}
+          key={`${sheet.entry.id}-${sheet.writing}`}
+          entry={sheet.entry}
+          comments={comments[sheet.entry.id] || NO_COMMENTS}
+          pick={pickOf(sheet.entry)}
+          savedComment={commentPick?.entry.id === sheet.entry.id ? commentPick.text : null}
+          hasReactElsewhere={Boolean(reactPick && reactPick.id !== sheet.entry.id)}
+          hasCommentElsewhere={Boolean(commentPick && commentPick.entry.id !== sheet.entry.id)}
+          startWriting={sheet.writing}
           onToggleReact={(entry) => {
             toggleReact(entry);
             closeSheet();
@@ -270,6 +259,8 @@ const VoteScreen = () => {
           onConfirm={handleConfirm}
         />
       )}
+
+      {isTop3Open && <Top3Sheet entries={entries} onClose={() => setIsTop3Open(false)} />}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>

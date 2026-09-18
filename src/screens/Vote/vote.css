@@ -53,11 +53,15 @@ button:disabled { cursor: not-allowed; }
 .v-header { display: flex; align-items: center; gap: 12px; padding-top: 16px; padding-bottom: 12px; }
 .v-logo { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; background: var(--card); box-shadow: var(--shadow); flex: none; }
 .v-kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.v-header-btn {
+  margin-left: auto; flex: none; width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--card); color: var(--brand);
+}
 .v-title { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
 
 .v-muted { color: var(--muted); margin: 0; }
 .v-empty { text-align: center; padding: 32px 0; }
-.v-section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 20px 0 10px; }
 .v-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 28px 0 20px; }
 
 /* ---------- Thể lệ gọn 1-2 dòng ---------- */
@@ -71,14 +75,6 @@ button:disabled { cursor: not-allowed; }
 }
 .v-chip.react { background: var(--heart-soft); color: var(--heart); }
 .v-chip.comment { background: var(--comment-soft); color: var(--comment); }
-
-/* ---------- Đã bình chọn ---------- */
-.v-done { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--radius); background: var(--ok-soft); color: var(--ok); }
-.v-done-icon { flex: none; }
-.v-done h2 { margin: 2px 0 4px; font-size: 16px; }
-.v-done p { margin: 0; font-size: 14px; color: var(--ink); }
-.v-done ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 14px; color: var(--ink); }
-.v-done li { display: flex; align-items: center; gap: 6px; }
 
 /* ---------- Tìm kiếm ---------- */
 .v-search {
@@ -104,56 +100,54 @@ button:disabled { cursor: not-allowed; }
 .v-item-meta > span { display: inline-flex; align-items: center; gap: 3px; }
 .v-item-meta .v-chip { padding: 1px 8px; font-size: 12px; }
 
-/* Nút tim 48px — vùng bấm đủ lớn cho ngón tay */
-.v-heart {
-  flex: none; width: 48px; height: 48px; border-radius: 50%;
-  display: grid; place-items: center;
-  border: 1px solid var(--line); background: var(--card); color: var(--heart);
-  transition: transform 0.12s, background-color 0.15s;
-}
-.v-heart:active { transform: scale(0.9); }
-.v-heart.on { background: var(--heart); border-color: var(--heart); color: #fff; }
-.v-heart:disabled { opacity: 0.35; }
-
-/* ---------- 3 bài nổi bật ---------- */
-/* Điện thoại: vuốt ngang, mỗi thẻ ~3/4 màn hình → thấy được thẻ kế tiếp */
-.v-feat-list {
-  list-style: none; margin: 0 -16px; padding: 2px 16px 6px;
-  display: grid; grid-auto-flow: column; grid-auto-columns: 74%; gap: 12px;
-  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
-}
-.v-feat-list::-webkit-scrollbar { display: none; }
-.v-feat {
-  position: relative; scroll-snap-align: start;
-  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
-  outline: 2px solid transparent; outline-offset: -2px;
-}
-.v-feat .v-item-main { display: block; width: 100%; }
-.v-feat .v-thumb { width: 100%; }
-.v-feat .v-item-text { padding: 10px 12px 12px; }
-.v-feat .v-heart { position: absolute; top: 8px; right: 8px; border: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
-.v-feat .v-heart:disabled { opacity: 0.7; color: var(--muted); }
-@media (min-width: 640px) {
-  .v-feat-list { margin: 0; padding: 0; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); overflow: visible; }
-}
-
-/* ---------- Danh sách gọn ---------- */
-.v-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* ---------- Danh sách bài ---------- */
+/* Mỗi dòng: ảnh bên trái, tên + 2 nút Thả tim / Bình luận bên phải — thấy bài,
+   bấm được ngay, không phải mở chi tiết. */
+.v-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
 .v-row {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 8px;
-  background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
+  display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: stretch;
+  padding: 10px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
   outline: 2px solid transparent; outline-offset: -2px;
   /* Trình duyệt bỏ qua dựng hình các dòng ngoài màn hình — cuộn danh sách dài vẫn mượt */
-  content-visibility: auto; contain-intrinsic-size: auto 90px;
+  content-visibility: auto; contain-intrinsic-size: auto 112px;
 }
-.v-row .v-item-main { flex: 1; display: flex; align-items: center; gap: 12px; }
-.v-row .v-thumb { width: 104px; flex: none; border-radius: 10px; }
-@media (min-width: 640px) {
+.v-row-thumb { border: 0; padding: 0; background: none; align-self: center; }
+.v-row .v-thumb { width: 100%; border-radius: 10px; }
+.v-row-body { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-width: 0; }
+.v-row .v-item-main { display: flex; flex-direction: column; gap: 2px; }
+.v-row-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.v-act {
+  min-height: 40px; padding: 0 6px; border-radius: 10px; border: 1px solid transparent;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 13px; font-weight: 650; white-space: nowrap;
+  transition: background-color 0.15s, transform 0.12s;
+}
+.v-act:active:not(:disabled) { transform: scale(0.96); }
+.v-act:disabled { opacity: 0.35; }
+.v-act.react { background: var(--heart-soft); color: var(--heart); }
+.v-act.react.on { background: var(--heart); color: #fff; }
+.v-act.comment { background: var(--comment-soft); color: var(--comment); }
+.v-act.comment.on { background: var(--comment); color: #fff; }
+@media (max-width: 360px) {
+  .v-row { grid-template-columns: 104px minmax(0, 1fr); gap: 10px; }
+}
+@media (min-width: 720px) {
   .v-list { grid-template-columns: 1fr 1fr; }
 }
 
-.v-feat.is-react, .v-row.is-react { outline-color: var(--heart); }
-.v-feat.is-comment, .v-row.is-comment { outline-color: var(--comment); }
+.v-row.is-react { outline-color: var(--heart); }
+.v-row.is-comment { outline-color: var(--comment); }
+
+/* ---------- Đã bình chọn ---------- */
+.v-voted { text-align: center; padding: 36px 20px 28px; margin-top: 8px; background: var(--card); border-radius: 20px; box-shadow: var(--shadow); }
+.v-voted-icon { color: var(--ok); }
+.v-voted h2 { margin: 8px 0 6px; font-size: 22px; }
+.v-voted p { margin: 0; color: var(--muted); }
+.v-voted ul { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; text-align: left; }
+.v-voted li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg); font-weight: 600; }
+.v-voted li svg { flex: none; }
+.v-voted li.react svg { color: var(--heart); }
+.v-voted li.comment svg { color: var(--comment); }
 
 /* ---------- Nút ---------- */
 .v-btn {
@@ -267,6 +261,14 @@ button:disabled { cursor: not-allowed; }
 
 @keyframes v-up { from { transform: translateY(24px); opacity: 0; } }
 @keyframes v-fade { from { opacity: 0; } }
+
+/* ---------- Quản trị: Top 3 ---------- */
+.v-admin-form { display: grid; gap: 10px; margin-top: 14px; }
+.v-input {
+  width: 100%; height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line);
+  font: inherit; font-size: 16px; color: var(--ink); background: #fffdfb;
+}
+.v-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 
 /* ---------- Toast ---------- */
 .toast-stack {

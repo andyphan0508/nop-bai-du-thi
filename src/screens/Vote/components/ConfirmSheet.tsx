@@ -43,7 +43,7 @@ const ConfirmSheet = ({
       }
     >
       <h2 className="v-sheet-title">Xác nhận phiếu bình chọn</h2>
-      <p className="v-muted">Mỗi thiết bị chỉ gửi được 1 lần — gửi rồi không đổi được nữa.</p>
+      <p className="v-muted">Phiếu chỉ gửi được 1 lần — gửi rồi không đổi được nữa.</p>
 
       <ul className="v-ballot">
         {reactTarget && (

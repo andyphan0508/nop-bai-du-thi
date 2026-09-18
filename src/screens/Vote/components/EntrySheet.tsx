@@ -15,7 +15,8 @@ type EntrySheetProps = {
   savedComment: string | null;
   hasReactElsewhere: boolean;
   hasCommentElsewhere: boolean;
-  readOnly: boolean;
+  // Mở thẳng ô viết bình luận (bấm nút "Bình luận" trên dòng)
+  startWriting: boolean;
   onToggleReact: (entry: VoteEntry) => void;
   onSaveComment: (entry: VoteEntry, text: string) => void;
   onRemoveComment: () => void;
@@ -29,20 +30,20 @@ const EntrySheet = ({
   savedComment,
   hasReactElsewhere,
   hasCommentElsewhere,
-  readOnly,
+  startWriting,
   onToggleReact,
   onSaveComment,
   onRemoveComment,
   onClose,
 }: EntrySheetProps) => {
-  const [isWriting, setIsWriting] = useState<boolean>(savedComment !== null);
+  const [isWriting, setIsWriting] = useState<boolean>(startWriting || savedComment !== null);
   const [draft, setDraft] = useState<string>(savedComment ?? "");
   const words = countWords(draft);
   const isTeam = entry.entryType === "Làm nhóm";
 
   let footer = null;
   // key khác nhau → React dựng nút mới thay vì tái dùng nút cũ (tránh chớp màu chuyển tiếp)
-  if (!readOnly && isWriting) {
+  if (isWriting) {
     footer = (
       <Fragment key="compose">
         <button
@@ -62,7 +63,7 @@ const EntrySheet = ({
         </button>
       </Fragment>
     );
-  } else if (!readOnly) {
+  } else {
     footer = (
       <Fragment key="actions">
         <button
@@ -100,7 +101,7 @@ const EntrySheet = ({
         <span>Khổ A3 ngang</span>
       </div>
 
-      {!readOnly && isWriting && (
+      {isWriting && (
         <div className="v-compose">
           {hasCommentElsewhere && savedComment === null && (
             <p className="v-compose-note">Lưu bình luận ở đây sẽ thay cho bình luận bạn đã viết ở bài khác.</p>

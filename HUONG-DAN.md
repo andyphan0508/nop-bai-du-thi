@@ -112,11 +112,14 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 - **Thêm/sửa bài hoặc đổi ảnh bìa** → chạy lại `npm run snapshot`, commit, deploy. Bài chưa bật chia sẻ ảnh sẽ được báo trong output (chạy `?action=syncImages` rồi chạy lại).
 
 **Web hiển thị thế nào:**
-- Máy chủ xếp bài theo **tổng điểm** (React ×2 + Bình luận ×1) từ cao xuống thấp. **3 bài đầu** nằm ở mục **"Nổi bật"** (điện thoại: vuốt ngang), các bài còn lại là **danh sách gọn** bên dưới — không đánh số, không hiện điểm. Thứ tự cập nhật chậm tối đa ~30 giây (cache `CACHE_TTL_BOARD`).
-- Bấm thẳng nút ♥ trên từng bài để thả tim; bấm vào bài để mở khung chi tiết (ảnh lớn, mô tả, bình luận, nút Bình luận). Thanh dưới đáy luôn cho thấy 2 lựa chọn hiện tại + nút **Gửi** — không phải cuộn tìm.
+- 1 danh sách duy nhất, xếp theo **tổng điểm** (React ×2 + Bình luận ×1) từ cao xuống thấp — không đánh số, không hiện điểm. Thứ tự cập nhật chậm tối đa ~30 giây (cache `CACHE_TTL_BOARD`).
+- Mỗi bài có sẵn 2 nút **Thả tim** / **Bình luận** ngay trên dòng; bấm ảnh/tên để xem ảnh lớn, mô tả, bình luận. Thanh dưới đáy cho thấy 2 lựa chọn hiện tại + nút **Gửi**.
+- Gửi xong → màn **"Bạn đã bình chọn!"** (thay cho danh sách). Giao diện không nhắc tới "thiết bị".
 - `/binh-chon/mobile` (link cũ) mở cùng giao diện này.
 
 **Điểm & cách chấm giải (chỉ quản trị viên):**
+- **Nút Top 3**: mở `<domain>/binh-chon?admin=1` → nút 🏆 góc trên → nhập `ADMIN_KEY` → hiện các bài có điểm cao nhất (kèm tên tác giả), **xếp theo tên, không theo hạng 1-2-3**. Bài đồng hạng 3 (bằng cả điểm lẫn số React) được hiện thêm. Người thường không thấy nút; có mở link cũng cần đúng mã quản trị.
+- **Xoá dữ liệu bình chọn** (VD sau khi chạy thử): trong Apps Script chọn hàm `resetVotes` → **Run**. Hàm sao lưu 4 sheet (Người bình chọn, Kết quả bình chọn, Bình luận, Tổng điểm) thành "… (sao lưu <ngày giờ>)" rồi mới xoá, và xoá luôn bộ nhớ đệm. Máy đã vote thử sẽ tự quay về danh sách khi mở lại trang. Không có cách gọi hàm này qua web.
 - Điểm được ghi vào sheet **"Tổng điểm"** trong Google Sheet (Hạng · Tên tác phẩm · Họ tên · Nhóm · React · Bình luận · Tổng điểm) — muốn file Excel thì **File → Download → Microsoft Excel (.xlsx)**.
 - Cập nhật sheet: trong Apps Script chọn hàm `exportScores` → **Run** (cập nhật ngay), hoặc chạy `setupScoreTrigger` **1 lần** để sheet tự cập nhật mỗi 5 phút.
 - **Hạng 1 – 2 – 3**: tổng điểm cao nhất; bằng điểm thì xét **số React cao hơn** (sheet đã xếp sẵn theo quy tắc này).
@@ -140,7 +143,7 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 1. **Tạo reCAPTCHA v3** (miễn phí): vào https://www.google.com/recaptcha/admin → Register a new site → chọn **v3** → điền domain thật + `localhost` → copy **Site Key** và **Secret Key**.
 2. Dán **Site Key** vào `src/config.ts` (`RECAPTCHA_SITE_KEY`) → commit/push để Vercel build lại.
 3. Dán **Secret Key** vào `apps-script/Code.gs` (`RECAPTCHA_SECRET_KEY`); đổi `VOTE_SALT` thành 1 chuỗi ngẫu nhiên của riêng bạn.
-4. Đặt `ADMIN_KEY` (nếu chưa đặt) nếu muốn xem kết quả dạng JSON qua `?action=voteResults`.
+4. Đặt `ADMIN_KEY` — **bắt buộc** để dùng nút Top 3 (và `?action=voteResults`).
 5. Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
 6. Trong Apps Script chạy `warmCache` (nạp sẵn dữ liệu) và `setupScoreTrigger` (sheet "Tổng điểm" tự cập nhật mỗi 5 phút) — mỗi hàm 1 lần.
 7. Mở `<domain>/binh-chon` để React/bình luận; xem điểm trong sheet **"Tổng điểm"**.

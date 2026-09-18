@@ -18,6 +18,16 @@ export const readEngagedRecord = (): EngagedRecord | null => {
   }
 };
 
+// Máy chủ báo thiết bị CHƯA bình chọn (VD quản trị viên vừa xoá dữ liệu để làm
+// lại) → bỏ dấu "đã bình chọn" cũ trong máy, nếu không người dùng kẹt ở màn cảm ơn.
+export const clearEngagedRecord = (): void => {
+  try {
+    localStorage.removeItem(ENGAGED_STORAGE_KEY);
+  } catch {
+    // Không xoá được thì thôi — lần sau máy chủ vẫn là nguồn quyết định
+  }
+};
+
 export const writeEngagedRecord = (record: EngagedRecord): void => {
   try {
     localStorage.setItem(ENGAGED_STORAGE_KEY, JSON.stringify(record));

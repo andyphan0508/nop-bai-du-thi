@@ -54,10 +54,14 @@ class FakeSheet {
       setValues(values) { values.forEach((v, i) => { self.rows[row - 1 + i] = v.slice(); }); return this; },
       setValue(value) { (self.rows[row - 1] = self.rows[row - 1] || [])[col - 1] = value; },
       setFontWeight() { return this; },
+      clearContent() { for (let r = row; r < row + numRows; r++) self.rows[r - 1] = []; self.rows = self.rows.filter((x, i) => i < row - 1 || x.length); },
     };
   }
   appendRow(row) { this.rows.push(row.slice()); }
   clearContents() { this.rows = []; }
+  getMaxColumns() { return 26; }
+  copyTo(ss) { const c = ss.insertSheet(this.name + ' copy'); c.rows = this.rows.map((r) => r.slice()); return c; }
+  setName(name) { this.name = name; return this; }
   setFrozenRows() {}
   deleteRow(row) { this.rows.splice(row - 1, 1); }
 }
@@ -95,6 +99,7 @@ const originalGetRange = FakeSheet.prototype.getRange;
 FakeSheet.prototype.getRange = function (...args) { counters.sheetReads++; busyWait(SHEET_CALL_MS); return originalGetRange.apply(this, args); };
 
 const cacheStore = new Map();
+globals.ScriptApp = {};
 globals.CacheService = {
   getScriptCache() {
     return {
@@ -184,12 +189,13 @@ globals.DriveApp = {
 globals.UrlFetchApp = { fetch: () => ({ getContentText: () => '{"success":true,"score":0.9}' }) };
 
 // --- Nạp Code.gs --------------------------------------------------------------
-const source = fs.readFileSync(path.join(__dirname, 'Code.gs'), 'utf8');
+// Đặt mã quản trị thử để test được endpoint top3
+const source = fs.readFileSync(path.join(__dirname, 'Code.gs'), 'utf8').replace(/var ADMIN_KEY = '[^']*';/, "var ADMIN_KEY = 'admin-test';");
 const sandbox = { ...globals, console };
 const runner = new Function(...Object.keys(sandbox), source + '\n;return this;');
 const scriptScope = runner.call(sandbox, ...Object.values(sandbox));
 // Code.gs khai báo bằng `var` ở cấp cao nhất → nằm trong scope của Function, lấy ra qua eval
-const call = new Function(...Object.keys(sandbox), source + '\n;return { doGet, doPost, exportScores };');
+const call = new Function(...Object.keys(sandbox), source + '\n;return { doGet, doPost, exportScores, resetVotes };');
 const api = call.call(sandbox, ...Object.values(sandbox));
 
 // --- Dựng dữ liệu mẫu ---------------------------------------------------------
@@ -337,6 +343,35 @@ assert.strictEqual(counters.driveScans, 0, 'votePage vẫn quét lại Drive');
 assert.strictEqual(topTitle, scoreRows[0][1], 'Bài điểm cao nhất không nằm đầu danh sách');
 assert.ok(page.result.order.every((id) => typeof id === 'string') && !('points' in page.result), 'votePage làm lộ điểm');
 assert.strictEqual(totalFromSheet, (VOTER_COUNT + 1) * 3 + 5 * 2, 'Tổng điểm sai (React 2đ + bình luận 1đ)');
+
+// --- Bước 7: nút "Top 3" của quản trị ---------------------------------------
+const denied = runExecution('top3-nokey', () => api.doGet({ parameter: { action: 'top3', key: 'sai' } }));
+const top3 = runExecution('top3', () => api.doGet({ parameter: { action: 'top3', key: 'admin-test' } }));
+const top3Titles = top3.result.entries.map((e) => e.title);
+console.log(`\n[7] Top 3 (quản trị)`);
+console.log(`    Sai mã quản trị          : ${denied.result.ok ? 'LỌT' : 'bị chặn'}`);
+console.log(`    Danh sách                : ${top3Titles.join(' · ')}`);
+assert.strictEqual(denied.result.ok, false, 'Top 3 lộ ra khi sai mã quản trị');
+assert.ok(top3Titles.includes(scoreRows[0][1]), 'Top 3 thiếu bài điểm cao nhất');
+assert.ok(top3Titles.length >= 3, 'Top 3 phải có ít nhất 3 bài');
+assert.deepStrictEqual(top3Titles, [...top3Titles].sort((a, b) => a.localeCompare(b, 'vi')), 'Top 3 phải xếp theo tên, không theo hạng');
+assert.ok(top3.result.entries.every((e) => !('points' in e)), 'Top 3 làm lộ điểm');
+
+// --- Bước 8: xoá dữ liệu bình chọn, bình chọn lại được -------------------------
+const resetMsg = runExecution('reset', () => ({ text: JSON.stringify(api.resetVotes()) })).result;
+const afterReset = runExecution('after-reset', () => api.doGet({ parameter: { action: 'votePage', deviceId: 'device-7' } }));
+const revote = runExecution('revote', () => api.doPost({ postData: { contents: JSON.stringify(engagePayload('device-7', 1, 2)) } }));
+const backups = spreadsheet.sheets.filter((sh) => sh.name.includes('(sao lưu ')).length;
+console.log(`\n[8] Xoá dữ liệu bình chọn`);
+console.log(`    ${resetMsg}`);
+console.log(`    Bản sao lưu              : ${backups} sheet`);
+console.log(`    Mở lại sau khi xoá       : voted = ${afterReset.result.voted}, order = ${afterReset.result.order.length} bài`);
+console.log(`    Bình chọn lại            : ${revote.result.ok ? 'được' : revote.result.error}`);
+assert.strictEqual(afterReset.result.voted, false, 'Xoá xong vẫn báo đã vote');
+assert.strictEqual(afterReset.result.order.length, 0, 'Xoá xong vẫn còn điểm');
+assert.strictEqual(revote.result.ok, true, 'Xoá xong không bình chọn lại được');
+assert.strictEqual(backups, 4, 'Thiếu bản sao lưu trước khi xoá');
+assert.strictEqual(spreadsheet.getSheetByName('Người bình chọn').rows.length, 2, 'Sheet người bình chọn phải còn tiêu đề + 1 lượt mới');
 
 console.log('\n' + '='.repeat(70));
 console.log('✅ TẤT CẢ KIỂM TRA ĐỀU ĐẠT');

@@ -4,6 +4,7 @@ import { IS_CONFIGURED } from "../../config";
 import { getDeviceId } from "../../utils/deviceId";
 import { getRecaptchaToken } from "../../utils/recaptcha";
 import {
+  clearEngagedRecord,
   readEngagedRecord,
   writeEngagedRecord,
   type EngagedRecord,
@@ -59,6 +60,7 @@ export const useVoteSession = (hasPendingPick: boolean) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef<number>(0);
   const pageLoadedAtRef = useRef<number>(Date.now());
+  const votedNowRef = useRef<boolean>(false);
   // Lượt gọi votePage lúc mở trang đã đánh thức máy chủ — chưa cần ping ngay.
   const lastPingAtRef = useRef<number>(Date.now());
 
@@ -85,7 +87,15 @@ export const useVoteSession = (hasPendingPick: boolean) => {
         } catch {
           // Hết dung lượng / chế độ riêng tư — lần sau chỉ không nhớ thứ tự
         }
-        if (response.voted) setHasVoted(true);
+        if (response.voted) {
+          setHasVoted(true);
+        } else if (!votedNowRef.current) {
+          // Máy chủ là nguồn quyết định. Bỏ qua nếu người dùng vừa gửi phiếu
+          // TRONG LÚC lượt tải này còn đang chờ (phản hồi này đã cũ).
+          clearEngagedRecord();
+          setEngagedRecord(null);
+          setHasVoted(false);
+        }
       })
       .catch(() => {
         // Máy chủ chậm/lỗi: trang vẫn đủ bài để xem và chọn; bước gửi sẽ tự báo lỗi nếu còn hỏng
@@ -112,6 +122,7 @@ export const useVoteSession = (hasPendingPick: boolean) => {
   }, [hasVoted, hasPendingPick]);
 
   const markVoted = (record: EngagedRecord) => {
+    votedNowRef.current = true;
     setHasVoted(true);
     writeEngagedRecord(record);
     setEngagedRecord(record);

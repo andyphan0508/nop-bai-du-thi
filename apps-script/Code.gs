@@ -172,6 +172,7 @@ function invalidatePublicCache(keys) {
 //   .../exec?action=votePage&deviceId=... → phần động của trang bình chọn: thứ tự mã bài (điểm cao → thấp,
 //                                   không kèm điểm), bình luận, thiết bị đã vote chưa
 //   .../exec?action=voteResults&key=ADMIN_KEY      → bảng xếp hạng chi tiết có tên thí sinh (quản trị)
+//   .../exec?action=top3&key=ADMIN_KEY             → 3 bài điểm cao nhất, KHÔNG theo thứ hạng (quản trị)
 //   .../exec?action=syncImages[&key=ADMIN_KEY]     → đồng bộ quyền chia sẻ công khai cho toàn bộ ảnh trên Drive
 function doGet(e) {
   var action = e && e.parameter && e.parameter.action;
@@ -179,6 +180,7 @@ function doGet(e) {
   if (action === 'voteEntries') return handleVoteEntries();
   if (action === 'votePage') return handleVotePage(e);
   if (action === 'voteResults') return handleVoteResults(e);
+  if (action === 'top3') return handleTop3(e);
   if (action === 'syncImages' || action === 'fixImageSharing') return handleSyncImages(e);
   if (action === 'debugEntry') return handleDebugEntry(e);
   return json({ ok: true, service: 'nop-bai-du-thi', time: new Date() });
@@ -580,6 +582,54 @@ function handleVoteResults(e) {
   }
 }
 
+// 3 bài điểm cao nhất (chỉ quản trị viên) — xếp theo TÊN, không theo điểm, để
+// công bố "top 3" mà không lộ ai hạng 1-2-3. Bài đồng hạng 3 (bằng cả điểm lẫn
+// số React) được đưa vào luôn cho công bằng, nên danh sách có thể hơn 3 bài.
+// Không trả số điểm.
+function handleTop3(e) {
+  var key = e && e.parameter && e.parameter.key;
+  if (!ADMIN_KEY || String(key || '') !== ADMIN_KEY) {
+    return json({ ok: false, error: 'Mã quản trị không đúng.' });
+  }
+  try {
+    var ranked = computeResults(SpreadsheetApp.openById(SHEET_ID)).results.filter(function (r) { return r.points > 0; });
+    var cut = ranked[2];
+    var top = ranked.filter(function (r, i) {
+      return i < 3 || (cut && r.points === cut.points && r.reactCount === cut.reactCount);
+    });
+    top.sort(function (a, b) { return a.title.localeCompare(b.title, 'vi'); });
+    return json({
+      ok: true,
+      entries: top.map(function (r) { return { id: r.id, title: r.title, name: r.name }; }),
+    });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
+  }
+}
+
+// XOÁ TOÀN BỘ DỮ LIỆU BÌNH CHỌN (tim, bình luận, người đã bình chọn) để bắt
+// đầu lại từ đầu — VD sau khi chạy thử. Chỉ chạy tay trong trình soạn Apps
+// Script: chọn hàm resetVotes → Run. KHÔNG có đường gọi qua web.
+// An toàn: trước khi xoá, sao chép mỗi sheet thành "<tên> (sao lưu ...)" —
+// cần khôi phục thì copy dữ liệu từ bản sao lưu về.
+function resetVotes() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var stamp = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH-mm');
+  var cleared = [];
+  [VOTERS_SHEET_NAME, VOTES_SHEET_NAME, COMMENTS_SHEET_NAME, SCORES_SHEET_NAME].forEach(function (name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() <= 1) return;
+    sheet.copyTo(ss).setName(name + ' (sao lưu ' + stamp + ')');
+    cleared.push(name + ': ' + (sheet.getLastRow() - 1) + ' dòng');
+    // Xoá nội dung thay vì deleteRows: Sheets không cho xoá hết mọi dòng không
+    // cố định (dòng tiêu đề đang freeze). appendRow sau đó ghi tiếp từ dòng 2.
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getMaxColumns()).clearContent();
+  });
+  // Bộ nhớ đệm còn giữ danh sách người đã vote + điểm/bình luận → phải xoá theo
+  invalidatePublicCache([VOTERS_CACHE_KEY, BOARD_CACHE_KEY]);
+  return cleared.length ? 'Đã xoá (có sao lưu): ' + cleared.join(', ') : 'Không có dữ liệu bình chọn để xoá.';
+}
+
 // Ghi bảng điểm vào sheet "Tổng điểm" (điểm cao → thấp). Web không hiển thị
 // điểm/xếp hạng — quản trị viên xem ở đây hoặc tải về Excel (File → Download).
 // Chạy tay: chọn hàm exportScores → Run. Tự động: chạy setupScoreTrigger 1 lần.
@@ -883,7 +933,7 @@ function handleEngage(data) {
 
   var deviceId = String(data.deviceId || '').trim();
   if (!deviceId) {
-    return json({ ok: false, error: 'Thiếu mã thiết bị — hãy tải lại trang rồi thử lại.' });
+    return json({ ok: false, error: 'Phiên bình chọn không hợp lệ — hãy tải lại trang rồi thử lại.' });
   }
 
   var reactEntryId = String(data.reactEntryId || '').trim();
@@ -944,7 +994,7 @@ function handleEngage(data) {
       return json({
         ok: false,
         code: 'ALREADY_VOTED',
-        error: 'Thiết bị này đã dùng hết lượt React + bình luận rồi.',
+        error: 'Bạn đã bình chọn rồi.',
       });
     }
     hashes.push(voterHash);
