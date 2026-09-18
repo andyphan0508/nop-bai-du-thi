@@ -1,22 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import VoteScreen from './screens/Vote';
-import VoteMobileScreen from './screens/VoteMobile';
-import './styles/global.css';
+import './screens/Vote/vote.css';
 
-// Trang nộp bài đã đóng — không render nữa. "/" (và mọi đường dẫn lạ) tự
-// chuyển sang trang bình chọn. Redirect ở tầng server (vercel.json) đã xử lý
-// hầu hết trường hợp trên production; đoạn này là lưới an toàn cho local dev
-// (vite dev server không đọc vercel.json) và tránh nạp/tải bundle Submit
-// screen không cần dùng nữa (giảm dung lượng JS tải về).
+// Trang nộp bài đã đóng — chỉ còn trang bình chọn. "/binh-chon/mobile" (link
+// cũ đã chia sẻ) dùng chung giao diện vì trang nay đã thiết kế cho điện thoại.
+// Mọi đường dẫn khác chuyển về /binh-chon (vercel.json xử lý trên production;
+// đoạn này là lưới an toàn cho local dev).
 const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
-const isVoteMobilePage = pathname === '/binh-chon/mobile';
-const isVotePage = pathname === '/binh-chon';
 
-if (!isVotePage && !isVoteMobilePage) {
+if (pathname !== '/binh-chon' && pathname !== '/binh-chon/mobile') {
   window.location.replace('/binh-chon');
 } else {
   ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>{isVoteMobilePage ? <VoteMobileScreen /> : <VoteScreen />}</React.StrictMode>,
+    <React.StrictMode>
+      <VoteScreen />
+    </React.StrictMode>,
   );
 }

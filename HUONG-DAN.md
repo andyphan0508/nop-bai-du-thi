@@ -103,17 +103,24 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 - **Mỗi thiết bị có đúng 1 lượt React (2 điểm) + 1 lượt bình luận (1 điểm)**, dùng 1 lần duy nhất cho cả cuộc thi — có thể dùng cả 2, chỉ 1, hoặc bỏ qua. Không cần đăng nhập tài khoản nào.
 - Có thể React/bình luận cho **bất kỳ bài nào** — **không được chọn cùng 1 bài cho cả React lẫn bình luận** trong cùng 1 lượt (phải là 2 bài khác nhau).
 - Bình luận **bắt buộc tối thiểu 20 từ** (kiểm tra cả 2 phía: hiện đếm số từ ngay khi gõ, và server từ chối nếu dưới 20 từ) — tránh kiểu bình luận spam "hay quá", "đẹp" chỉ để lấy điểm.
-- Bình luận **hiển thị công khai** ngay trên trang (dạng lời khích lệ) nhưng **ẩn danh** — không kèm tên người bình luận. Điểm/xếp hạng thì **ngược lại**, ẩn công khai, chỉ quản trị viên xem được.
+- Bình luận **hiển thị công khai** ngay trên trang (dạng lời khích lệ) nhưng **ẩn danh** — không kèm tên người bình luận. Điểm/xếp hạng thì **ngược lại**: web KHÔNG hiện số điểm hay số hạng ở đâu cả.
 
-**Cách chấm giải:**
-- **Hạng 1 – 2 – 3**: xếp theo **tổng điểm** (React ×2 + Bình luận ×1) cao nhất; nếu 2 bài bằng điểm nhau thì xét **số lượt React cao hơn** để phân định trước (đúng yêu cầu "điểm tương ứng với lượt React cao"), sau đó mới đến số bình luận.
-- **1 Giải khuyến khích (nội dung)**: trao cho bài có **số bình luận cao nhất** trong số các bài **không nằm trong top 3** — để giải nội dung tôn vinh 1 tác phẩm khác, không trùng với hạng 1-2-3. Nếu không có bài nào ngoài top 3 nhận được bình luận thì không trao giải này.
+**Dữ liệu bài dự thi là snapshot tĩnh (không đọc Sheet khi mở trang):**
+- Chạy `npm run snapshot` → script gọi `?action=voteEntries` 1 lần, tải ảnh bìa từ Drive về `public/entries/` (2 cỡ: 640px + 1600px, JPEG) và ghi tên/mô tả/mã bài vào `src/data/entries.json` (đóng thẳng vào bundle JS).
+- **Commit cả `src/data/entries.json` lẫn `public/entries/`** rồi deploy. Trang có bài ngay khi JS chạy (~0,3 giây), ảnh phục vụ từ CDN Vercel và cache vĩnh viễn (tên file chứa mã băm nội dung).
+- Apps Script chỉ còn trả **phần động** (thứ tự theo điểm, bình luận, đã vote chưa) — tải ở nền, lỗi/chậm cũng không chặn trang. Phiếu bầu vẫn ghi vào Sheet như cũ.
+- **Thêm/sửa bài hoặc đổi ảnh bìa** → chạy lại `npm run snapshot`, commit, deploy. Bài chưa bật chia sẻ ảnh sẽ được báo trong output (chạy `?action=syncImages` rồi chạy lại).
 
-**Bản mobile — `/binh-chon/mobile`:** cùng backend, cùng luật, chỉ khác giao diện — hướng dẫn từng bước thay vì lưới ảnh:
-1. Màn hình chính hiện 2 thẻ **"Lượt 1"** / **"Lượt 2"** (Lượt 2 khoá tới khi xong Lượt 1).
-2. Bấm 1 lượt → hiện danh sách bài (dạng dòng, dễ bấm ngón tay) → chọn 1 bài → hiện ảnh to + mô tả ý tưởng + lời khích lệ đã có + 2 nút React/Bình luận.
-3. Làm xong Lượt 1 tự chuyển sang chọn bài cho Lượt 2 — **bài đã chọn ở Lượt 1 không hiện lại**, và hành động đã dùng (React hoặc Bình luận) cũng bị khoá ở Lượt 2, chỉ còn hành động kia.
-4. Xong cả 2 lượt (hoặc bấm "Bỏ qua lượt này" nếu không muốn dùng) → bấm **"Xác nhận & Gửi"** → hiện đúng modal xác nhận như bản desktop để gửi đi (không cần đăng nhập).
+**Web hiển thị thế nào:**
+- Máy chủ xếp bài theo **tổng điểm** (React ×2 + Bình luận ×1) từ cao xuống thấp. **3 bài đầu** nằm ở mục **"Nổi bật"** (điện thoại: vuốt ngang), các bài còn lại là **danh sách gọn** bên dưới — không đánh số, không hiện điểm. Thứ tự cập nhật chậm tối đa ~30 giây (cache `CACHE_TTL_BOARD`).
+- Bấm thẳng nút ♥ trên từng bài để thả tim; bấm vào bài để mở khung chi tiết (ảnh lớn, mô tả, bình luận, nút Bình luận). Thanh dưới đáy luôn cho thấy 2 lựa chọn hiện tại + nút **Gửi** — không phải cuộn tìm.
+- `/binh-chon/mobile` (link cũ) mở cùng giao diện này.
+
+**Điểm & cách chấm giải (chỉ quản trị viên):**
+- Điểm được ghi vào sheet **"Tổng điểm"** trong Google Sheet (Hạng · Tên tác phẩm · Họ tên · Nhóm · React · Bình luận · Tổng điểm) — muốn file Excel thì **File → Download → Microsoft Excel (.xlsx)**.
+- Cập nhật sheet: trong Apps Script chọn hàm `exportScores` → **Run** (cập nhật ngay), hoặc chạy `setupScoreTrigger` **1 lần** để sheet tự cập nhật mỗi 5 phút.
+- **Hạng 1 – 2 – 3**: tổng điểm cao nhất; bằng điểm thì xét **số React cao hơn** (sheet đã xếp sẵn theo quy tắc này).
+- **Giải khuyến khích (nội dung)**: bài có **số bình luận cao nhất** trong các bài **ngoài top 3** — xem cột "Lượt bình luận" trong sheet.
 
 **Cơ chế chống spam / đảm bảo công bằng** (đã cài sẵn trong `Code.gs`):
 
@@ -122,8 +129,8 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 3. **Danh tính giữ kín** — mã thiết bị chỉ lưu dạng băm ở sheet riêng **"Người bình chọn"** (không lưu email/tên vì không còn thu thập); React lưu ở sheet **"Kết quả bình chọn"**, bình luận lưu ở sheet **"Bình luận"** — cả 2 không kèm mã thiết bị. Không sheet nào nối lại được → không ai, kể cả bạn, tra ngược được "thiết bị nào đã react/bình luận bài nào".
 4. **Chống race-condition** — dùng `LockService` để khoá lúc kiểm tra "đã dùng lượt chưa" + ghi lượt, tránh trường hợp bấm 2 lần liên tiếp / mạng lag khiến 1 thiết bị lọt qua vòng kiểm tra và dùng được 2 lần.
 5. **Chống bot bổ sung** — 1 field ẩn (honeypot, bot tự động điền vào nhưng người dùng không thấy) + chặn gửi nếu trang mới tải dưới 1.5 giây (bot thường gửi ngay lập tức).
-6. **Ẩn điểm/xếp hạng khi đang mở tương tác** — KHÔNG hiển thị công khai (tránh hiệu ứng chạy theo số đông / bị soi để spam vào bài dẫn đầu). Chỉ quản trị viên xem được qua `?admin=1` (cần đúng `ADMIN_KEY`, cấu hình giống Bước 3).
-7. **Kín danh khi tương tác (blind)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm/Nhóm-ban ngành của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + mô tả ý tưởng. `?action=voteEntries` cũng không trả Họ tên/Thành viên nhóm về — tránh chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
+6. **Ẩn điểm/xếp hạng** — web KHÔNG hiển thị số điểm/số hạng. Quản trị viên xem ở sheet **"Tổng điểm"** hoặc `?action=voteResults&key=<ADMIN_KEY>` (JSON).
+7. **Kín danh khi tương tác (blind)** — trang `/binh-chon` KHÔNG hiển thị Họ tên/Thành viên nhóm/Nhóm-ban ngành của thí sinh, chỉ có tên tác phẩm + hình thức (Cá nhân/Nhóm) + mô tả ý tưởng. `?action=votePage` cũng không trả Họ tên/Nhóm/điểm về — tránh chấm theo quen biết thay vì theo chất lượng tác phẩm. Tên đầy đủ vẫn hiện trong bảng kết quả cho quản trị viên (`?action=voteResults`) để công bố người thắng cuộc.
 8. **Không được React lẫn bình luận cùng 1 bài** — nếu chọn cùng 1 bài cho cả 2 lượt trong 1 lần gửi, server từ chối và yêu cầu chọn 2 bài khác nhau.
 
 > **Đánh đổi khi bỏ đăng nhập:** mã thiết bị chỉ chặn được ở MỨC THIẾT BỊ — xoá dữ liệu trình duyệt (localStorage), dùng chế độ ẩn danh, hoặc đổi sang máy/trình duyệt khác đều tạo được mã thiết bị mới và bình chọn lại được. Hệ thống cũng KHÔNG còn biết ai nộp bài nào, nên **không còn chặn được thí sinh tự React/bình luận cho chính bài của mình**. Đây là đánh đổi hợp lý cho quy mô nội bộ (~50-60 người), không phù hợp nếu cần chống gian lận chặt ở quy mô lớn/công khai — muốn chặt hơn cần quay lại xác thực tài khoản.
@@ -133,17 +140,15 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 1. **Tạo reCAPTCHA v3** (miễn phí): vào https://www.google.com/recaptcha/admin → Register a new site → chọn **v3** → điền domain thật + `localhost` → copy **Site Key** và **Secret Key**.
 2. Dán **Site Key** vào `src/config.ts` (`RECAPTCHA_SITE_KEY`) → commit/push để Vercel build lại.
 3. Dán **Secret Key** vào `apps-script/Code.gs` (`RECAPTCHA_SECRET_KEY`); đổi `VOTE_SALT` thành 1 chuỗi ngẫu nhiên của riêng bạn.
-4. Đặt `ADMIN_KEY` (nếu chưa đặt) để xem kết quả sau khi đóng bình chọn.
+4. Đặt `ADMIN_KEY` (nếu chưa đặt) nếu muốn xem kết quả dạng JSON qua `?action=voteResults`.
 5. Sau khi cập nhật `Code.gs`, nhớ **Deploy → Manage deployments → Edit → New version → Deploy** (như mọi lần sửa script).
-6. Mở `<domain>/binh-chon` để React/bình luận, `<domain>/binh-chon?admin=1` để xem bảng xếp hạng điểm (nhập `ADMIN_KEY` vào ô "Mã quản trị").
+6. Trong Apps Script chạy `warmCache` (nạp sẵn dữ liệu) và `setupScoreTrigger` (sheet "Tổng điểm" tự cập nhật mỗi 5 phút) — mỗi hàm 1 lần.
+7. Mở `<domain>/binh-chon` để React/bình luận; xem điểm trong sheet **"Tổng điểm"**.
 
 > **Chưa kịp setup reCAPTCHA?** Trang **vẫn bình chọn bình thường** — bước lấy token được bỏ qua ở cả web lẫn `Code.gs`. Các lớp chặn spam còn lại vẫn hoạt động: 1 lượt/thiết bị (đối chiếu ở máy chủ), honeypot, chặn gửi quá nhanh sau khi tải trang, và bình luận tối thiểu 20 từ. Dán đủ Site Key + Secret Key khi nào bạn sẵn sàng để bật thêm lớp chấm điểm hành vi của Google.
 
 > **Về khổ bài dự thi:** Cuộc thi sử dụng chuẩn **Khổ A3 Ngang (420 × 297mm, tỉ lệ 1.414 : 1)** cho thiết kế bìa sách trải rộng toàn bộ (bìa trước, gáy, bìa sau). Giao diện web và xem ảnh được căn vừa khít 100% không bị viền trống hay méo hình.
->
-> **Về xem Thống kê sau khi vote:**
-> - Sau khi gửi bình chọn (hoặc bấm nút "Thống kê" trên thanh công cụ), người dùng thấy modal **"Công Bố Kết Quả Bình Chọn"** — mở ra là màn hình "Sẵn sàng để ra kết quả chưa?", bấm **Bắt đầu** thì lần lượt công bố Hạng 1 → Hạng 2 → Hạng 3 (dạng bục vinh danh/podium) → Giải khuyến khích, giống 1 buổi lễ trao giải thu nhỏ — có thể bấm "Xem lại từ đầu" để công bố lại.
-> - Backend Apps Script hỗ trợ endpoint công khai `.../exec?action=voteStats` trả về: tổng người bình chọn, tổng React, tổng bình luận, tổng điểm, bảng xếp hạng tác phẩm và giải khuyến khích — không kèm thông tin cá nhân.
+
 
 > **Về hiệu năng khi 60–70 người vào cùng lúc:**
 >
@@ -158,11 +163,13 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 > Những điểm đã tối ưu để chịu được mức đó:
 >
 > - **Danh sách bài + ảnh bìa cache 6 giờ** (`CACHE_TTL_ENTRIES`) thay vì 30 giây, kèm cơ chế *single-flight*: khi cache hết hạn mà nhiều người vào cùng lúc, chỉ **1** lượt chạy quét lại Drive, số còn lại đợi rồi đọc cache. Trước đây 70 người mở trang lúc cache nguội là 70 lượt cùng quét thư mục Drive của từng bài.
-> - **Trang thống kê không quét Drive nữa** — dùng lại chính danh sách đã cache ở trên. Trước đây `voteStats` cache 15 giây nhưng mỗi lần tính lại đều quét toàn bộ Drive, nên cứ 15 giây lại có 1 lượt rất nặng.
+> - **Mở trang không chờ máy chủ** — bài dự thi + ảnh là snapshot tĩnh trên CDN; chỉ 1 lượt gọi nền `?action=votePage` (thứ tự + bình luận + "thiết bị này vote chưa"), không đọc danh sách bài, không quét Drive. 70 người mở trang = 70 lượt chạy nhẹ thay vì 210 lượt như trước.
+> - **Gửi phiếu không đụng Drive** — kiểm tra "mã bài có thật" chỉ đọc cột mã bài của Sheet (cache 6 giờ).
+> - **Không xoá cache mỗi lượt gửi** — điểm/bình luận cache 30 giây; người vừa bình luận thấy ngay bình luận của mình vì web tự thêm vào.
 > - **Khoá (LockService) chỉ bao đúng bước kiểm tra trùng lượt** (~10ms, đọc/ghi bộ nhớ đệm) — phần ghi 3 sheet đã chuyển ra ngoài khoá. Trước đây mỗi lượt giữ khoá 1,5–2,5 giây, 70 người bấm gửi cùng lúc phải xếp hàng hơn 100 giây trong khi mức chờ tối đa chỉ 10 giây → đa số nhận lỗi *"Hệ thống đang bận"*.
 > - **Tự gửi lại khi quá tải**: máy chủ trả mã `BUSY`, web tự thử lại tối đa 3 lần có giãn cách ngẫu nhiên thay vì bắt người dùng bấm lại.
 > - **Mỗi lượt gửi không hỏi lại Sheet 3 lần** về dòng tiêu đề nữa (nhớ trong bộ nhớ đệm) — bớt ~0,45 giây mỗi phiếu.
-> - **Ping giữ máy chủ "thức"**: Apps Script tắt máy khi script rảnh, lần gọi kế tiếp phải khởi động lại — đo thực tế **17,5 giây** cho một lượt gọi không làm gì cả, so với **1,7 giây** khi máy đang thức. Trang bình chọn tự gọi rỗng 2 phút/lần khi tab đang mở và người dùng chưa bầu, nên lúc bấm "Xác nhận" máy luôn ở trạng thái thức.
+> - **Ping giữ máy chủ "thức"**: Apps Script tắt máy khi script rảnh, lần gọi kế tiếp phải khởi động lại — đo thực tế **17,5 giây** cho một lượt gọi không làm gì cả, so với **1,7 giây** khi máy đang thức. Trang chỉ gọi rỗng (tối đa 2 phút/lần) khi người dùng **đã chọn bài và sắp gửi** — không ping vô ích từ mọi người đang xem.
 > - **Hâm nóng cache trước giờ G**: mở Apps Script → chọn hàm `warmCache` → **Run** (hoặc đặt Trigger theo thời gian, mỗi 4 giờ). Lần tính đầu tiên mất khoảng 0,7 giây/bài, làm trước thì người vào đầu tiên không phải chờ.
 > - Trang nộp bài cũ (`/`) không còn được render nữa — mọi lượt truy cập tự chuyển sang `/binh-chon` (chuyển ở tầng Vercel qua `vercel.json`).
 >
@@ -178,23 +185,21 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 >
 > Phần code mình kiểm soát được, sau tối ưu, chỉ còn khoảng **0,8 giây** (mở Sheet + ghi 3 dòng). Đổi sang cơ chế "ghi tạm rồi 1 phút sau mới đổ vào Sheet" thì tiết kiệm thêm được tối đa ~0,6 giây, nhưng đánh đổi bằng nguy cơ mất phiếu nếu trigger hỏng — **không đáng**, nên cố ý không làm.
 >
-> **Về độ mượt của giao diện:**
+> **Về độ nhẹ & mượt của giao diện:**
 >
 > | Chỗ tốn | Trước | Sau |
 > |---|---|---|
-> | Hiệu ứng nền chạy vô tận | 45 (3 quầng sáng `blur(90px)` animation + 26 sao + 16 nốt nhạc) | 19 trên máy tính, 3 trên điện thoại |
-> | Quầng sáng | `filter: blur(90px)` — tô lại vùng mờ mỗi khung hình | `radial-gradient` — tô 1 lần |
-> | Nền trang | `background-attachment: fixed` — vẽ lại toàn màn hình mỗi lần cuộn | bỏ (lớp trang trí vốn đã `position: fixed`) |
-> | Thẻ ngoài màn hình | dựng hết | `content-visibility: auto` — bỏ qua tới khi cuộn tới |
-> | Ảnh | lớp nền mờ ăn theo làm tải hết ảnh ngay | bỏ lớp đó, `loading="lazy"` hoạt động thật |
-> | Gõ 1 ký tự bình luận | dựng lại toàn bộ thẻ trong lưới | `React.memo` — chỉ dựng lại thẻ đang gõ |
-> | Chuyển động nền trên điện thoại | 6 (quầng sáng, hoạ tiết, logo nhún) | 0 — đứng yên hoàn toàn |
-> | Màn hình chờ | 1 dòng chữ "Đang tải…" | khung xám đúng hình thẻ/dòng, quá 4 giây thì báo "máy chủ đang khởi động" |
-> | Ảnh xem trước ở danh sách mobile | tải bản rộng 800px cho ô 76px | 240px |
-> | Font tải về | Inter 5 độ đậm + Montserrat 2 | Inter 4 + Montserrat 1 (bớt 2 file) |
->
+> | CSS tải về | 53 KB (gồm cả trang nộp bài đã đóng) | 12 KB |
+> | JS tải về | 255 KB | 220 KB |
+> | Lượt gọi máy chủ khi mở trang | 3 | 1 |
+> | Hiệu ứng nền chạy vô tận | quầng sáng, sao, nốt nhạc, logo nhún | không còn |
+> | Ảnh trong danh sách | thẻ lớn tải ảnh 800px + mô tả + bình luận ngay trên thẻ | dòng gọn ảnh 240px; mô tả/bình luận nằm trong khung chi tiết |
+> | Cuộn để bình chọn | lưới thẻ cao, phải cuộn tìm nút | 3 bài nổi bật + danh sách dòng, nút ♥ ngay trên dòng, nút Gửi dính đáy |
+> | Font | chặn hiển thị cho tới khi tải xong | hiện ngay bằng font hệ thống, Inter tải sau |
+> | Dòng ngoài màn hình | dựng hết | `content-visibility: auto` |
+
 > **Về việc "đã bình chọn rồi thì vào lại có biết không":**
-> - Khi mở trang, web gọi `.../exec?action=voteStatus&deviceId=...` để hỏi thẳng máy chủ. Đã dùng lượt → hiện ngay **biên nhận bình chọn** + chế độ **chỉ xem** (xem lại được toàn bộ tác phẩm nhưng không còn nút thả tim/bình luận), thay vì để người dùng chọn bài xong mới báo lỗi lúc gửi.
+> - Khi mở trang, lượt gọi `.../exec?action=votePage&deviceId=...` trả kèm luôn trạng thái đã vote của thiết bị. Đã dùng lượt → hiện ngay **biên nhận bình chọn** + chế độ **chỉ xem** (xem lại được toàn bộ tác phẩm nhưng không còn nút thả tim/bình luận), thay vì để người dùng chọn bài xong mới báo lỗi lúc gửi.
 > - Nếu máy đã xoá dữ liệu trang thì biên nhận không còn tên tác phẩm đã chọn, nhưng vẫn xác nhận đúng là "đã dùng hết lượt" theo mã thiết bị lưu ở máy chủ.
 > - Trường hợp phiếu gửi thành công nhưng rớt mạng nên web không nhận được phản hồi: lần gửi lại sẽ nhận mã `ALREADY_VOTED` và web chuyển thẳng sang màn "đã bình chọn" (coi như thành công) thay vì báo lỗi.
 >
@@ -244,21 +249,18 @@ nop-bai-du-thi/
 │  │     ├─ AnimatedCounter.tsx     Bộ đếm chạy số
 │  │     ├─ Toast.tsx               Thông báo dạng snackbar (dùng chung)
 │  │     └─ BackgroundDecor.tsx     Nền quầng sáng + hạt
-│  ├─ screens/Vote/                 Trang React + bình luận (dạng lưới) — route "/binh-chon"
-│  │  ├─ index.tsx                  CHỈ logic: tải danh sách/bình luận, chọn React/comment, gửi
+│  ├─ data/entries.json             Snapshot bài dự thi (sinh bởi npm run snapshot — đừng sửa tay)
+│  ├─ screens/Vote/                 Trang bình chọn (mobile-first) — route "/binh-chon" và "/binh-chon/mobile"
+│  │  ├─ index.tsx                  Bố cục: thể lệ, 3 bài nổi bật, danh sách, thanh Gửi dính đáy
+│  │  ├─ useVoteSession.ts          Tải dữ liệu (1 lượt gọi + cache máy), gửi phiếu, trạng thái đã vote
+│  │  ├─ vote.css                   Toàn bộ CSS của trang
 │  │  └─ components/
-│  │     ├─ VoteCard.tsx            1 thẻ bài dự thi (ảnh + nút React/Bình luận + lời khích lệ)
-│  │     ├─ VoteLightbox.tsx        Xem ảnh bìa cỡ lớn
-│  │     ├─ EngageModal.tsx         Modal xác nhận React + bình luận (không cần đăng nhập) — dùng chung với VoteMobile
-│  │     ├─ VoteDoneCard.tsx        Màn hình đã dùng hết lượt — dùng chung với VoteMobile
-│  │     └─ AdminResultsPanel.tsx   Bảng xếp hạng điểm (chỉ quản trị viên, ?admin=1)
-│  └─ screens/VoteMobile/           Luồng "Lượt 1 / Lượt 2" từng bước — route "/binh-chon/mobile"
-│     ├─ index.tsx                  Máy trạng thái home/list/detail cho từng lượt, tái dùng EngageModal
-│     ├─ turnTypes.ts               Kiểu TurnResult (chưa làm / đã bỏ qua / đã chọn xong)
-│     └─ components/
-│        ├─ TurnHome.tsx            2 thẻ "Lượt 1"/"Lượt 2" + nút Xác nhận & Gửi
-│        ├─ EntryPickerList.tsx     Danh sách bài dạng dòng để chọn cho 1 lượt
-│        └─ EntryActionDetail.tsx   Ảnh + mô tả + chọn React/Bình luận cho 1 bài
+│  │     ├─ EntryItem.tsx           1 bài (thẻ nổi bật hoặc dòng gọn) + nút ♥
+│  │     ├─ Sheet.tsx               Khung trượt từ đáy lên (dùng chung)
+│  │     ├─ EntrySheet.tsx          Chi tiết bài: ảnh lớn, mô tả, bình luận, thả tim/viết bình luận
+│  │     └─ ConfirmSheet.tsx        Xác nhận gửi phiếu
+├─ scripts/snapshot.mjs            Kéo bài + ảnh từ Apps Script/Drive thành dữ liệu tĩnh
+├─ public/entries/                 Ảnh bìa đã tải về (sinh bởi npm run snapshot)
 ├─ apps-script/Code.gs              Backend Google Apps Script (nộp bài + bình chọn)
 ├─ legacy/index-static.html         Bản HTML tĩnh cũ (backup, không dùng nữa)
 └─ HUONG-DAN.md                     File này

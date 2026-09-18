@@ -1,0 +1,294 @@
+/* =====================================================================
+   Trang bình chọn — mobile-first. File CSS DUY NHẤT trang này tải (trước
+   đây nạp nguyên global.css ~53KB gồm cả phần trang nộp bài đã đóng).
+   Không dùng backdrop-filter / animation chạy liên tục: đó là thứ làm điện
+   thoại tầm trung giật khi cuộn.
+   ===================================================================== */
+:root {
+  --bg: #fbf5f1;
+  --card: #ffffff;
+  --ink: #221a15;
+  --muted: #6d5d54;
+  --line: #eadcd3;
+  --brand: #b9491a;
+  --brand-press: #9a3c14;
+  --brand-soft: #ffe9de;
+  --heart: #d61f55;
+  --heart-soft: #fde6ee;
+  --comment: #2764a8;
+  --comment-soft: #e4eefa;
+  --ok: #1f6b47;
+  --ok-soft: #e1f4e9;
+  --err: #a8201a;
+  --err-soft: #fde2df;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(56, 13, 0, 0.06), 0 2px 10px rgba(56, 13, 0, 0.05);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 8px; }
+
+/* ---------- Khung trang ---------- */
+.v-page { min-height: 100dvh; }
+.v-header,
+.v-main { max-width: 760px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.v-page.has-dock .v-main { padding-bottom: calc(96px + var(--safe-bottom)); }
+
+.v-header { display: flex; align-items: center; gap: 12px; padding-top: 16px; padding-bottom: 12px; }
+.v-logo { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; background: var(--card); box-shadow: var(--shadow); flex: none; }
+.v-kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.v-title { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
+
+.v-muted { color: var(--muted); margin: 0; }
+.v-empty { text-align: center; padding: 32px 0; }
+.v-section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 20px 0 10px; }
+.v-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 28px 0 20px; }
+
+/* ---------- Thể lệ gọn 1-2 dòng ---------- */
+.v-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.v-rules-sub { width: 100%; font-size: 13px; color: var(--muted); }
+
+.v-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.v-chip.react { background: var(--heart-soft); color: var(--heart); }
+.v-chip.comment { background: var(--comment-soft); color: var(--comment); }
+
+/* ---------- Đã bình chọn ---------- */
+.v-done { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--radius); background: var(--ok-soft); color: var(--ok); }
+.v-done-icon { flex: none; }
+.v-done h2 { margin: 2px 0 4px; font-size: 16px; }
+.v-done p { margin: 0; font-size: 14px; color: var(--ink); }
+.v-done ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 14px; color: var(--ink); }
+.v-done li { display: flex; align-items: center; gap: 6px; }
+
+/* ---------- Tìm kiếm ---------- */
+.v-search {
+  display: flex; align-items: center; gap: 8px; margin-top: 14px;
+  padding: 0 6px 0 12px; height: 46px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: var(--muted);
+}
+.v-search:focus-within { border-color: var(--brand); }
+.v-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; font: inherit; font-size: 16px; color: var(--ink); outline: none; }
+.v-search input::-webkit-search-cancel-button { display: none; }
+.v-search button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; display: grid; place-items: center; }
+
+/* ---------- Ảnh bìa (A3 ngang 1.4142 : 1) ---------- */
+.v-thumb { display: block; aspect-ratio: 1.4142 / 1; object-fit: cover; background: #efe4dd; }
+
+.v-item-main { border: 0; background: transparent; padding: 0; text-align: left; min-width: 0; }
+.v-item-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.v-item-title {
+  font-weight: 650; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.v-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; color: var(--muted); }
+.v-item-meta > span { display: inline-flex; align-items: center; gap: 3px; }
+.v-item-meta .v-chip { padding: 1px 8px; font-size: 12px; }
+
+/* Nút tim 48px — vùng bấm đủ lớn cho ngón tay */
+.v-heart {
+  flex: none; width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--card); color: var(--heart);
+  transition: transform 0.12s, background-color 0.15s;
+}
+.v-heart:active { transform: scale(0.9); }
+.v-heart.on { background: var(--heart); border-color: var(--heart); color: #fff; }
+.v-heart:disabled { opacity: 0.35; }
+
+/* ---------- 3 bài nổi bật ---------- */
+/* Điện thoại: vuốt ngang, mỗi thẻ ~3/4 màn hình → thấy được thẻ kế tiếp */
+.v-feat-list {
+  list-style: none; margin: 0 -16px; padding: 2px 16px 6px;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 74%; gap: 12px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.v-feat-list::-webkit-scrollbar { display: none; }
+.v-feat {
+  position: relative; scroll-snap-align: start;
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  outline: 2px solid transparent; outline-offset: -2px;
+}
+.v-feat .v-item-main { display: block; width: 100%; }
+.v-feat .v-thumb { width: 100%; }
+.v-feat .v-item-text { padding: 10px 12px 12px; }
+.v-feat .v-heart { position: absolute; top: 8px; right: 8px; border: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+.v-feat .v-heart:disabled { opacity: 0.7; color: var(--muted); }
+@media (min-width: 640px) {
+  .v-feat-list { margin: 0; padding: 0; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); overflow: visible; }
+}
+
+/* ---------- Danh sách gọn ---------- */
+.v-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.v-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 8px;
+  background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
+  outline: 2px solid transparent; outline-offset: -2px;
+  /* Trình duyệt bỏ qua dựng hình các dòng ngoài màn hình — cuộn danh sách dài vẫn mượt */
+  content-visibility: auto; contain-intrinsic-size: auto 90px;
+}
+.v-row .v-item-main { flex: 1; display: flex; align-items: center; gap: 12px; }
+.v-row .v-thumb { width: 104px; flex: none; border-radius: 10px; }
+@media (min-width: 640px) {
+  .v-list { grid-template-columns: 1fr 1fr; }
+}
+
+.v-feat.is-react, .v-row.is-react { outline-color: var(--heart); }
+.v-feat.is-comment, .v-row.is-comment { outline-color: var(--comment); }
+
+/* ---------- Nút ---------- */
+.v-btn {
+  flex: 1; min-height: 48px; padding: 0 16px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid transparent; border-radius: 12px;
+  font-size: 15px; font-weight: 650; white-space: nowrap;
+  transition: background-color 0.15s, transform 0.12s;
+}
+.v-btn:active:not(:disabled) { transform: scale(0.98); }
+.v-btn:disabled { opacity: 0.45; }
+.v-btn.primary { background: var(--brand); color: #fff; }
+.v-btn.primary:hover:not(:disabled) { background: var(--brand-press); }
+.v-btn.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+.v-btn.react { background: var(--heart-soft); color: var(--heart); }
+.v-btn.react.on { background: var(--heart); color: #fff; }
+.v-btn.comment { background: var(--comment-soft); color: var(--comment); }
+
+.v-spinner { width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; border-radius: 50%; animation: v-spin 0.7s linear infinite; }
+@keyframes v-spin { to { transform: rotate(360deg); } }
+
+.v-alert { margin: 14px 0; padding: 12px 14px; border-radius: 12px; background: var(--err-soft); color: var(--err); font-size: 14px; }
+
+/* ---------- Thanh gửi dính đáy ---------- */
+.v-dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--card); border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(56, 13, 0, 0.08);
+  padding: 10px 16px calc(10px + var(--safe-bottom));
+  animation: v-up 0.2s ease-out;
+}
+.v-dock-inner { max-width: 728px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.v-dock-picks { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.v-dock-pick {
+  display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 26px;
+  padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 600; text-align: left;
+}
+.v-dock-pick span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v-dock-pick.react svg { color: var(--heart); }
+.v-dock-pick.comment svg { color: var(--comment); }
+.v-dock-pick.empty { color: var(--muted); font-weight: 400; cursor: default; }
+.v-dock-pick.empty svg { opacity: 0.45; }
+.v-dock-pick:disabled { cursor: default; }
+.v-dock-send { flex: none; padding: 0 20px; }
+
+/* ---------- Sheet (chi tiết bài / xác nhận) ---------- */
+.v-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(24, 12, 6, 0.55);
+  animation: v-fade 0.18s ease-out;
+}
+.v-sheet {
+  position: relative; width: 100%; max-height: 92dvh;
+  display: flex; flex-direction: column;
+  background: var(--card); border-radius: 20px 20px 0 0; overflow: hidden;
+  animation: v-up 0.22s ease-out;
+}
+.v-sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: 18px 16px 16px; }
+.v-sheet-foot {
+  display: flex; gap: 10px; padding: 12px 16px calc(12px + var(--safe-bottom));
+  border-top: 1px solid var(--line); background: var(--card);
+}
+.v-sheet-close {
+  position: absolute; top: 10px; right: 10px; z-index: 1;
+  width: 40px; height: 40px; border-radius: 50%; border: 0;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.92); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+}
+@media (min-width: 720px) {
+  .v-overlay { align-items: center; padding: 24px; }
+  .v-sheet { max-width: 580px; max-height: 88vh; border-radius: 20px; }
+}
+
+.v-sheet-img { position: relative; display: block; margin: -18px -16px 14px; background: #efe4dd; }
+.v-sheet-img img { display: block; width: 100%; aspect-ratio: 1.4142 / 1; object-fit: contain; background: center / contain no-repeat; }
+.v-zoom-hint {
+  position: absolute; right: 10px; bottom: 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(20, 10, 5, 0.7); color: #fff; font-size: 12px; font-weight: 600;
+}
+.v-sheet-title { margin: 0 44px 4px 0; font-size: 19px; line-height: 1.3; font-weight: 750; }
+.v-sheet-img + .v-sheet-title { margin-right: 0; }
+.v-sheet-desc { margin: 12px 0 0; white-space: pre-line; color: var(--ink); }
+
+.v-compose { margin-top: 14px; }
+.v-compose-note { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.v-textarea {
+  display: block; width: 100%; min-height: 110px; resize: vertical;
+  padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+  font: inherit; font-size: 16px; /* 16px: iOS không tự phóng to khi gõ */
+  color: var(--ink); background: #fffdfb;
+}
+.v-textarea:focus { outline: none; border-color: var(--comment); box-shadow: 0 0 0 3px var(--comment-soft); }
+.v-counter { margin-top: 6px; text-align: right; font-size: 13px; font-weight: 600; color: var(--err); }
+.v-counter.ok { color: var(--ok); }
+
+.v-comments { margin-top: 18px; }
+.v-comments h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.v-comments ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.v-comments li { padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 14px; }
+
+.v-ballot { list-style: none; margin: 14px 0; padding: 0; display: grid; gap: 10px; }
+.v-ballot li { display: flex; gap: 12px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
+.v-ballot img { width: 72px; aspect-ratio: 1.4142 / 1; object-fit: cover; border-radius: 8px; flex: none; background: #efe4dd; }
+.v-ballot div { display: grid; gap: 4px; justify-items: start; min-width: 0; }
+.v-ballot q { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.v-hint { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--brand-soft); font-size: 14px; }
+.v-note { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--muted); }
+
+@keyframes v-up { from { transform: translateY(24px); opacity: 0; } }
+@keyframes v-fade { from { opacity: 0; } }
+
+/* ---------- Toast ---------- */
+.toast-stack {
+  position: fixed; left: 50%; bottom: calc(16px + var(--safe-bottom)); transform: translateX(-50%);
+  z-index: 40; display: grid; gap: 8px; width: min(92vw, 440px);
+}
+.v-page.has-dock .toast-stack { bottom: calc(92px + var(--safe-bottom)); }
+.toast {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-radius: 12px; font-size: 14px; color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); animation: v-up 0.2s ease-out;
+}
+.toast.error { background: var(--err); }
+.toast.success { background: var(--ok); }
+.toast.info { background: #5b463b; }
+.toast svg { flex: none; }
+.toast span { flex: 1; }
+.toast-x { border: 0; background: transparent; padding: 4px; display: grid; place-items: center; opacity: 0.85; }
+
+/* Honeypot chống bot */
+.hp-field { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

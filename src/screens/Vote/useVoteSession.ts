@@ -1,21 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { submissionApi } from "../../api/submissionApi";
 import { IS_CONFIGURED } from "../../config";
 import { getDeviceId } from "../../utils/deviceId";
 import { getRecaptchaToken } from "../../utils/recaptcha";
-import { readEngagedRecord, writeEngagedRecord, type EngagedRecord } from "../../utils/engagedRecord";
+import {
+  readEngagedRecord,
+  writeEngagedRecord,
+  type EngagedRecord,
+} from "../../utils/engagedRecord";
 import { COMMENT_MIN_WORDS, countWords } from "../../utils/wordCount";
 import type { ToastItem } from "../Submit/components/Toast";
 import type { EntryCommentsMap, VoteEntry } from "../../types";
+import snapshotEntries from "../../data/entries.json";
 
-// 2 phút — đủ dày để máy chủ không kịp ngủ, đủ thưa để 70 người cùng mở trang
-// cũng chỉ tạo khoảng 35 lượt gọi rỗng mỗi phút.
+// Chỉ ping giữ máy chủ thức khi người dùng ĐANG chọn bài (sắp bấm gửi). Trước
+// đây mọi người mở trang đều ping mỗi 2 phút — 70 người là 35 lượt chạy rỗng
+// mỗi phút tranh suất chạy đồng thời với lượt gửi thật.
 const KEEP_AWAKE_INTERVAL_MS = 120000;
 
-// Quá mốc này mà chưa tải xong thì gần như chắc chắn đang phải đánh thức máy
-// chủ Apps Script (đo thực tế ~17 giây) — đổi lời nhắn để người dùng biết là
-// bình thường, đừng tải lại trang.
-const SLOW_LOADING_AFTER_MS = 4000;
+// Bài dự thi + ảnh là snapshot tĩnh (npm run snapshot) đóng thẳng vào bundle
+// → trang có bài NGAY khi JS chạy, không chờ Apps Script. Máy chủ chỉ còn trả
+// phần động (thứ tự theo điểm, bình luận, đã vote chưa), tải ở nền.
+const SNAPSHOT = snapshotEntries as VoteEntry[];
+
+// Nhớ phần động của lần trước để mở lại trang là thấy đúng thứ tự ngay.
+const LIVE_CACHE_KEY = "nbdt-vote-live";
+
+type LiveData = { order: string[]; comments: EntryCommentsMap };
+
+const readLiveCache = (): LiveData => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(LIVE_CACHE_KEY) || "null");
+    if (cached?.order && cached?.comments) return cached;
+  } catch {
+    // Không đọc được bộ nhớ trang → dùng thứ tự nộp bài
+  }
+  return { order: [], comments: {} };
+};
 
 type SubmitArgs = {
   reactEntry: VoteEntry | null;
@@ -24,24 +45,13 @@ type SubmitArgs = {
   honeypot: string;
 };
 
-/**
- * Toàn bộ phần "ruột" của việc bình chọn — tải dữ liệu, biết thiết bị đã dùng
- * lượt chưa, gửi phiếu, báo lỗi — DÙNG CHUNG cho cả bản desktop (/binh-chon)
- * và bản mobile (/binh-chon/mobile). Trước đây 2 màn hình chép lại cùng một
- * đoạn logic nên rất dễ lệch nhau mỗi lần sửa (VD sửa cách xử lý lỗi ở 1 bên
- * mà quên bên kia); gộp về 1 chỗ để 2 giao diện luôn hành xử giống hệt nhau.
- */
-export const useVoteSession = () => {
-  const [entries, setEntries] = useState<VoteEntry[]>([]);
-  const [comments, setComments] = useState<EntryCommentsMap>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [isSlowLoading, setIsSlowLoading] = useState<boolean>(false);
+export const useVoteSession = (hasPendingPick: boolean) => {
+  const [live, setLive] = useState<LiveData>(readLiveCache);
 
-  // Đã bình chọn hay chưa: ưu tiên bản ghi trong máy (có kèm tên tác phẩm đã
-  // chọn để hiện biên nhận), nhưng máy chủ mới là nguồn quyết định.
+  // Máy chủ mới là nguồn quyết định "đã bình chọn"; bản ghi trong máy chỉ để
+  // hiện ngay + nhớ tên tác phẩm đã chọn cho biên nhận.
   const [engagedRecord, setEngagedRecord] = useState<EngagedRecord | null>(readEngagedRecord);
-  const [hasVoted, setHasVoted] = useState<boolean>(() => Boolean(readEngagedRecord()));
+  const [hasVoted, setHasVoted] = useState<boolean>(() => Boolean(engagedRecord));
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [engageError, setEngageError] = useState<string | null>(null);
@@ -49,6 +59,8 @@ export const useVoteSession = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useRef<number>(0);
   const pageLoadedAtRef = useRef<number>(Date.now());
+  // Lượt gọi votePage lúc mở trang đã đánh thức máy chủ — chưa cần ping ngay.
+  const lastPingAtRef = useRef<number>(Date.now());
 
   const showToast = useCallback((message: string, type: ToastItem["type"] = "error") => {
     const id = ++toastIdRef.current;
@@ -60,57 +72,47 @@ export const useVoteSession = () => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const reload = useCallback(async () => {
-    if (!IS_CONFIGURED) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setLoadError(null);
-    setIsSlowLoading(false);
-    const slowTimer = window.setTimeout(() => setIsSlowLoading(true), SLOW_LOADING_AFTER_MS);
-    try {
-      // Hỏi máy chủ "thiết bị này vote chưa" SONG SONG với việc tải dữ liệu —
-      // không nối tiếp, để trang không chậm thêm một vòng gọi mạng.
-      const [entriesResponse, commentsResponse, votedOnServer] = await Promise.all([
-        submissionApi.getVoteEntries(),
-        submissionApi.getComments(),
-        submissionApi.getVoteStatus(getDeviceId()),
-      ]);
-      if (!entriesResponse.ok) throw new Error(entriesResponse.error || "Không tải được danh sách bài dự thi.");
-      setEntries(entriesResponse.entries || []);
-      setComments(commentsResponse.ok ? commentsResponse.comments || {} : {});
-      if (votedOnServer) markVoted(null);
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err));
-    } finally {
-      window.clearTimeout(slowTimer);
-      setIsLoading(false);
-    }
+  useEffect(() => {
+    if (!IS_CONFIGURED) return;
+    submissionApi
+      .getVotePage(getDeviceId())
+      .then((response) => {
+        if (!response.ok) return;
+        const fresh: LiveData = { order: response.order || [], comments: response.comments || {} };
+        setLive(fresh);
+        try {
+          localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify(fresh));
+        } catch {
+          // Hết dung lượng / chế độ riêng tư — lần sau chỉ không nhớ thứ tự
+        }
+        if (response.voted) setHasVoted(true);
+      })
+      .catch(() => {
+        // Máy chủ chậm/lỗi: trang vẫn đủ bài để xem và chọn; bước gửi sẽ tự báo lỗi nếu còn hỏng
+      });
   }, []);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  // Bài có điểm lên đầu theo thứ tự máy chủ; bài chưa có điểm giữ thứ tự nộp.
+  const entries = useMemo(() => {
+    const rank = new Map(live.order.map((id, index) => [id, index]));
+    return [...SNAPSHOT].sort((a, b) => (rank.get(a.id) ?? rank.size) - (rank.get(b.id) ?? rank.size));
+  }, [live.order]);
 
-  // Giữ máy chủ "thức" trong lúc người dùng còn đang xem và chưa bình chọn.
-  // Chỉ ping khi tab đang mở (ẩn tab thì thôi) để không tiêu tốn hạn mức gọi
-  // của Apps Script một cách vô ích.
   useEffect(() => {
-    if (!IS_CONFIGURED || hasVoted) return;
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") submissionApi.keepServerAwake();
-    }, KEEP_AWAKE_INTERVAL_MS);
+    if (!IS_CONFIGURED || hasVoted || !hasPendingPick) return;
+    const ping = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastPingAtRef.current < KEEP_AWAKE_INTERVAL_MS) return;
+      lastPingAtRef.current = Date.now();
+      submissionApi.keepServerAwake();
+    };
+    ping();
+    const timer = window.setInterval(ping, KEEP_AWAKE_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [hasVoted]);
+  }, [hasVoted, hasPendingPick]);
 
-  // Ghi nhận "đã bình chọn" ở cả 3 nơi: state, localStorage và cờ hasVoted.
-  // record = null nghĩa là biết đã vote nhưng không biết đã chọn bài nào (VD
-  // máy chủ báo đã vote còn máy này đã xoá dữ liệu trang) — vẫn khoá bình chọn,
-  // chỉ là biên nhận không hiện tên tác phẩm.
-  const markVoted = (record: EngagedRecord | null) => {
+  const markVoted = (record: EngagedRecord) => {
     setHasVoted(true);
-    if (!record) return;
     writeEngagedRecord(record);
     setEngagedRecord(record);
   };
@@ -128,6 +130,11 @@ export const useVoteSession = () => {
 
     setIsSubmitting(true);
     setEngageError(null);
+    const record: EngagedRecord = {
+      reactedTitle: reactEntry?.title || null,
+      commentedTitle: commentEntry?.title || null,
+      at: new Date().toISOString(),
+    };
     try {
       const response = await submissionApi.submitEngagement({
         reactEntryId: reactEntry?.id || "",
@@ -140,26 +147,27 @@ export const useVoteSession = () => {
       });
 
       if (response.ok) {
-        markVoted({
-          reactedTitle: reactEntry?.title || null,
-          commentedTitle: commentEntry?.title || null,
-          at: new Date().toISOString(),
-        });
+        markVoted(record);
+        // Máy chủ cache bình luận ~30 giây — tự thêm vào để người vừa viết
+        // thấy ngay, không phải tải lại trang (và không bắt máy chủ tính lại).
+        if (commentEntry) {
+          setLive((prev) => ({
+            ...prev,
+            comments: {
+              ...prev.comments,
+              [commentEntry.id]: [...(prev.comments[commentEntry.id] || []), trimmedComment],
+            },
+          }));
+        }
         showToast("Đã ghi nhận bình chọn — cảm ơn bạn đã tham gia!", "success");
         return true;
       }
 
-      // Máy chủ báo thiết bị đã dùng lượt: nghĩa là phiếu ĐÃ được ghi (thường
-      // do lần gửi trước thành công nhưng mạng rớt nên máy này không nhận được
-      // phản hồi). Chuyển thẳng sang màn "đã bình chọn" thay vì bắt người dùng
-      // bấm gửi lại mãi không được.
+      // Thiết bị đã dùng lượt: phiếu ĐÃ được ghi (thường do lần gửi trước thành
+      // công nhưng mạng rớt) — chuyển thẳng sang "đã bình chọn".
       if (response.code === "ALREADY_VOTED") {
-        markVoted({
-          reactedTitle: reactEntry?.title || null,
-          commentedTitle: commentEntry?.title || null,
-          at: new Date().toISOString(),
-        });
-        showToast("Thiết bị này đã bình chọn trước đó — phiếu của bạn đã được ghi nhận.", "info");
+        markVoted(record);
+        showToast("Bạn đã bình chọn rồi — phiếu của bạn đã được ghi nhận.", "info");
         return true;
       }
 
@@ -176,11 +184,7 @@ export const useVoteSession = () => {
 
   return {
     entries,
-    comments,
-    isLoading,
-    isSlowLoading,
-    loadError,
-    reload,
+    comments: live.comments,
     hasVoted,
     engagedRecord,
     isSubmitting,

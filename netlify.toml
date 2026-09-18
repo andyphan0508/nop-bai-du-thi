@@ -7,3 +7,9 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Ảnh bìa snapshot: tên file chứa mã băm nội dung → cache vĩnh viễn
+[[headers]]
+  for = "/entries/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

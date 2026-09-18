@@ -12,7 +12,8 @@
  * Kiểm tra (assert) 3 điều:
  *   1. 70 người khác thiết bị → cả 70 lượt được ghi nhận, không ai bị từ chối.
  *   2. 1 thiết bị bấm gửi 5 lần liên tiếp → đúng 1 lượt được ghi, 4 lượt bị chặn.
- *   3. Trang mở lại sau khi vote → voteStatus trả voted = true.
+ *   3. Trang mở lại sau khi vote → votePage trả voted = true.
+ *   4. votePage xếp bài điểm cao lên đầu nhưng KHÔNG lộ số điểm; exportScores ghi đúng tổng điểm.
  */
 
 const fs = require('fs');
@@ -50,12 +51,13 @@ class FakeSheet {
         }
         return out;
       },
-      setValues(values) { values.forEach((v, i) => { self.rows[row - 1 + i] = v.slice(); }); },
+      setValues(values) { values.forEach((v, i) => { self.rows[row - 1 + i] = v.slice(); }); return this; },
       setValue(value) { (self.rows[row - 1] = self.rows[row - 1] || [])[col - 1] = value; },
       setFontWeight() { return this; },
     };
   }
   appendRow(row) { this.rows.push(row.slice()); }
+  clearContents() { this.rows = []; }
   setFrozenRows() {}
   deleteRow(row) { this.rows.splice(row - 1, 1); }
 }
@@ -187,7 +189,7 @@ const sandbox = { ...globals, console };
 const runner = new Function(...Object.keys(sandbox), source + '\n;return this;');
 const scriptScope = runner.call(sandbox, ...Object.values(sandbox));
 // Code.gs khai báo bằng `var` ở cấp cao nhất → nằm trong scope của Function, lấy ra qua eval
-const call = new Function(...Object.keys(sandbox), source + '\n;return { doGet, doPost, handleEngage, handleVoteEntries, handleVoteStats, handleVoteStatus };');
+const call = new Function(...Object.keys(sandbox), source + '\n;return { doGet, doPost, exportScores };');
 const api = call.call(sandbox, ...Object.values(sandbox));
 
 // --- Dựng dữ liệu mẫu ---------------------------------------------------------
@@ -238,14 +240,16 @@ console.log('='.repeat(70));
 let openStart = now;
 const openResults = [];
 for (let i = 0; i < VOTER_COUNT; i++) {
-  openResults.push(runExecution(`open-${i}`, () => api.doGet({ parameter: { action: 'voteEntries' } })));
+  openResults.push(runExecution(`open-${i}`, () => api.doGet({ parameter: { action: 'votePage', deviceId: `device-${i}` } })));
 }
 const slowestOpen = Math.max(...openResults.map((r) => r.exec.elapsed - r.exec.startedAt));
 console.log(`\n[1] Mở trang (${VOTER_COUNT} lượt tải danh sách bài)`);
 console.log(`    Số lần quét Google Drive : ${counters.driveScans} (trước tối ưu: ${VOTER_COUNT * ENTRY_COUNT})`);
+console.log(`    Số lần đọc Sheet          : ${counters.sheetReads} (cache 30 giây dùng chung)`);
 console.log(`    Lượt lâu nhất            : ${(slowestOpen / 1000).toFixed(1)} giây (lượt phải tính lại khi cache nguội)`);
 assert.ok(openResults.every((r) => r.result.ok), 'Có lượt mở trang bị lỗi');
-assert.ok(counters.driveScans <= ENTRY_COUNT, `Quét Drive quá nhiều lần: ${counters.driveScans}`);
+assert.ok(openResults.every((r) => r.result.voted === false && Array.isArray(r.result.order)), 'votePage trả sai dữ liệu');
+assert.strictEqual(counters.driveScans, 0, 'Mở trang không được quét Drive (danh sách bài là snapshot tĩnh)');
 
 // --- Bước 2: tất cả cùng bấm GỬI ----------------------------------------------
 counters.sheetWrites = 0;
@@ -292,12 +296,12 @@ assert.strictEqual(spamOk, 1, 'Một thiết bị dùng được nhiều hơn 1 
 assert.strictEqual(spamBlocked, 4, 'Lần gửi lại không trả đúng mã ALREADY_VOTED');
 
 // --- Bước 4: mở lại trang sau khi đã vote -------------------------------------
-const status = runExecution('status', () => api.doGet({ parameter: { action: 'voteStatus', deviceId: 'device-7' } }));
-const statusFresh = runExecution('status2', () => api.doGet({ parameter: { action: 'voteStatus', deviceId: 'device-chua-vote' } }));
+const status = runExecution('status', () => api.doGet({ parameter: { action: 'votePage', deviceId: 'device-7' } }));
+const statusFresh = runExecution('status2', () => api.doGet({ parameter: { action: 'votePage', deviceId: 'device-chua-vote' } }));
 console.log(`\n[4] Mở lại trang (kiểm tra phía máy chủ, không phụ thuộc localStorage)`);
 console.log(`    Thiết bị đã vote         : voted = ${status.result.voted}`);
 console.log(`    Thiết bị chưa vote       : voted = ${statusFresh.result.voted}`);
-assert.strictEqual(status.result.voted, true, 'Thiết bị đã vote nhưng voteStatus trả false');
+assert.strictEqual(status.result.voted, true, 'Thiết bị đã vote nhưng votePage trả false');
 assert.strictEqual(statusFresh.result.voted, false, 'Thiết bị chưa vote nhưng bị báo đã vote');
 
 // --- Bước 5: tính toàn vẹn dữ liệu --------------------------------------------
@@ -312,17 +316,27 @@ assert.strictEqual(voters, VOTER_COUNT + 1, 'Số người bình chọn không k
 assert.strictEqual(reacts, VOTER_COUNT + 1, 'Số lượt React không khớp');
 assert.strictEqual(comments, VOTER_COUNT + 1, 'Số lượt bình luận không khớp');
 
-// --- Bước 6: xem thống kê ------------------------------------------------------
+// --- Bước 6: thứ tự hiển thị + sheet "Tổng điểm" ------------------------------
+// Dồn thêm 5 tim cho bài cuối để chắc chắn thứ tự đổi so với thứ tự nộp bài
+for (let i = 0; i < 5; i++) {
+  runExecution(`boost-${i}`, () => api.doPost({
+    postData: { contents: JSON.stringify({ ...engagePayload(`device-boost-${i}`, ENTRY_COUNT - 1, 0), commentEntryId: '', commentText: '' }) },
+  }));
+}
+cacheStore.delete('voteBoard'); // giả lập hết TTL 30 giây
 counters.driveScans = 0;
-const statsStart = now;
-const stats = runExecution('stats', () => api.doGet({ parameter: { action: 'voteStats' } }));
-console.log(`\n[6] Xem thống kê / bảng xếp hạng`);
-console.log(`    Số lần quét Drive        : ${counters.driveScans} (trước tối ưu: ${ENTRY_COUNT} mỗi 15 giây)`);
-console.log(`    Thời gian                : ${((stats.exec.elapsed - stats.exec.startedAt) / 1000).toFixed(1)} giây`);
-console.log(`    Tổng điểm                : ${stats.result.stats.totalPoints}`);
-assert.ok(stats.result.ok, 'Thống kê lỗi');
-assert.strictEqual(counters.driveScans, 0, 'Thống kê vẫn quét lại Drive');
-assert.strictEqual(stats.result.stats.totalPoints, (VOTER_COUNT + 1) * 3, 'Tổng điểm sai (React 2đ + bình luận 1đ)');
+const page = runExecution('page', () => api.doGet({ parameter: { action: 'votePage', deviceId: 'x' } }));
+const exported = runExecution('export', () => ({ text: JSON.stringify(api.exportScores()) }));
+const scoreRows = spreadsheet.getSheetByName('Tổng điểm').rows.slice(1).filter((r) => typeof r[0] === 'number');
+const totalFromSheet = scoreRows.reduce((sum, r) => sum + r[6], 0);
+console.log(`\n[6] Thứ tự hiển thị & sheet "Tổng điểm"`);
+const topTitle = mainSheet.rows.find((r) => r[0] === page.result.order[0])[5];
+console.log(`    Bài đầu danh sách        : ${topTitle} (điểm cao nhất: ${scoreRows[0][1]})`);
+console.log(`    Tổng điểm trong sheet    : ${totalFromSheet} · ${exported.result}`);
+assert.strictEqual(counters.driveScans, 0, 'votePage vẫn quét lại Drive');
+assert.strictEqual(topTitle, scoreRows[0][1], 'Bài điểm cao nhất không nằm đầu danh sách');
+assert.ok(page.result.order.every((id) => typeof id === 'string') && !('points' in page.result), 'votePage làm lộ điểm');
+assert.strictEqual(totalFromSheet, (VOTER_COUNT + 1) * 3 + 5 * 2, 'Tổng điểm sai (React 2đ + bình luận 1đ)');
 
 console.log('\n' + '='.repeat(70));
 console.log('✅ TẤT CẢ KIỂM TRA ĐỀU ĐẠT');

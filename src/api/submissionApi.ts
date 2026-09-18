@@ -1,15 +1,11 @@
 import { ENDPOINT } from "../config";
 import type {
-  CommentsResponse,
   EngagePayload,
   EngageResponse,
   EntryListResponse,
   SubmitPayload,
   SubmitResponse,
-  VoteEntryListResponse,
-  VoteResultsResponse,
-  VoteStatsResponse,
-  VoteStatusResponse,
+  VotePageResponse,
 } from "../types";
 
 const getEntryList = async (): Promise<EntryListResponse> => {
@@ -19,43 +15,17 @@ const getEntryList = async (): Promise<EntryListResponse> => {
   return (await response.json()) as EntryListResponse;
 };
 
-const getVoteEntries = async (): Promise<VoteEntryListResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=voteEntries&_t=${Date.now()}`, {
-    cache: "no-store",
-  });
-  return (await response.json()) as VoteEntryListResponse;
+// Phần động của trang bình chọn trong 1 lượt gọi: thứ tự bài (không kèm điểm),
+// bình luận, và thiết bị này đã bình chọn chưa. Danh sách bài là snapshot tĩnh
+// nên lượt gọi này chạy nền, không chặn trang hiển thị.
+const getVotePage = async (deviceId: string): Promise<VotePageResponse> => {
+  const response = await fetch(
+    `${ENDPOINT}?action=votePage&deviceId=${encodeURIComponent(deviceId)}&_t=${Date.now()}`,
+    { cache: "no-store" },
+  );
+  return (await response.json()) as VotePageResponse;
 };
 
-// URL ảnh bìa 1 bài dự thi — dùng thẳng link thumbnail công khai của Google
-// Drive (Apps Script Web App không hỗ trợ trả blob ảnh trực tiếp từ doGet).
-// Ảnh chỉ hiển thị được nếu file đã bật chia sẻ "Anyone with link" — bài nộp
-// mới tự bật khi nộp (xem Code.gs doPost); bài nộp cũ cần chạy 1 lần
-// ?action=syncImages (xem HUONG-DAN.md).
-const voteImageUrl = (fileId: string, width = 800): string => {
-  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${width}`;
-};
-
-// Thiết bị này đã dùng lượt chưa — hỏi thẳng máy chủ khi mở trang, để người đã
-// bình chọn thấy ngay màn hình "đã bình chọn" thay vì chọn bài xong mới bị từ
-// chối lúc gửi. Lỗi mạng → coi như chưa vote (không chặn oan ai), bước gửi vẫn
-// kiểm tra lại lần nữa ở máy chủ.
-const getVoteStatus = async (deviceId: string): Promise<boolean> => {
-  try {
-    const response = await fetch(
-      `${ENDPOINT}?action=voteStatus&deviceId=${encodeURIComponent(deviceId)}&_t=${Date.now()}`,
-      { cache: "no-store" },
-    );
-    const data = (await response.json()) as VoteStatusResponse;
-    return Boolean(data.ok && data.voted);
-  } catch {
-    return false;
-  }
-};
-
-// Số lần gửi lại khi máy chủ báo quá tải. Apps Script giới hạn số lượt chạy
-// đồng thời, nên lúc cao điểm (60-70 người bấm gửi trong vài giây) vẫn có thể
-// có lượt bị dội ra — thử lại có giãn cách + lệch ngẫu nhiên để không cùng lúc
-// dội ngược lại máy chủ.
 // Gọi rỗng vào endpoint để Apps Script không "ngủ". Google tắt máy chủ khi
 // script rảnh một lúc, và lần gọi kế tiếp phải khởi động lại — đo thực tế mất
 // 15-18 giây, trong khi lần gọi lúc máy còn thức chỉ ~1,7 giây. Người dùng
@@ -67,6 +37,8 @@ const keepServerAwake = (): void => {
   });
 };
 
+// Số lần gửi lại khi máy chủ báo quá tải — thử lại có giãn cách + lệch ngẫu
+// nhiên để 60-70 người không cùng lúc dội ngược lại máy chủ.
 const ENGAGE_MAX_ATTEMPTS = 3;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,42 +65,6 @@ const submitEngagement = async (payload: EngagePayload): Promise<EngageResponse>
   }
 
   return { ok: false, code: "BUSY", error: lastError };
-};
-
-// Bình luận công khai của TẤT CẢ bài dự thi, gộp theo entryId — tải 1 lần
-// cho cả trang thay vì gọi riêng từng bài.
-const getComments = async (): Promise<CommentsResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=comments&_t=${Date.now()}`, {
-    cache: "no-store",
-  });
-  return (await response.json()) as CommentsResponse;
-};
-
-const getVoteResults = async (adminKey: string): Promise<VoteResultsResponse> => {
-  const response = await fetch(
-    `${ENDPOINT}?action=voteResults&key=${encodeURIComponent(adminKey)}&_t=${Date.now()}`,
-    { cache: "no-store" },
-  );
-  return (await response.json()) as VoteResultsResponse;
-};
-
-// Thống kê bình chọn công khai: tổng số lượt vote, bình luận, người tham gia, phân bổ theo nhóm
-const getVoteStats = async (): Promise<VoteStatsResponse> => {
-  const response = await fetch(`${ENDPOINT}?action=voteStats&_t=${Date.now()}`, {
-    cache: "no-store",
-  });
-  return (await response.json()) as VoteStatsResponse;
-};
-
-// Đồng bộ quyền xem công khai cho tất cả ảnh dự thi trong Google Drive
-const syncDriveImages = async (
-  adminKey?: string,
-): Promise<{ ok: boolean; fixed?: number; failed?: number; error?: string }> => {
-  const keyParam = adminKey ? `&key=${encodeURIComponent(adminKey)}` : "";
-  const response = await fetch(`${ENDPOINT}?action=syncImages${keyParam}&_t=${Date.now()}`, {
-    cache: "no-store",
-  });
-  return await response.json();
 };
 
 // POST bằng XHR, Content-Type text/plain để giữ dạng "simple request".
@@ -194,13 +130,7 @@ export const submissionApi = {
   getEntryList,
   postSubmission,
   deleteEntry,
-  getVoteEntries,
-  voteImageUrl,
+  getVotePage,
   submitEngagement,
   keepServerAwake,
-  getVoteStatus,
-  getComments,
-  getVoteResults,
-  getVoteStats,
-  syncDriveImages,
 };
