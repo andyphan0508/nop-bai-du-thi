@@ -54,6 +54,8 @@ class FakeSheet {
       setValues(values) { values.forEach((v, i) => { self.rows[row - 1 + i] = v.slice(); }); return this; },
       setValue(value) { (self.rows[row - 1] = self.rows[row - 1] || [])[col - 1] = value; },
       setFontWeight() { return this; },
+      setWrap() { return this; },
+      setVerticalAlignment() { return this; },
       clearContent() { for (let r = row; r < row + numRows; r++) self.rows[r - 1] = []; self.rows = self.rows.filter((x, i) => i < row - 1 || x.length); },
     };
   }
@@ -63,6 +65,8 @@ class FakeSheet {
   copyTo(ss) { const c = ss.insertSheet(this.name + ' copy'); c.rows = this.rows.map((r) => r.slice()); return c; }
   setName(name) { this.name = name; return this; }
   setFrozenRows() {}
+  setFrozenColumns() {}
+  setColumnWidths() {}
   deleteRow(row) { this.rows.splice(row - 1, 1); }
 }
 
@@ -340,6 +344,12 @@ console.log(`    Bài điểm cao nhất        : ${scoreRows[0][1]} (dồn 5 ti
 console.log(`    Tổng điểm trong sheet    : ${totalFromSheet} · ${exported.result}`);
 assert.strictEqual(counters.driveScans, 0, 'votePage vẫn quét lại Drive');
 assert.strictEqual(scoreRows[0][1], 'Tác phẩm 20', 'Sheet Tổng điểm xếp sai');
+const scoresSheet = spreadsheet.getSheetByName('Tổng điểm');
+const commentCols = scoresSheet.rows[0].filter((h) => String(h).startsWith('Bình luận ')).length;
+const rowsWithAllComments = scoreRows.every((r) => r.slice(7, 7 + commentCols).filter(Boolean).length === r[5]);
+console.log(`    Cột bình luận hàng ngang : ${commentCols} cột, khớp số bình luận từng bài: ${rowsWithAllComments}`);
+assert.ok(commentCols > 0, 'Sheet Tổng điểm thiếu cột bình luận');
+assert.ok(rowsWithAllComments, 'Số lời bình luận trên hàng không khớp cột Lượt bình luận');
 assert.deepStrictEqual(Object.keys(page.result).sort(), ['comments', 'ok', 'voted'], 'votePage làm lộ điểm/thứ tự');
 assert.strictEqual(totalFromSheet, (VOTER_COUNT + 1) * 3 + 5 * 2, 'Tổng điểm sai (React 2đ + bình luận 1đ)');
 

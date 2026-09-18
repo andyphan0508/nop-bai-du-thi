@@ -399,23 +399,27 @@ function handleVotePage(e) {
   }
 }
 
-// Bình luận công khai (ẩn danh) gộp theo bài, cache 30 giây dùng chung.
+// Bình luận công khai (ẩn danh) gộp theo bài: { entryId: [nội dung, ...] }.
+function readComments(ss) {
+  var comments = {};
+  var commentsSheet = ss.getSheetByName(COMMENTS_SHEET_NAME);
+  if (commentsSheet && commentsSheet.getLastRow() > 1) {
+    commentsSheet.getRange(2, 1, commentsSheet.getLastRow() - 1, 2).getValues().forEach(function (r) {
+      var entryId = String(r[0] || '');
+      var text = String(r[1] || '');
+      if (!entryId || !text) return;
+      if (!comments[entryId]) comments[entryId] = [];
+      comments[entryId].push(text);
+    });
+  }
+  return comments;
+}
+
+// Bình luận cho trang bình chọn, cache 30 giây dùng chung.
 function getVoteBoard() {
   return cachedData(BOARD_CACHE_KEY, CACHE_TTL_BOARD, function () {
     try {
-      var ss = SpreadsheetApp.openById(SHEET_ID);
-      var comments = {};
-      var commentsSheet = ss.getSheetByName(COMMENTS_SHEET_NAME);
-      if (commentsSheet && commentsSheet.getLastRow() > 1) {
-        commentsSheet.getRange(2, 1, commentsSheet.getLastRow() - 1, 2).getValues().forEach(function (r) {
-          var entryId = String(r[0] || '');
-          var text = String(r[1] || '');
-          if (!entryId || !text) return;
-          if (!comments[entryId]) comments[entryId] = [];
-          comments[entryId].push(text);
-        });
-      }
-      return { ok: true, comments: comments };
+      return { ok: true, comments: readComments(SpreadsheetApp.openById(SHEET_ID)) };
     } catch (err) {
       return { ok: false, error: String(err && err.message ? err.message : err) };
     }
@@ -620,20 +624,37 @@ function resetVotes() {
 
 // Ghi bảng điểm vào sheet "Tổng điểm" (điểm cao → thấp). Web không hiển thị
 // điểm/xếp hạng — quản trị viên xem ở đây hoặc tải về Excel (File → Download).
+// Sau cột Tổng điểm là TOÀN BỘ lời bình luận của bài, mỗi lời 1 cột sang ngang
+// ("Bình luận 1", "Bình luận 2", ...) để BGK đọc nội dung ngay trên cùng hàng.
 // Chạy tay: chọn hàm exportScores → Run. Tự động: chạy setupScoreTrigger 1 lần.
 function exportScores() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var data = computeResults(ss);
+  var comments = readComments(ss);
+  var maxComments = 0;
+  data.results.forEach(function (r) { maxComments = Math.max(maxComments, (comments[r.id] || []).length); });
+
   var header = ['Hạng', 'Tên tác phẩm', 'Họ tên', 'Nhóm/Ban ngành', 'Lượt React (×2)', 'Lượt bình luận (×1)', 'Tổng điểm'];
+  var fixedColumns = header.length;
+  for (var c = 1; c <= maxComments; c++) header.push('Bình luận ' + c);
   var rows = data.results.map(function (r, i) {
-    return [i + 1, r.title, r.name, r.group, r.reactCount, r.commentCount, r.points];
+    var texts = comments[r.id] || [];
+    var row = [i + 1, r.title, r.name, r.group, r.reactCount, r.commentCount, r.points];
+    for (var k = 0; k < maxComments; k++) row.push(texts[k] || '');
+    return row;
   });
 
   var sheet = ss.getSheetByName(SCORES_SHEET_NAME) || ss.insertSheet(SCORES_SHEET_NAME);
   sheet.clearContents();
   sheet.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
   sheet.setFrozenRows(1);
+  // Giữ cột Tên tác phẩm đứng yên khi kéo ngang đọc bình luận
+  sheet.setFrozenColumns(2);
   if (rows.length) sheet.getRange(2, 1, rows.length, header.length).setValues(rows);
+  if (maxComments && rows.length) {
+    sheet.setColumnWidths(fixedColumns + 1, maxComments, 320);
+    sheet.getRange(2, fixedColumns + 1, rows.length, maxComments).setWrap(true).setVerticalAlignment('top');
+  }
   sheet.getRange(1, header.length + 2).setValue(
     'Cập nhật: ' + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss') + ' · Tổng điểm: ' + data.totalPoints,
   );

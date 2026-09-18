@@ -120,7 +120,7 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 **Điểm & cách chấm giải (chỉ quản trị viên):**
 - **Nút Top 3**: mở `<domain>/binh-chon?admin=1` → nút 🏆 góc trên → nhập `ADMIN_KEY` → hiện các bài có điểm cao nhất (kèm tên tác giả), **xếp theo tên, không theo hạng 1-2-3**. Bài đồng hạng 3 (bằng cả điểm lẫn số React) được hiện thêm. Người thường không thấy nút; có mở link cũng cần đúng mã quản trị.
 - **Xoá dữ liệu bình chọn** (VD sau khi chạy thử): trong Apps Script chọn hàm `resetVotes` → **Run**. Hàm sao lưu 4 sheet (Người bình chọn, Kết quả bình chọn, Bình luận, Tổng điểm) thành "… (sao lưu <ngày giờ>)" rồi mới xoá, và xoá luôn bộ nhớ đệm. Máy đã vote thử sẽ tự quay về danh sách khi mở lại trang. Không có cách gọi hàm này qua web.
-- Điểm được ghi vào sheet **"Tổng điểm"** trong Google Sheet (Hạng · Tên tác phẩm · Họ tên · Nhóm · React · Bình luận · Tổng điểm) — muốn file Excel thì **File → Download → Microsoft Excel (.xlsx)**.
+- Điểm được ghi vào sheet **"Tổng điểm"** trong Google Sheet (Hạng · Tên tác phẩm · Họ tên · Nhóm · React · Bình luận · Tổng điểm), tiếp theo là **toàn bộ lời bình luận của bài, mỗi lời 1 cột sang ngang** ("Bình luận 1", "Bình luận 2"…) — cột Tên tác phẩm đứng yên khi kéo ngang. Muốn file Excel thì **File → Download → Microsoft Excel (.xlsx)**.
 - Cập nhật sheet: trong Apps Script chọn hàm `exportScores` → **Run** (cập nhật ngay), hoặc chạy `setupScoreTrigger` **1 lần** để sheet tự cập nhật mỗi 5 phút.
 - **Hạng 1 – 2 – 3**: tổng điểm cao nhất; bằng điểm thì xét **số React cao hơn** (sheet đã xếp sẵn theo quy tắc này).
 - **Giải khuyến khích (nội dung)**: bài có **số bình luận cao nhất** trong các bài **ngoài top 3** — xem cột "Lượt bình luận" trong sheet.
