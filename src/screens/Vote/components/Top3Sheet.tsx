@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { MdEmojiEvents } from "react-icons/md";
+import { MdEmojiEvents, MdRefresh } from "react-icons/md";
 import Sheet from "./Sheet";
 import { submissionApi } from "../../../api/submissionApi";
 import type { Top3Response, VoteEntry } from "../../../types";
@@ -25,8 +25,8 @@ const Top3Sheet = ({ entries, onClose }: Top3SheetProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const load = async (event: FormEvent) => {
-    event.preventDefault();
+  const load = async (event?: FormEvent) => {
+    event?.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
@@ -86,6 +86,15 @@ const Top3Sheet = ({ entries, onClose }: Top3SheetProps) => {
       )}
 
       {result && result.length > 3 && <p className="v-hint">Có bài đồng điểm ở vị trí thứ 3 nên danh sách nhiều hơn 3 bài.</p>}
+
+      {/* Kết quả lấy thẳng từ Sheet lúc bấm — nút này để xem lại số mới nhất
+          khi vẫn đang bình chọn, khỏi phải đóng rồi mở lại khung. */}
+      {result !== null && (
+        <button className="v-btn ghost v-top3-refresh" type="button" disabled={isLoading} onClick={() => load()}>
+          {isLoading ? <span className="v-spinner dark" aria-hidden /> : <MdRefresh size={18} />}
+          Làm mới kết quả
+        </button>
+      )}
       {error && (
         <div className="v-alert" role="alert">
           {error}

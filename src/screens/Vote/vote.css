@@ -166,6 +166,8 @@ button:disabled { cursor: not-allowed; }
 .v-btn.react.on { background: var(--heart); color: #fff; }
 .v-btn.comment { background: var(--comment-soft); color: var(--comment); }
 
+.v-spinner.dark { border-color: rgba(0, 0, 0, 0.2); border-top-color: var(--ink); }
+.v-top3-refresh { margin: 18px auto 0; flex: none; }
 .v-spinner { width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; border-radius: 50%; animation: v-spin 0.7s linear infinite; }
 @keyframes v-spin { to { transform: rotate(360deg); } }
 
