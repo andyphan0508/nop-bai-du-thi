@@ -149,6 +149,11 @@ button:disabled { cursor: not-allowed; }
 .v-voted li.react svg { color: var(--heart); }
 .v-voted li.comment svg { color: var(--comment); }
 
+/* Mã máy ở màn cảm ơn: để ban tổ chức mở lại lượt cho người bấm gửi nhầm */
+.v-device { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; justify-items: center; }
+.v-device span { font-size: 13px; color: var(--muted); }
+.v-device code { font-size: 11px; color: var(--muted); word-break: break-all; }
+
 /* ---------- Nút ---------- */
 .v-btn {
   flex: 1; min-height: 48px; padding: 0 16px;
@@ -165,6 +170,7 @@ button:disabled { cursor: not-allowed; }
 .v-btn.react { background: var(--heart-soft); color: var(--heart); }
 .v-btn.react.on { background: var(--heart); color: #fff; }
 .v-btn.comment { background: var(--comment-soft); color: var(--comment); }
+.v-btn.small { flex: none; min-height: 40px; font-size: 14px; }
 
 .v-spinner.dark { border-color: rgba(0, 0, 0, 0.2); border-top-color: var(--ink); }
 .v-top3-refresh { margin: 18px auto 0; flex: none; }

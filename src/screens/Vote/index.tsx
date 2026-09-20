@@ -7,6 +7,7 @@ import {
   MdHowToVote,
   MdModeComment,
   MdSearch,
+  MdContentCopy,
 } from "react-icons/md";
 import ToastStack from "../Submit/components/Toast";
 import EntryItem, { type PickKind } from "./components/EntryItem";
@@ -15,6 +16,7 @@ import ConfirmSheet from "./components/ConfirmSheet";
 import Top3Sheet from "./components/Top3Sheet";
 import { IS_CONFIGURED } from "../../config";
 import { useVoteSession } from "./useVoteSession";
+import { getDeviceId } from "../../utils/deviceId";
 import type { VoteEntry } from "../../types";
 
 // Ít bài thì ô tìm kiếm chỉ chiếm chỗ
@@ -47,8 +49,21 @@ const VoteScreen = () => {
     setEngageError,
     submit,
     toasts,
+    showToast,
     dismissToast,
   } = useVoteSession(hasPick);
+
+  // Bấm gửi sớm (mới dùng 1 trong 2 lượt) thì cần ban tổ chức mở lại lượt —
+  // mã máy hiện ngay ở màn cảm ơn để gửi cho ban tổ chức, khỏi phải mở F12.
+  const copyDeviceId = async () => {
+    const id = getDeviceId();
+    try {
+      await navigator.clipboard.writeText(id);
+      showToast("Đã sao chép mã máy — gửi cho ban tổ chức để mở lại lượt.", "success");
+    } catch {
+      window.prompt("Sao chép mã máy này rồi gửi cho ban tổ chức:", id);
+    }
+  };
 
   const toggleReact = useCallback((entry: VoteEntry) => {
     setReactPick((prev) => (prev?.id === entry.id ? null : entry));
@@ -133,6 +148,14 @@ const VoteScreen = () => {
                 )}
               </ul>
             )}
+
+            <div className="v-device">
+              <span>Bấm gửi nhầm khi chưa dùng hết lượt?</span>
+              <button className="v-btn ghost small" type="button" onClick={copyDeviceId}>
+                <MdContentCopy size={16} /> Chép mã máy gửi ban tổ chức
+              </button>
+              <code>{getDeviceId()}</code>
+            </div>
           </section>
         ) : (
           <>
