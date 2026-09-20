@@ -349,6 +349,14 @@ const commentCols = scoresSheet.rows[0].filter((h) => String(h).startsWith('Bìn
 const rowsWithAllComments = scoreRows.every((r) => r.slice(7, 7 + commentCols).filter(Boolean).length === r[5]);
 console.log(`    Cột bình luận hàng ngang : ${commentCols} cột, khớp số bình luận từng bài: ${rowsWithAllComments}`);
 assert.ok(commentCols > 0, 'Sheet Tổng điểm thiếu cột bình luận');
+// Đồng điểm + đồng React phải mang cùng số hạng và được ghi chú "(đồng hạng)"
+const tiedGroups = {};
+scoreRows.forEach((r) => { const k = r[6] + '/' + r[4]; (tiedGroups[k] = tiedGroups[k] || []).push(String(r[0])); });
+const tiedExample = Object.values(tiedGroups).find((g) => g.length > 1);
+console.log(`    Nhóm đồng điểm           : ${tiedExample ? tiedExample.length + ' bài cùng mang hạng ' + tiedExample[0] : 'không có trong dữ liệu mẫu'}`);
+if (tiedExample) {
+  assert.ok(tiedExample.every((x) => x === tiedExample[0]), 'Bài đồng điểm bị đánh số hạng khác nhau');
+}
 assert.ok(rowsWithAllComments, 'Số lời bình luận trên hàng không khớp cột Lượt bình luận');
 assert.deepStrictEqual(Object.keys(page.result).sort(), ['comments', 'ok', 'voted'], 'votePage làm lộ điểm/thứ tự');
 assert.strictEqual(totalFromSheet, (VOTER_COUNT + 1) * 3 + 5 * 2, 'Tổng điểm sai (React 2đ + bình luận 1đ)');

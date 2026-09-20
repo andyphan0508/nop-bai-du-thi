@@ -123,6 +123,7 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 - Điểm được ghi vào sheet **"Tổng điểm"** trong Google Sheet (Hạng · Tên tác phẩm · Họ tên · Nhóm · React · Bình luận · Tổng điểm), tiếp theo là **toàn bộ lời bình luận của bài, mỗi lời 1 cột sang ngang** ("Bình luận 1", "Bình luận 2"…) — cột Tên tác phẩm đứng yên khi kéo ngang. Muốn file Excel thì **File → Download → Microsoft Excel (.xlsx)**.
 - Cập nhật sheet: trong Apps Script chọn hàm `exportScores` → **Run** (cập nhật ngay), hoặc chạy `setupScoreTrigger` **1 lần** để sheet tự cập nhật mỗi 5 phút.
 - **Hạng 1 – 2 – 3**: tổng điểm cao nhất; bằng điểm thì xét **số React cao hơn** (sheet đã xếp sẵn theo quy tắc này).
+- **Đồng hạng**: 2 bài bằng cả tổng điểm lẫn số React thì mang **cùng số hạng** trong sheet (VD 1, 2, 2, 4) và nút Top 3 hiện thêm bài đó (có thể hơn 3 bài). Lúc đó BGK tự quyết định, hệ thống không tự phân định.
 - **Giải khuyến khích (nội dung)**: bài có **số bình luận cao nhất** trong các bài **ngoài top 3** — xem cột "Lượt bình luận" trong sheet.
 
 **Cơ chế chống spam / đảm bảo công bằng** (đã cài sẵn trong `Code.gs`):

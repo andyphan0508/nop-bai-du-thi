@@ -676,9 +676,19 @@ function exportScores() {
   var header = ['Hạng', 'Tên tác phẩm', 'Họ tên', 'Nhóm/Ban ngành', 'Lượt React (×2)', 'Lượt bình luận (×1)', 'Tổng điểm'];
   var fixedColumns = header.length;
   for (var c = 1; c <= maxComments; c++) header.push('Bình luận ' + c);
+  // Bài bằng cả tổng điểm lẫn số React mang CÙNG số hạng (1, 2, 2, 4...) — đánh
+  // số chạy liên tiếp thì BGK dễ trao giải nhầm cho bài tình cờ đứng trên, trong
+  // khi thực chất 2 bài ngang nhau. Cột Hạng vẫn là SỐ để lọc/sắp xếp được.
+  var rankOf = [];
+  data.results.forEach(function (r, i) {
+    var prev = data.results[i - 1];
+    var tied = prev && prev.points === r.points && prev.reactCount === r.reactCount;
+    rankOf.push(tied ? rankOf[i - 1] : i + 1);
+  });
+
   var rows = data.results.map(function (r, i) {
     var texts = comments[r.id] || [];
-    var row = [i + 1, r.title, r.name, r.group, r.reactCount, r.commentCount, r.points];
+    var row = [rankOf[i], r.title, r.name, r.group, r.reactCount, r.commentCount, r.points];
     for (var k = 0; k < maxComments; k++) row.push(texts[k] || '');
     return row;
   });
