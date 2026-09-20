@@ -337,7 +337,7 @@ cacheStore.delete('voteBoard'); // giả lập hết TTL 30 giây
 counters.driveScans = 0;
 const page = runExecution('page', () => api.doGet({ parameter: { action: 'votePage', deviceId: 'x' } }));
 const exported = runExecution('export', () => ({ text: JSON.stringify(api.exportScores()) }));
-const scoreRows = spreadsheet.getSheetByName('Tổng điểm').rows.slice(1).filter((r) => typeof r[0] === 'number');
+const scoreRows = spreadsheet.getSheetByName('Tổng điểm').rows.slice(1).filter((r) => r[1]);
 const totalFromSheet = scoreRows.reduce((sum, r) => sum + r[6], 0);
 console.log(`\n[6] Không lộ thứ tự + sheet "Tổng điểm"`);
 console.log(`    Bài điểm cao nhất        : ${scoreRows[0][1]} (dồn 5 tim)`);
@@ -352,7 +352,10 @@ assert.ok(commentCols > 0, 'Sheet Tổng điểm thiếu cột bình luận');
 // Đồng điểm + đồng React phải mang cùng số hạng và được ghi chú "(đồng hạng)"
 const tiedGroups = {};
 scoreRows.forEach((r) => { const k = r[6] + '/' + r[4]; (tiedGroups[k] = tiedGroups[k] || []).push(String(r[0])); });
-const tiedExample = Object.values(tiedGroups).find((g) => g.length > 1);
+const tiedExample = Object.values(tiedGroups).find((g) => g.length > 1 && g[0] !== '');
+const zeroPointRows = scoreRows.filter((r) => r[6] === 0);
+console.log(`    Bài 0 điểm để trống hạng : ${zeroPointRows.length === 0 ? '(không có bài 0 điểm)' : zeroPointRows.every((r) => r[0] === '')}`);
+assert.ok(zeroPointRows.every((r) => r[0] === ''), 'Bài 0 điểm vẫn bị đánh hạng');
 console.log(`    Nhóm đồng điểm           : ${tiedExample ? tiedExample.length + ' bài cùng mang hạng ' + tiedExample[0] : 'không có trong dữ liệu mẫu'}`);
 if (tiedExample) {
   assert.ok(tiedExample.every((x) => x === tiedExample[0]), 'Bài đồng điểm bị đánh số hạng khác nhau');
@@ -389,6 +392,15 @@ assert.strictEqual(Object.keys(afterReset.result.comments).length, 0, 'Xoá xong
 assert.strictEqual(revote.result.ok, true, 'Xoá xong không bình chọn lại được');
 assert.strictEqual(backups, 4, 'Thiếu bản sao lưu trước khi xoá');
 assert.strictEqual(spreadsheet.getSheetByName('Người bình chọn').rows.length, 2, 'Sheet người bình chọn phải còn tiêu đề + 1 lượt mới');
+
+// Bảng điểm lúc CHƯA ai bình chọn: mọi bài 0 điểm → cột Hạng phải để trống
+spreadsheet.sheets = spreadsheet.sheets.filter((sh) => !sh.name.includes('(sao lưu '));
+runExecution('reset2', () => ({ text: JSON.stringify(api.resetVotes()) }));
+runExecution('export-empty', () => ({ text: JSON.stringify(api.exportScores()) }));
+const emptyRows = spreadsheet.getSheetByName('Tổng điểm').rows.slice(1).filter((r) => r[1]);
+console.log(`    Bảng điểm khi chưa có phiếu: ${emptyRows.length} bài, hạng để trống: ${emptyRows.every((r) => r[0] === '')}`);
+assert.strictEqual(emptyRows.length, ENTRY_COUNT, 'Bảng điểm thiếu bài khi chưa có phiếu');
+assert.ok(emptyRows.every((r) => r[0] === '' && r[6] === 0), 'Chưa có phiếu mà vẫn đánh hạng/điểm');
 
 console.log('\n' + '='.repeat(70));
 console.log('✅ TẤT CẢ KIỂM TRA ĐỀU ĐẠT');

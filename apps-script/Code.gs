@@ -679,8 +679,11 @@ function exportScores() {
   // Bài bằng cả tổng điểm lẫn số React mang CÙNG số hạng (1, 2, 2, 4...) — đánh
   // số chạy liên tiếp thì BGK dễ trao giải nhầm cho bài tình cờ đứng trên, trong
   // khi thực chất 2 bài ngang nhau. Cột Hạng vẫn là SỐ để lọc/sắp xếp được.
+  // Bài CHƯA có điểm thì để trống cột Hạng — nếu không, lúc chưa ai bình chọn
+  // mọi bài đều 0 điểm và cùng mang hạng 1, nhìn như bảng bị lỗi.
   var rankOf = [];
   data.results.forEach(function (r, i) {
+    if (!r.points) { rankOf.push(''); return; }
     var prev = data.results[i - 1];
     var tied = prev && prev.points === r.points && prev.reactCount === r.reactCount;
     rankOf.push(tied ? rankOf[i - 1] : i + 1);
