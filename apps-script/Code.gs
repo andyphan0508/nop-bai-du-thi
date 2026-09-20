@@ -407,7 +407,8 @@ function readComments(ss) {
   var commentsSheet = ss.getSheetByName(COMMENTS_SHEET_NAME);
   if (commentsSheet && commentsSheet.getLastRow() > 1) {
     commentsSheet.getRange(2, 1, commentsSheet.getLastRow() - 1, 2).getValues().forEach(function (r) {
-      var entryId = String(r[0] || '');
+      // Xem ghi chú ở countByEntryId: mã bài có thể đã bị Sheets đổi sang Date
+      var entryId = entryIdOf(r[0]);
       var text = String(r[1] || '');
       if (!entryId || !text) return;
       if (!comments[entryId]) comments[entryId] = [];
@@ -526,7 +527,10 @@ function countByEntryId(sheet, columnCount) {
   if (sheet && sheet.getLastRow() > 1) {
     var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, columnCount).getValues();
     rows.forEach(function (r) {
-      var id = String(r[0] || '');
+      // entryIdOf chứ KHÔNG phải String(): Sheets tự nhận chuỗi "2026-08-28
+      // 16:21:20" là ngày giờ và lưu thành kiểu Date, đọc ra sẽ là "Fri Aug 28
+      // 2026 16:21:20 GMT+0700" — không khớp mã bài nên phiếu bị tính 0 điểm.
+      var id = entryIdOf(r[0]);
       if (id) counts[id] = (counts[id] || 0) + 1;
     });
   }

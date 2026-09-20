@@ -59,7 +59,11 @@ class FakeSheet {
       clearContent() { for (let r = row; r < row + numRows; r++) self.rows[r - 1] = []; self.rows = self.rows.filter((x, i) => i < row - 1 || x.length); },
     };
   }
-  appendRow(row) { this.rows.push(row.slice()); }
+  appendRow(row) {
+    // Google Sheets tự nhận chuỗi "yyyy-MM-dd HH:mm:ss" là ngày giờ và lưu
+    // thành Date — mô phỏng đúng như vậy để test bắt được lỗi lệch mã bài.
+    this.rows.push(row.map((v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(v) ? new Date(v) : v)));
+  }
   clearContents() { this.rows = []; }
   getMaxColumns() { return 26; }
   copyTo(ss) { const c = ss.insertSheet(this.name + ' copy'); c.rows = this.rows.map((r) => r.slice()); return c; }
@@ -148,7 +152,12 @@ globals.LockService = {
 };
 
 globals.Utilities = {
-  formatDate: (date) => new Date(date).toISOString().slice(0, 19).replace('T', ' '),
+  // Định dạng theo giờ địa phương (script chạy ở GMT+7, Sheet cũng GMT+7)
+  formatDate: (date) => {
+    const d = new Date(date);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  },
   computeDigest: (_alg, value) => Array.from(require('crypto').createHash('sha256').update(value).digest()),
   base64EncodeWebSafe: (bytes) => Buffer.from(bytes).toString('base64url'),
   DigestAlgorithm: { SHA_256: 'SHA_256' },
@@ -216,7 +225,12 @@ for (let i = 1; i <= ENTRY_COUNT; i++) {
 counters.sheetWrites = 0;
 counters.sheetReads = 0;
 
-const entryIdAt = (i) => mainSheet.rows[i + 1][0];
+// Trình duyệt gửi mã bài dạng chuỗi "yyyy-MM-dd HH:mm:ss" (lấy từ snapshot),
+// không phải ô Date thô trong Sheet — mô phỏng đúng như vậy.
+const entryIdAt = (i) => {
+  const v = mainSheet.rows[i + 1][0];
+  return v instanceof Date ? globals.Utilities.formatDate(v) : String(v);
+};
 
 // --- Bộ chạy: mỗi "request" là 1 lượt chạy độc lập có đồng hồ riêng -----------
 function runExecution(label, fn) {
