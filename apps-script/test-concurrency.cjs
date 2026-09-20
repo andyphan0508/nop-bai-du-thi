@@ -203,7 +203,8 @@ globals.UrlFetchApp = { fetch: () => ({ getContentText: () => '{"success":true,"
 
 // --- Nạp Code.gs --------------------------------------------------------------
 // Đặt mã quản trị thử để test được endpoint top3
-const source = fs.readFileSync(path.join(__dirname, 'Code.gs'), 'utf8').replace(/var ADMIN_KEY = '[^']*';/, "var ADMIN_KEY = 'admin-test';");
+const source = fs.readFileSync(path.join(__dirname, 'Code.gs'), 'utf8').replace(/var ADMIN_KEY = '[^']*';/, "var ADMIN_KEY = 'admin-test';")
+  .replace(/var VOTING_OPEN = false;/, 'var VOTING_OPEN = true;');
 const sandbox = { ...globals, console };
 const runner = new Function(...Object.keys(sandbox), source + '\n;return this;');
 const scriptScope = runner.call(sandbox, ...Object.values(sandbox));

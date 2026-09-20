@@ -141,6 +141,7 @@ button:disabled { cursor: not-allowed; }
 /* ---------- Đã bình chọn ---------- */
 .v-voted { text-align: center; padding: 36px 20px 28px; margin-top: 8px; background: var(--card); border-radius: 20px; box-shadow: var(--shadow); }
 .v-voted-icon { color: var(--ok); }
+.v-closed-icon { color: var(--heart); }
 .v-voted h2 { margin: 8px 0 6px; font-size: 22px; }
 .v-voted p { margin: 0; color: var(--muted); }
 .v-voted ul { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; text-align: left; }

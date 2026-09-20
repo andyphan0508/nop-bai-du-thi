@@ -15,6 +15,10 @@ var FOLDER_ID = 'PASTE_FOLDER_ID';
 // ID Google Sheet dùng để ghi record (lấy từ URL của Sheet)
 var SHEET_ID = 'PASTE_SHEET_ID';
 
+// Đợt bình chọn còn mở hay đã đóng. false = máy chủ từ chối mọi phiếu gửi thêm
+// (web cũng đã ẩn phần bình chọn — xem VOTING_CLOSED trong src/config.ts).
+var VOTING_OPEN = false;
+
 // Mã quản trị: cần để xoá bài trên web (mở web với ?admin=1),
 // và để xem kết quả bình chọn (?action=voteResults&key=...).
 // Để trống '' nếu muốn TẮT hẳn tính năng xoá / xem kết quả.
@@ -1032,6 +1036,10 @@ function writeVoterHashes(hashes) {
 //     sheet "Bình luận" — cả hai không kèm mã thiết bị → không sheet nào nối
 //     được "thiết bị nào" với "đã tương tác bài nào".
 function handleEngage(data) {
+  if (!VOTING_OPEN) {
+    return json({ ok: false, error: 'Đã kết thúc bình chọn — cảm ơn bạn đã tham gia!' });
+  }
+
   if (String(data.hp || '').trim()) return json({ ok: true }); // bot dính honeypot
 
   if (Number(data.elapsedMs || 0) < 1500) {

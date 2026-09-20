@@ -17,6 +17,10 @@ export const CONTEST_END_DATE = "2026-08-29";
 export const RECAPTCHA_SITE_KEY = "PASTE_RECAPTCHA_SITE_KEY";
 // ======================================================
 
+// Đã kết thúc bình chọn → trang chỉ còn lời cảm ơn, không cho gửi phiếu nữa.
+// Mở lại đợt bình chọn mới: đổi thành false (và đổi VOTING_OPEN trong Code.gs).
+export const VOTING_CLOSED = true;
+
 export const IS_CONFIGURED =
   Boolean(ENDPOINT) && !ENDPOINT.startsWith("PASTE_");
 

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   MdCheckCircle,
+  MdFavoriteBorder,
   MdClose,
   MdEmojiEvents,
   MdFavorite,
@@ -14,7 +15,7 @@ import EntryItem, { type PickKind } from "./components/EntryItem";
 import EntrySheet from "./components/EntrySheet";
 import ConfirmSheet from "./components/ConfirmSheet";
 import Top3Sheet from "./components/Top3Sheet";
-import { IS_CONFIGURED } from "../../config";
+import { IS_CONFIGURED, VOTING_CLOSED } from "../../config";
 import { useVoteSession } from "./useVoteSession";
 import { getDeviceId } from "../../utils/deviceId";
 import type { VoteEntry } from "../../types";
@@ -129,7 +130,16 @@ const VoteScreen = () => {
           <div className="v-alert">Trang chưa cấu hình ENDPOINT (Apps Script). Xem HUONG-DAN.md.</div>
         )}
 
-        {hasVoted ? (
+        {VOTING_CLOSED ? (
+          <section className="v-voted">
+            <MdFavoriteBorder size={56} className="v-closed-icon" aria-hidden />
+            <h2>Đã kết thúc bình chọn</h2>
+            <p>
+              Cảm ơn tất cả các bạn đã dành thời gian, tình cảm và những lời khích lệ quý báu cho các tác phẩm
+              dự thi. Kết quả sẽ được ban tổ chức công bố.
+            </p>
+          </section>
+        ) : hasVoted ? (
           <section className="v-voted" aria-live="polite">
             <MdCheckCircle size={56} className="v-voted-icon" aria-hidden />
             <h2>Bạn đã bình chọn!</h2>

@@ -117,6 +117,11 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 - Gửi xong → màn **"Bạn đã bình chọn!"** (thay cho danh sách). Giao diện không nhắc tới "thiết bị".
 - `/binh-chon/mobile` (link cũ) mở cùng giao diện này.
 
+**Đóng / mở lại đợt bình chọn:**
+- Đóng: `VOTING_CLOSED = true` trong `src/config.ts` (trang chỉ còn lời cảm ơn) **và** `VOTING_OPEN = false` trong `Code.gs` (máy chủ từ chối phiếu gửi thêm). Nút 🏆 Top 3 của quản trị viên vẫn dùng được.
+- Mở lại đợt mới: đổi ngược cả hai cờ, rồi chạy `resetVotes` nếu muốn xoá dữ liệu cũ.
+- **Mở lại lượt cho người bấm gửi nhầm**: họ mở trang → màn cảm ơn có nút "Chép mã máy" → gửi mã cho bạn → bạn chạy `reopenVoter('<mã máy>')`. Mở cho tất cả thì chạy `reopenAllVoters` (phiếu đã ghi vẫn giữ nguyên).
+
 **Điểm & cách chấm giải (chỉ quản trị viên):**
 - **Nút Top 3**: mở `<domain>/binh-chon?admin=1` → nút 🏆 góc trên → nhập `ADMIN_KEY` → hiện các bài có điểm cao nhất (kèm tên tác giả), **xếp theo tên, không theo hạng 1-2-3**. Bài đồng hạng 3 (bằng cả điểm lẫn số React) được hiện thêm. Người thường không thấy nút; có mở link cũng cần đúng mã quản trị.
 - **Xoá dữ liệu bình chọn** (VD sau khi chạy thử): trong Apps Script chọn hàm `resetVotes` → **Run**, rồi đọc dòng kết quả trong khung Execution log (ghi rõ từng sheet xoá bao nhiêu dòng / lỗi gì). Kiểm tra lại từ xa: mở `<ENDPOINT>?action=voteState&key=<ADMIN_KEY>` — phải thấy `voters: 0, reacts: 0, comments: 0`. Hàm sao lưu 4 sheet (Người bình chọn, Kết quả bình chọn, Bình luận, Tổng điểm) thành "… (sao lưu <ngày giờ>)" rồi mới xoá, và xoá luôn bộ nhớ đệm. Máy đã vote thử sẽ tự quay về danh sách khi mở lại trang. Không có cách gọi hàm này qua web.
