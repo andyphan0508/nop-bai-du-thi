@@ -629,6 +629,48 @@ function handleVoteState(e) {
   }
 }
 
+// MỞ LẠI LƯỢT cho TẤT CẢ thiết bị đã gửi phiếu — dùng khi nhiều người lỡ bấm
+// gửi sớm (VD mới thả tim đã bấm gửi, mất lượt bình luận).
+// GIỮ NGUYÊN mọi phiếu tim/bình luận đã ghi; chỉ xoá danh sách "đã dùng lượt".
+// LƯU Ý: sheet "Người bình chọn" KHÔNG lưu ai đã dùng mấy lượt (phiếu kín), nên
+// không thể chỉ mở cho người lỡ tay — hàm này mở cho tất cả, tức người đã dùng
+// đủ 2 lượt cũng bầu thêm được 1 lượt nữa. Muốn chính xác thì dùng reopenVoter.
+// Chạy tay trong trình soạn Apps Script: chọn reopenAllVoters → Run.
+function reopenAllVoters() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(VOTERS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() <= 1) return 'Chưa có ai bình chọn — không cần mở lại.';
+
+  var rows = sheet.getLastRow() - 1;
+  try {
+    sheet.copyTo(ss).setName(VOTERS_SHEET_NAME + ' (sao lưu ' + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH-mm-ss') + ')');
+  } catch (copyErr) {}
+  sheet.getRange(2, 1, rows, sheet.getMaxColumns()).clearContent();
+  invalidatePublicCache([VOTERS_CACHE_KEY]);
+  return 'Đã mở lại lượt cho ' + rows + ' thiết bị (phiếu đã ghi vẫn giữ nguyên).';
+}
+
+// Mở lại lượt cho ĐÚNG 1 thiết bị. Lấy mã thiết bị trên máy người đó: mở trang
+// bình chọn → F12 → Console → gõ  localStorage.getItem('nbdt-device-id')
+// Rồi ở Apps Script sửa dòng dưới thành mã đó và chạy reopenVoter.
+function reopenVoter(deviceId) {
+  var id = String(deviceId || 'DÁN_MÃ_THIẾT_BỊ_VÀO_ĐÂY').trim();
+  var hash = voterHashOf(id);
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(VOTERS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() <= 1) return 'Chưa có ai bình chọn.';
+
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (String(values[i][0]) === hash) {
+      sheet.deleteRow(i + 2);
+      invalidatePublicCache([VOTERS_CACHE_KEY]);
+      return 'Đã mở lại lượt cho thiết bị ' + id + '.';
+    }
+  }
+  return 'Không tìm thấy thiết bị ' + id + ' trong danh sách đã bình chọn.';
+}
+
 // XOÁ TOÀN BỘ DỮ LIỆU BÌNH CHỌN (tim, bình luận, người đã bình chọn) để bắt
 // đầu lại từ đầu — VD sau khi chạy thử. Chỉ chạy tay trong trình soạn Apps
 // Script: chọn hàm resetVotes → Run. KHÔNG có đường gọi qua web.

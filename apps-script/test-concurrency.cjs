@@ -208,7 +208,7 @@ const sandbox = { ...globals, console };
 const runner = new Function(...Object.keys(sandbox), source + '\n;return this;');
 const scriptScope = runner.call(sandbox, ...Object.values(sandbox));
 // Code.gs khai báo bằng `var` ở cấp cao nhất → nằm trong scope của Function, lấy ra qua eval
-const call = new Function(...Object.keys(sandbox), source + '\n;return { doGet, doPost, exportScores, resetVotes };');
+const call = new Function(...Object.keys(sandbox), source + '\n;return { doGet, doPost, exportScores, resetVotes, reopenAllVoters, reopenVoter };');
 const api = call.call(sandbox, ...Object.values(sandbox));
 
 // --- Dựng dữ liệu mẫu ---------------------------------------------------------
@@ -406,6 +406,16 @@ assert.strictEqual(Object.keys(afterReset.result.comments).length, 0, 'Xoá xong
 assert.strictEqual(revote.result.ok, true, 'Xoá xong không bình chọn lại được');
 assert.strictEqual(backups, 4, 'Thiếu bản sao lưu trước khi xoá');
 assert.strictEqual(spreadsheet.getSheetByName('Người bình chọn').rows.length, 2, 'Sheet người bình chọn phải còn tiêu đề + 1 lượt mới');
+
+// Mở lại lượt: thiết bị đã gửi bầu lại được, phiếu cũ vẫn còn nguyên
+const reactsBefore = spreadsheet.getSheetByName('Kết quả bình chọn').rows.length;
+const reopenMsg = runExecution('reopen', () => ({ text: JSON.stringify(api.reopenAllVoters()) })).result;
+const revote2 = runExecution('revote2', () => api.doPost({ postData: { contents: JSON.stringify(engagePayload('device-7', 5, 6)) } }));
+const reactsAfter = spreadsheet.getSheetByName('Kết quả bình chọn').rows.length;
+console.log(`    Mở lại lượt              : ${reopenMsg}`);
+console.log(`    Thiết bị cũ bầu lại      : ${revote2.result.ok ? 'được' : revote2.result.error} | phiếu cũ còn: ${reactsAfter > reactsBefore}`);
+assert.strictEqual(revote2.result.ok, true, 'Mở lại lượt xong vẫn không bầu được');
+assert.ok(reactsAfter > reactsBefore, 'Mở lại lượt làm mất phiếu đã ghi');
 
 // Bảng điểm lúc CHƯA ai bình chọn: mọi bài 0 điểm → cột Hạng phải để trống
 spreadsheet.sheets = spreadsheet.sheets.filter((sh) => !sh.name.includes('(sao lưu '));
