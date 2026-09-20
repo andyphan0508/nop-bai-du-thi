@@ -263,6 +263,23 @@ button:disabled { cursor: not-allowed; }
 @keyframes v-fade { from { opacity: 0; } }
 
 /* ---------- Quản trị: Top 3 ---------- */
+/* Danh sách công bố: 1 cột trên điện thoại, 3 cột khi chiếu lên màn hình lớn */
+.v-top3 { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 14px; }
+.v-top3 li {
+  display: grid; gap: 6px; padding: 12px;
+  background: var(--bg); border-radius: var(--radius); text-align: center;
+}
+.v-top3 img { width: 100%; aspect-ratio: 1.4142 / 1; object-fit: cover; border-radius: 10px; background: #efe4dd; }
+.v-top3 b { font-size: 17px; line-height: 1.3; }
+.v-top3 .v-muted { font-size: 14px; }
+@media (min-width: 900px) {
+  .v-sheet-wide { max-width: min(1200px, 94vw); }
+  .v-sheet-wide .v-sheet-title { font-size: 30px; }
+  .v-sheet-wide .v-top3 { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .v-sheet-wide .v-top3 b { font-size: 22px; }
+  .v-sheet-wide .v-top3 .v-muted { font-size: 16px; }
+}
+
 .v-admin-form { display: grid; gap: 10px; margin-top: 14px; }
 .v-input {
   width: 100%; height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line);

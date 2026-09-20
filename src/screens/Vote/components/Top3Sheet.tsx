@@ -45,10 +45,11 @@ const Top3Sheet = ({ entries, onClose }: Top3SheetProps) => {
     }
   };
 
-  const thumbOf = (id: string) => entries.find((entry) => entry.id === id)?.thumb;
+  // Ảnh bản lớn: khung công bố chiếu lên máy chiếu, ảnh 640px sẽ bị vỡ
+  const imageOf = (id: string) => entries.find((entry) => entry.id === id)?.image;
 
   return (
-    <Sheet label="Top 3 bình chọn" onClose={onClose}>
+    <Sheet label="Top 3 bình chọn" onClose={onClose} wide={result !== null && result.length > 0}>
       <h2 className="v-sheet-title">
         <MdEmojiEvents size={22} aria-hidden style={{ verticalAlign: -4, color: "var(--brand)" }} /> Top 3 bình chọn
       </h2>
@@ -73,14 +74,12 @@ const Top3Sheet = ({ entries, onClose }: Top3SheetProps) => {
       ) : result.length === 0 ? (
         <p className="v-empty v-muted">Chưa có bài nào được bình chọn.</p>
       ) : (
-        <ul className="v-ballot">
+        <ul className="v-top3">
           {result.map((item) => (
             <li key={item.id}>
-              {thumbOf(item.id) && <img src={thumbOf(item.id)} alt="" />}
-              <div>
-                <b>{item.title}</b>
-                <span className="v-muted">{item.name}</span>
-              </div>
+              {imageOf(item.id) && <img src={imageOf(item.id)} alt="" />}
+              <b>{item.title}</b>
+              <span className="v-muted">{item.name}</span>
             </li>
           ))}
         </ul>
