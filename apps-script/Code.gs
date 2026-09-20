@@ -171,6 +171,7 @@ function invalidatePublicCache(keys) {
 //   .../exec?action=votePage&deviceId=... → phần động của trang bình chọn: bình luận, thiết bị đã vote chưa
 //   .../exec?action=voteResults&key=ADMIN_KEY      → bảng xếp hạng chi tiết có tên thí sinh (quản trị)
 //   .../exec?action=top3&key=ADMIN_KEY             → 3 bài điểm cao nhất, KHÔNG theo thứ hạng (quản trị)
+//   .../exec?action=voteState&key=ADMIN_KEY        → số dòng đang có ở 3 sheet bình chọn (kiểm tra sau khi xoá)
 //   .../exec?action=syncImages[&key=ADMIN_KEY]     → đồng bộ quyền chia sẻ công khai cho toàn bộ ảnh trên Drive
 function doGet(e) {
   var action = e && e.parameter && e.parameter.action;
@@ -179,6 +180,7 @@ function doGet(e) {
   if (action === 'votePage') return handleVotePage(e);
   if (action === 'voteResults') return handleVoteResults(e);
   if (action === 'top3') return handleTop3(e);
+  if (action === 'voteState') return handleVoteState(e);
   if (action === 'syncImages' || action === 'fixImageSharing') return handleSyncImages(e);
   if (action === 'debugEntry') return handleDebugEntry(e);
   return json({ ok: true, service: 'nop-bai-du-thi', time: new Date() });
@@ -599,6 +601,30 @@ function handleTop3(e) {
   }
 }
 
+// Đếm dòng thật đang có ở 3 sheet bình chọn (chỉ quản trị viên) — dùng để
+// kiểm tra từ xa rằng resetVotes đã xoá sạch trước giờ mở bình chọn.
+function handleVoteState(e) {
+  var key = e && e.parameter && e.parameter.key;
+  if (!ADMIN_KEY || String(key || '') !== ADMIN_KEY) {
+    return json({ ok: false, error: 'Mã quản trị không đúng.' });
+  }
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var countRows = function (name) {
+      var sheet = ss.getSheetByName(name);
+      return sheet ? Math.max(0, sheet.getLastRow() - 1) : 0;
+    };
+    return json({
+      ok: true,
+      voters: countRows(VOTERS_SHEET_NAME),
+      reacts: countRows(VOTES_SHEET_NAME),
+      comments: countRows(COMMENTS_SHEET_NAME),
+    });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message ? err.message : err) });
+  }
+}
+
 // XOÁ TOÀN BỘ DỮ LIỆU BÌNH CHỌN (tim, bình luận, người đã bình chọn) để bắt
 // đầu lại từ đầu — VD sau khi chạy thử. Chỉ chạy tay trong trình soạn Apps
 // Script: chọn hàm resetVotes → Run. KHÔNG có đường gọi qua web.
@@ -606,20 +632,33 @@ function handleTop3(e) {
 // cần khôi phục thì copy dữ liệu từ bản sao lưu về.
 function resetVotes() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var stamp = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH-mm');
-  var cleared = [];
+  var stamp = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH-mm-ss');
+  var report = [];
   [VOTERS_SHEET_NAME, VOTES_SHEET_NAME, COMMENTS_SHEET_NAME, SCORES_SHEET_NAME].forEach(function (name) {
-    var sheet = ss.getSheetByName(name);
-    if (!sheet || sheet.getLastRow() <= 1) return;
-    sheet.copyTo(ss).setName(name + ' (sao lưu ' + stamp + ')');
-    cleared.push(name + ': ' + (sheet.getLastRow() - 1) + ' dòng');
-    // Xoá nội dung thay vì deleteRows: Sheets không cho xoá hết mọi dòng không
-    // cố định (dòng tiêu đề đang freeze). appendRow sau đó ghi tiếp từ dòng 2.
-    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getMaxColumns()).clearContent();
+    // Mỗi sheet xử lý độc lập: 1 sheet lỗi (VD trùng tên bản sao lưu) KHÔNG
+    // được làm dừng cả hàm, nếu không các sheet sau vẫn còn nguyên dữ liệu cũ.
+    try {
+      var sheet = ss.getSheetByName(name);
+      if (!sheet) { report.push(name + ': không có sheet'); return; }
+      var rows = sheet.getLastRow() - 1;
+      if (rows <= 0) { report.push(name + ': đã trống'); return; }
+
+      try {
+        sheet.copyTo(ss).setName(name + ' (sao lưu ' + stamp + ')');
+      } catch (copyErr) {
+        report.push(name + ': KHÔNG sao lưu được (' + copyErr.message + ') — vẫn xoá');
+      }
+      // Xoá nội dung thay vì deleteRows: Sheets không cho xoá hết mọi dòng không
+      // cố định (dòng tiêu đề đang freeze). appendRow sau đó ghi tiếp từ dòng 2.
+      sheet.getRange(2, 1, rows, sheet.getMaxColumns()).clearContent();
+      report.push(name + ': đã xoá ' + rows + ' dòng');
+    } catch (err) {
+      report.push(name + ': LỖI ' + err.message);
+    }
   });
-  // Bộ nhớ đệm còn giữ danh sách người đã vote + điểm/bình luận → phải xoá theo
-  invalidatePublicCache([VOTERS_CACHE_KEY, BOARD_CACHE_KEY]);
-  return cleared.length ? 'Đã xoá (có sao lưu): ' + cleared.join(', ') : 'Không có dữ liệu bình chọn để xoá.';
+  // Bộ nhớ đệm còn giữ danh sách người đã vote + bình luận → phải xoá theo
+  invalidatePublicCache([VOTERS_CACHE_KEY, BOARD_CACHE_KEY, SHEETS_READY_CACHE_KEY]);
+  return report.join(' | ');
 }
 
 // Ghi bảng điểm vào sheet "Tổng điểm" (điểm cao → thấp). Web không hiển thị
