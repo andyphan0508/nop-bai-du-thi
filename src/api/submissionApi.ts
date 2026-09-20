@@ -19,12 +19,28 @@ const getEntryList = async (): Promise<EntryListResponse> => {
 // Phần động của trang bình chọn trong 1 lượt gọi: bình luận, và thiết bị này
 // đã bình chọn chưa. Danh sách bài là snapshot tĩnh
 // nên lượt gọi này chạy nền, không chặn trang hiển thị.
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const VOTE_PAGE_MAX_ATTEMPTS = 3;
+
 const getVotePage = async (deviceId: string): Promise<VotePageResponse> => {
-  const response = await fetch(
-    `${ENDPOINT}?action=votePage&deviceId=${encodeURIComponent(deviceId)}&_t=${Date.now()}`,
-    { cache: "no-store" },
-  );
-  return (await response.json()) as VotePageResponse;
+  // Khi 60-70 người mở trang trong cùng vài giây, Google chặn bớt một số lượt
+  // và trả về TRANG HTML thay vì JSON (vẫn mã 200). Đo thực tế: ~10% số lượt
+  // lúc cao điểm. Thử lại có giãn cách ngẫu nhiên là lấy được — nếu không thì
+  // nhóm đó mở trang xong sẽ không thấy bình luận và không biết mình đã vote.
+  for (let attempt = 1; attempt <= VOTE_PAGE_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(
+        `${ENDPOINT}?action=votePage&deviceId=${encodeURIComponent(deviceId)}&_t=${Date.now()}`,
+        { cache: "no-store" },
+      );
+      return JSON.parse(await response.text()) as VotePageResponse;
+    } catch {
+      if (attempt === VOTE_PAGE_MAX_ATTEMPTS) throw new Error("Không tải được dữ liệu bình chọn.");
+      await delay(attempt * 700 + Math.random() * 800);
+    }
+  }
+  throw new Error("Không tải được dữ liệu bình chọn.");
 };
 
 // 3 bài điểm cao nhất (chỉ quản trị viên, cần ADMIN_KEY) — máy chủ trả theo
@@ -52,7 +68,6 @@ const keepServerAwake = (): void => {
 // nhiên để 60-70 người không cùng lúc dội ngược lại máy chủ.
 const ENGAGE_MAX_ATTEMPTS = 3;
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const submitEngagement = async (payload: EngagePayload): Promise<EngageResponse> => {
   let lastError = "Gửi tương tác thất bại.";
