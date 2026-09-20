@@ -112,7 +112,7 @@ Sau khi đóng nhận bài, trang **`/binh-chon`** hiển thị toàn bộ ảnh
 - **Thêm/sửa bài hoặc đổi ảnh bìa** → chạy lại `npm run snapshot`, commit, deploy. Bài chưa bật chia sẻ ảnh sẽ được báo trong output (chạy `?action=syncImages` rồi chạy lại).
 
 **Web hiển thị thế nào:**
-- 1 danh sách duy nhất, **xáo trộn cố định theo từng máy** (mỗi người 1 thứ tự khác, tải lại không nhảy) — không đánh số, không hiện điểm. Máy chủ không gửi điểm hay thứ tự theo điểm ra web; kết quả chỉ xem bằng nút Top 3 hoặc sheet "Tổng điểm".
+- 1 danh sách duy nhất, **xáo trộn lại mỗi lần tải trang** (mỗi lượt truy cập một thứ tự khác; trong lúc đang xem thì thứ tự đứng yên) — không đánh số, không hiện điểm. Máy chủ không gửi điểm hay thứ tự theo điểm ra web; kết quả chỉ xem bằng nút Top 3 hoặc sheet "Tổng điểm".
 - Mỗi bài có sẵn 2 nút **Thả tim** / **Bình luận** ngay trên dòng; bấm ảnh/tên để xem ảnh lớn, mô tả, bình luận. Thanh dưới đáy cho thấy 2 lựa chọn hiện tại + nút **Gửi**.
 - Gửi xong → màn **"Bạn đã bình chọn!"** (thay cho danh sách). Giao diện không nhắc tới "thiết bị".
 - `/binh-chon/mobile` (link cũ) mở cùng giao diện này.

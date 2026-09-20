@@ -39,26 +39,16 @@ const readLiveCache = (): LiveData => {
   return { comments: {} };
 };
 
-// Xáo trộn cố định theo mã máy: mỗi người thấy 1 thứ tự khác (không bài nào
-// luôn nằm đầu, không đoán được thứ hạng), nhưng tải lại trang không bị nhảy.
-const shuffleFor = <T,>(items: T[], seedText: string): T[] => {
-  let seed = 2166136261;
-  for (let i = 0; i < seedText.length; i++) seed = Math.imul(seed ^ seedText.charCodeAt(i), 16777619);
-  const random = () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-};
-
-const ENTRIES = shuffleFor(SNAPSHOT, getDeviceId());
+// Xáo trộn MỖI LẦN TẢI TRANG: không bài nào luôn nằm đầu, không đoán được bài
+// nào đang dẫn, và 2 người cạnh nhau cũng thấy 2 thứ tự khác nhau. Tính 1 lần
+// khi nạp module nên trong suốt phiên xem thứ tự vẫn đứng yên, chỉ đổi khi
+// tải lại trang.
+const shuffled = [...SNAPSHOT];
+for (let i = shuffled.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+}
+const ENTRIES = shuffled;
 
 type SubmitArgs = {
   reactEntry: VoteEntry | null;
